@@ -40,3 +40,7 @@ build.cmd
 ```
 
 Le script met à jour le numéro de version dans le code, crée le commit et le tag `vX.Y`, puis pousse le tout. GitHub Actions compile alors le programme, calcule son empreinte SHA-256 et publie la version : les installations existantes la proposeront automatiquement.
+
+## Licence
+
+BureauCache est distribué sous licence [MIT](LICENSE) : tu peux l'utiliser, le modifier et le redistribuer librement, en conservant la mention de copyright.
