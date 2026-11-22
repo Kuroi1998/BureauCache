@@ -1,4 +1,4 @@
-// BureauCache 3.0 - cache les icônes du bureau et les affiche dans un panneau-lanceur
+﻿// BureauCache 3.0 - cache les icônes du bureau et les affiche dans un panneau-lanceur
 // qui s'ouvre au bord de l'écran ou avec un raccourci clavier.
 // Compilation : build.cmd
 using System;
@@ -23,9 +23,9 @@ using Microsoft.Win32;
 [assembly: AssemblyTitle("BureauCache")]
 [assembly: AssemblyProduct("BureauCache")]
 [assembly: AssemblyDescription("Ton bureau, rangé sur le côté de l'écran")]
-[assembly: AssemblyVersion("3.0.0.0")]
-[assembly: AssemblyFileVersion("3.0.0.0")]
-[assembly: AssemblyInformationalVersion("3.0")]
+[assembly: AssemblyVersion("3.1.0.0")]
+[assembly: AssemblyFileVersion("3.1.0.0")]
+[assembly: AssemblyInformationalVersion("3.1")]
 
 // =====================================================================
 //  Langue
@@ -99,6 +99,10 @@ static class Native
     public static extern void SHCreateItemFromParsingName(string path, IntPtr pbc, [MarshalAs(UnmanagedType.LPStruct)] Guid riid, out IShellItemImageFactory ppv);
 
     [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)]
+    public struct APPBARDATA { public int cbSize; public IntPtr hWnd; public uint uCallbackMessage; public uint uEdge; public RECT rc; public IntPtr lParam; }
+    [DllImport("shell32.dll")] public static extern UIntPtr SHAppBarMessage(uint msg, ref APPBARDATA data);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern uint RegisterWindowMessage(string name);
     [StructLayout(LayoutKind.Sequential)] public struct ICONINFO { public bool fIcon; public int x, y; public IntPtr hbmMask, hbmColor; }
     [StructLayout(LayoutKind.Sequential)] public struct SIZE { public int cx, cy; }
     [StructLayout(LayoutKind.Sequential)] public struct SHQUERYRBINFO { public int cbSize; public long i64Size; public long i64NumItems; }
@@ -478,7 +482,9 @@ static class Settings
     public static bool HideIcons = true, RightSide = false, AutoClose = true, ShowSystem = true, ShowRecents = true,
         GroupCats = true, GridView = false, Glass = true, LiveBlur = true, Animations = true, NoFullscreen = true, HotkeyOn = true,
         SearchApps = true, SearchRecent = true, SearchSettings = true, SearchCommands = true,
-        NewBadge = true, ArchiveOn = false, HoverPreview = true, Widgets = true, AutoUpdate = true;
+        NewBadge = true, ArchiveOn = false, HoverPreview = true, Widgets = true, AutoUpdate = true, Pinned = false;
+    public static string LastVersion = "";
+    public static List<string> ArchiveLog = new List<string>();
     public static int ThemeMode = 0, Language = 0, Delay = 120, PanelWidth = 340, EdgeZone = 0, ScreenIdx = -1,
         HotMods = 3, HotKey = (int)Keys.B, WebEngine = 0, NewDays = 3, ArchiveDays = 60;
     public static long LastUpdateCheck, LastArchive;
@@ -564,6 +570,9 @@ static class Settings
                     case "HoverPreview": HoverPreview = b; break;
                     case "Widgets": Widgets = b; break;
                     case "AutoUpdate": AutoUpdate = b; break;
+                    case "Pinned": Pinned = b; break;
+                    case "LastVersion": LastVersion = v; break;
+                    case "ArchiveLog": ArchiveLog = SplitList(v); break;
                     case "Dark": oldDark = v; break;
                     case "ThemeMode": if (int.TryParse(v, out n)) { ThemeMode = n; hasThemeMode = true; } break;
                     case "Language": if (int.TryParse(v, out n)) Language = n; break;
@@ -645,6 +654,7 @@ static class Settings
                 "SearchApps=" + B(SearchApps), "SearchRecent=" + B(SearchRecent), "SearchSettings=" + B(SearchSettings),
                 "SearchCommands=" + B(SearchCommands), "NewBadge=" + B(NewBadge), "ArchiveOn=" + B(ArchiveOn),
                 "HoverPreview=" + B(HoverPreview), "Widgets=" + B(Widgets), "AutoUpdate=" + B(AutoUpdate),
+                "Pinned=" + B(Pinned), "LastVersion=" + LastVersion, "ArchiveLog=" + string.Join("|", ArchiveLog),
                 "ThemeMode=" + ThemeMode, "Language=" + Language, "Delay=" + Delay, "PanelWidth=" + PanelWidth,
                 "EdgeZone=" + EdgeZone, "ScreenIdx=" + ScreenIdx, "HotMods=" + HotMods, "HotKey=" + HotKey,
                 "WebEngine=" + WebEngine, "NewDays=" + NewDays, "ArchiveDays=" + ArchiveDays,
@@ -660,6 +670,30 @@ static class Settings
             });
         }
         catch { }
+    }
+
+    // Copie de l'organisation, pour pouvoir annuler une action
+    public class Snap
+    {
+        public List<string> Fav, Order;
+        public Dictionary<string, string> Cat;
+        public Dictionary<string, long[]> Usage;
+    }
+
+    public static Snap Snapshot()
+    {
+        return new Snap
+        {
+            Fav = new List<string>(Favorites), Order = new List<string>(Order),
+            Cat = new Dictionary<string, string>(CatOverride, StringComparer.OrdinalIgnoreCase),
+            Usage = new Dictionary<string, long[]>(Usage, StringComparer.OrdinalIgnoreCase)
+        };
+    }
+
+    public static void Restore(Snap s)
+    {
+        Favorites = s.Fav; Order = s.Order; CatOverride = s.Cat; Usage = s.Usage;
+        SaveQuiet();
     }
 
     public static void Notify() { Save(); Fire(); }
@@ -754,7 +788,7 @@ static class Startup
 // =====================================================================
 static class Installer
 {
-    public const string Version = "3.0";
+    public const string Version = "3.1";
     const string UninstKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\BureauCache";
 
     public static string Dir { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "BureauCache"); } }
@@ -1010,6 +1044,7 @@ static class Archiver
         if (items.Count == 0) return 0;
         Directory.CreateDirectory(Folder);
         int n = 0;
+        List<string> log = new List<string>();
         foreach (string p in items)
         {
             try
@@ -1017,11 +1052,40 @@ static class Archiver
                 string dest = Unique(Path.Combine(Folder, Path.GetFileName(p)));
                 if (Directory.Exists(p)) Directory.Move(p, dest); else File.Move(p, dest);
                 Settings.RenameKey(p, dest);
+                log.Add(p + ">" + dest);
                 n++;
             }
             catch { }
         }
+        if (log.Count > 0) Settings.ArchiveLog = log;
         Settings.LastArchive = DateTime.Now.Ticks;
+        Settings.SaveQuiet();
+        return n;
+    }
+
+    public static bool CanUndo { get { return Settings.ArchiveLog.Count > 0; } }
+
+    // Remet sur le bureau les éléments du dernier rangement
+    public static int Undo()
+    {
+        int n = 0;
+        foreach (string e in Settings.ArchiveLog)
+        {
+            int i = e.IndexOf('>');
+            if (i <= 0) continue;
+            string src = e.Substring(0, i), dest = e.Substring(i + 1);
+            try
+            {
+                if (File.Exists(src) || Directory.Exists(src)) continue;
+                if (Directory.Exists(dest)) Directory.Move(dest, src);
+                else if (File.Exists(dest)) File.Move(dest, src);
+                else continue;
+                Settings.RenameKey(dest, src);
+                n++;
+            }
+            catch { }
+        }
+        Settings.ArchiveLog = new List<string>();
         Settings.SaveQuiet();
         return n;
     }
@@ -2539,7 +2603,8 @@ class ItemsView : Control
     Rectangle dropMark;
     bool selfDragOut;
     public string EmptyText = "";
-    public bool ForceList;
+    public bool ForceList, ShowNumbers;
+    public List<KeyValuePair<string, string>> Help;
 
     readonly Font fItem = new Font("Segoe UI", 10.5f);
     readonly Font fDetail = new Font("Segoe UI", 8.5f);
@@ -2682,6 +2747,7 @@ class ItemsView : Control
         owner.PaintBg(g, ClientRectangle, Location);
         g.InterpolationMode = InterpolationMode.HighQualityBicubic;
         g.SmoothingMode = SmoothingMode.AntiAlias;
+        if (Help != null) { DrawHelp(g); return; }
         int top = (int)scroll, bottom = top + Height;
         for (int i = 0; i < rows.Count; i++)
         {
@@ -2691,6 +2757,15 @@ class ItemsView : Control
             if (row.IsHeader) DrawHeader(g, row, r, i == hover);
             else if (Grid) DrawCell(g, row.Item, r, i == sel, i == hover, dragging && row == dragRow);
             else DrawListItem(g, row.Item, r, i == sel, i == hover, dragging && row == dragRow);
+            if (ShowNumbers && !row.IsHeader && row.G.Key == "fav" && row.IndexInGroup < 9)
+            {
+                Point ip = Grid ? new Point(r.X + (r.Width - S(48)) / 2, r.Y + S(10)) : new Point(r.X + S(12), r.Y + (r.Height - S(32)) / 2);
+                Rectangle badge = new Rectangle(ip.X - S(6), ip.Y - S(6), S(20), S(20));
+                Ui.Fill(g, Theme.Accent, badge, S(10));
+                using (Pen p = new Pen(Theme.Bg, S(2))) g.DrawEllipse(p, badge);
+                TextRenderer.DrawText(g, (row.IndexInGroup + 1).ToString(), fBadge, badge, Color.White,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+            }
         }
         if (dragging && dropGroup != null && !dropMark.IsEmpty)
             Ui.Fill(g, Theme.Accent, Screenify(dropMark), S(1));
@@ -2721,6 +2796,50 @@ class ItemsView : Control
             Ui.Fill(g, Theme.Accent, pill, S(20));
             TextRenderer.DrawText(g, msg, fItem, pill, Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
         }
+    }
+
+    void DrawHelp(Graphics g)
+    {
+        int y = S(6);
+        TextRenderer.DrawText(g, L.T("RACCOURCIS CLAVIER", "KEYBOARD SHORTCUTS"), fHeader, new Point(S(16), y + S(6)), Theme.FgDim, TextFormatFlags.NoPrefix);
+        y += S(34);
+        int keyW = 0;
+        foreach (KeyValuePair<string, string> h in Help) keyW = Math.Max(keyW, TextRenderer.MeasureText(h.Key, fBadge).Width);
+        keyW += S(14);
+        foreach (KeyValuePair<string, string> h in Help)
+        {
+            int tw = Width - (S(14) + keyW + S(10)) - S(14);
+            int th = TextRenderer.MeasureText(h.Value, fDetail, new Size(tw, 400), TextFormatFlags.WordBreak).Height;
+            int rh = Math.Max(S(30), th + S(10));
+            Rectangle pill = new Rectangle(S(14), y + (rh - S(22)) / 2, keyW, S(22));
+            Ui.Fill(g, Theme.SelOverlay, pill, S(6));
+            TextRenderer.DrawText(g, h.Key, fBadge, pill, Theme.Fg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            TextRenderer.DrawText(g, h.Value, fDetail, new Rectangle(pill.Right + S(10), y + (rh - th) / 2, tw, th), Theme.Fg,
+                TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+            y += rh;
+        }
+        TextRenderer.DrawText(g, L.T("Échap pour revenir", "Esc to go back"), fDetail, new Rectangle(0, y + S(10), Width, S(20)), Theme.FgDim,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPrefix);
+    }
+
+    // Tab / Maj+Tab : passe à la section suivante / précédente
+    public void JumpGroup(int dir)
+    {
+        List<Group> withItems = groups.Where(g => g.Items.Count > 0 && !(g.Title != null && !g.IsSearch && Settings.Collapsed.Contains(g.Key))).ToList();
+        if (withItems.Count == 0) return;
+        Group cur = sel >= 0 && sel < rows.Count ? rows[sel].G : null;
+        int i = cur == null ? (dir > 0 ? 0 : withItems.Count - 1) : withItems.IndexOf(cur) + dir;
+        if (i < 0) i = withItems.Count - 1;
+        if (i >= withItems.Count) i = 0;
+        for (int k = 0; k < rows.Count; k++)
+            if (!rows[k].IsHeader && rows[k].G == withItems[i]) { sel = k; EnsureVisible(); return; }
+    }
+
+    public Point SelectedPoint()
+    {
+        if (sel < 0 || sel >= rows.Count) return new Point(S(40), S(40));
+        Rectangle r = Screenify(rows[sel].R);
+        return new Point(r.X + S(40), r.Y + r.Height / 2);
     }
 
     Rectangle Thumb()
@@ -3190,6 +3309,360 @@ class PreviewForm : Form
 }
 
 // =====================================================================
+//  Notification en bas du panneau, avec bouton « Annuler »
+// =====================================================================
+class ToastControl : FlatControl
+{
+    readonly PanelForm owner;
+    string text;
+    Action undo, commit;
+    DateTime start, until;
+    Rectangle rcUndo;
+    bool hoverUndo;
+    readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer { Interval = 50 };
+    readonly Font fText = new Font("Segoe UI", 9.75f);
+    readonly Font fBtn = new Font("Segoe UI Semibold", 9.75f);
+
+    public ToastControl(PanelForm owner)
+    {
+        this.owner = owner;
+        Visible = false;
+        Cursor = Cursors.Default;
+        timer.Tick += (s, e) => { if (DateTime.Now >= until) Flush(); else Invalidate(); };
+    }
+
+    public bool CanUndo { get { return Visible && undo != null; } }
+
+    public void Show(string message, Action undoAction, Action commitAction)
+    {
+        Flush();
+        text = message;
+        undo = undoAction;
+        commit = commitAction;
+        start = DateTime.Now;
+        until = start.AddSeconds(undoAction != null ? 7 : 3);
+        Visible = true;
+        BringToFront();
+        timer.Start();
+        Invalidate();
+    }
+
+    // Termine l'action (ex. : envoie vraiment le fichier à la corbeille)
+    public void Flush()
+    {
+        timer.Stop();
+        Visible = false;
+        undo = null;
+        Action c = commit;
+        commit = null;
+        if (c != null) try { c(); } catch { }
+    }
+
+    public void Undo()
+    {
+        if (undo == null) return;
+        Action u = undo;
+        undo = null;
+        commit = null;
+        timer.Stop();
+        Visible = false;
+        try { u(); } catch (Exception ex) { MessageBox.Show(ex.Message, "BureauCache"); }
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        bool h = rcUndo.Contains(e.Location);
+        if (h != hoverUndo) { hoverUndo = h; Invalidate(); }
+        Cursor = h ? Cursors.Hand : Cursors.Default;
+        base.OnMouseMove(e);
+    }
+
+    protected override void OnMouseClick(MouseEventArgs e)
+    {
+        base.OnMouseClick(e);
+        if (rcUndo.Contains(e.Location)) Undo();
+        else Flush();
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        Graphics g = e.Graphics;
+        owner.PaintBg(g, ClientRectangle, Location);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        Rectangle r = new Rectangle(0, 0, Width - 1, Height - 1);
+        Ui.Fill(g, Theme.Card, r, Ui.S(10));
+        using (GraphicsPath p = Ui.Round(r, Ui.S(10)))
+        using (Pen pen = new Pen(Theme.Line)) g.DrawPath(pen, p);
+        int right = Width - Ui.S(12);
+        rcUndo = Rectangle.Empty;
+        if (undo != null)
+        {
+            string u = L.T("Annuler", "Undo");
+            int w = TextRenderer.MeasureText(u, fBtn).Width + Ui.S(16);
+            rcUndo = new Rectangle(right - w, (Height - Ui.S(30)) / 2, w, Ui.S(30));
+            if (hoverUndo) Ui.Fill(g, Theme.HoverOverlay, rcUndo, Ui.S(6));
+            TextRenderer.DrawText(g, u, fBtn, rcUndo, Theme.Accent, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            right = rcUndo.Left - Ui.S(6);
+        }
+        Ui.Glyph(g, undo != null ? "" : "", 10f, Theme.Accent, new Rectangle(Ui.S(8), 0, Ui.S(28), Height));
+        TextRenderer.DrawText(g, text, fText, new Rectangle(Ui.S(38), 0, right - Ui.S(38), Height), Theme.Fg,
+            TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+        double total = (until - start).TotalMilliseconds, left = Math.Max(0, (until - DateTime.Now).TotalMilliseconds);
+        int bw = (int)((Width - Ui.S(24)) * left / total);
+        Ui.Fill(g, Color.FromArgb(160, Theme.Accent), new Rectangle(Ui.S(12), Height - Ui.S(5), Math.Max(Ui.S(2), bw), Ui.S(2)), Ui.S(1));
+    }
+}
+
+// =====================================================================
+//  Visite guidée au premier lancement
+// =====================================================================
+class WelcomeForm : Form
+{
+    int page;
+    readonly List<Control>[] pageControls = new List<Control>[4];
+    readonly FlatButton bNext, bPrev, bSkip;
+    readonly Action onFinish;
+    readonly Font fTitle = new Font("Segoe UI Semibold", 17f);
+    readonly Font fText = new Font("Segoe UI", 10.5f);
+    readonly Font fKey = new Font("Segoe UI Semibold", 13f);
+    readonly Font fSmall = new Font("Segoe UI", 9.5f);
+    Segmented side;
+    HotkeyBox hk;
+    readonly int W, H, IllusH;
+
+    static int S(int v) { return Ui.S(v); }
+    static string T(string fr, string en) { return L.T(fr, en); }
+
+    string[] Titles { get { return new[] {
+        T("Bienvenue dans BureauCache", "Welcome to BureauCache"),
+        T("Un raccourci pour tout", "One shortcut for everything"),
+        T("Cherche tout, même avec des fautes", "Search everything, typos included"),
+        T("Organise à ta façon", "Organize your way") }; } }
+
+    string[] Texts { get { return new[] {
+        T("Tes icônes du bureau sont rangées dans un panneau qui apparaît quand ta souris touche le bord de l'écran. Choisis le bord qui te convient :",
+          "Your desktop icons live in a panel that slides in when your mouse touches the edge of the screen. Pick the edge you prefer:"),
+        T("Ouvre le panneau depuis n'importe où, même sans la souris. Clique dans le champ pour choisir une autre combinaison.",
+          "Open the panel from anywhere, even without the mouse. Click the box to pick another combination."),
+        T("Tape simplement ce que tu cherches : bureau, applications, fichiers récents, paramètres Windows…",
+          "Just type what you're looking for: desktop, apps, recent files, Windows settings…"),
+        T("Glisse un élément pour le classer ou le mettre en favori. Clic droit pour toutes les options.",
+          "Drag an item to sort it or make it a favorite. Right-click for every option.") }; } }
+
+    public WelcomeForm(Action onFinish)
+    {
+        this.onFinish = onFinish;
+        W = S(620); H = S(580); IllusH = S(220);
+        Text = "BureauCache";
+        FormBorderStyle = FormBorderStyle.FixedSingle;
+        MaximizeBox = false; MinimizeBox = false;
+        StartPosition = FormStartPosition.CenterScreen;
+        AutoScaleMode = AutoScaleMode.None;
+        ClientSize = new Size(W, H);
+        Icon = Ui.MakeIcon(Settings.Accent);
+        BackColor = Theme.Bg;
+        DoubleBuffered = true;
+        KeyPreview = true;
+        for (int i = 0; i < 4; i++) pageControls[i] = new List<Control>();
+
+        int cy = IllusH + S(130);
+        side = new Segmented(T("Gauche", "Left"), T("Droite", "Right")) { Location = new Point(S(40), cy) };
+        side.Selected = Settings.RightSide ? 1 : 0;
+        side.Changed += (s, e) => { Settings.RightSide = side.Selected == 1; Settings.Notify(); Invalidate(); };
+        Toggle hide = new Toggle { Location = new Point(S(40), cy + S(52)), Checked = Settings.HideIcons };
+        hide.Changed += (s, e) => { Settings.HideIcons = hide.Checked; Settings.Notify(); };
+        Label hideL = new Label { Text = T("Cacher les icônes du bureau", "Hide desktop icons"), AutoSize = true, Font = fSmall, Location = new Point(S(94), cy + S(54)) };
+        AddTo(0, side, hide, hideL);
+
+        hk = new HotkeyBox { Location = new Point(S(40), cy), Mods = Settings.HotMods, Key = Settings.HotKey };
+        hk.Changed += (s, e) => { Settings.HotMods = hk.Mods; Settings.HotKey = hk.Key; Settings.HotkeyOn = true; Settings.Notify(); Invalidate(); };
+        AddTo(1, hk);
+
+        Toggle start = new Toggle { Location = new Point(S(40), cy + S(66)), Checked = Startup.Enabled };
+        start.Changed += (s, e) => { try { Startup.Set(start.Checked, Installer.IsInstalled ? Installer.Exe : null); } catch { } };
+        Label startL = new Label { Text = T("Lancer BureauCache au démarrage de Windows", "Start BureauCache with Windows"), AutoSize = true, Font = fSmall, Location = new Point(S(94), cy + S(68)) };
+        AddTo(3, start, startL);
+
+        bNext = new FlatButton(T("Suivant", "Next"), true, S(150)) { Location = new Point(W - S(40) - S(150), H - S(62)) };
+        bPrev = new FlatButton(T("Précédent", "Back"), false, S(120)) { Location = new Point(bNext.Left - S(10) - S(120), H - S(62)) };
+        bSkip = new FlatButton(T("Passer", "Skip"), false, S(100)) { Location = new Point(S(40), H - S(62)) };
+        bNext.Click += (s, e) => { if (page == 3) Finish(); else SetPage(page + 1); };
+        bPrev.Click += (s, e) => SetPage(page - 1);
+        bSkip.Click += (s, e) => Close();
+        Controls.AddRange(new Control[] { bNext, bPrev, bSkip });
+        foreach (Control c in Controls)
+        {
+            c.BackColor = Theme.Bg;
+            if (c is Label) c.ForeColor = Theme.Fg;
+        }
+        SetPage(0);
+    }
+
+    void AddTo(int p, params Control[] cs)
+    {
+        foreach (Control c in cs) { pageControls[p].Add(c); Controls.Add(c); }
+    }
+
+    void SetPage(int p)
+    {
+        page = Math.Max(0, Math.Min(3, p));
+        for (int i = 0; i < 4; i++) foreach (Control c in pageControls[i]) c.Visible = i == page;
+        bPrev.Visible = page > 0;
+        bNext.Text = page == 3 ? T("C'est parti !", "Let's go!") : T("Suivant", "Next");
+        Invalidate();
+    }
+
+    void Finish()
+    {
+        Close();
+        if (onFinish != null) onFinish();
+    }
+
+    protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Native.SetDarkTitleBar(Handle, Settings.Dark); }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (HotkeyBox.Capturing) { base.OnKeyDown(e); return; }
+        if (e.KeyCode == Keys.Right || e.KeyCode == Keys.Enter) { if (page == 3) Finish(); else SetPage(page + 1); e.Handled = true; }
+        else if (e.KeyCode == Keys.Left) { SetPage(page - 1); e.Handled = true; }
+        else if (e.KeyCode == Keys.Escape) Close();
+        base.OnKeyDown(e);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        Graphics g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        Rectangle ill = new Rectangle(0, 0, W, IllusH);
+        using (LinearGradientBrush b = new LinearGradientBrush(ill, Theme.Accent, Theme.Mix(Theme.Accent, Color.Black, 0.55f), 35f)) g.FillRectangle(b, ill);
+        switch (page)
+        {
+            case 0: DrawScreen(g); break;
+            case 1: DrawKeys(g); break;
+            case 2: DrawSearch(g); break;
+            case 3: DrawTiles(g); break;
+        }
+        TextRenderer.DrawText(g, Titles[page], fTitle, new Point(S(38), IllusH + S(26)), Theme.Fg, TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(g, Texts[page], fText, new Rectangle(S(40), IllusH + S(68), W - S(80), S(60)), Theme.FgDim,
+            TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+        if (page == 2) DrawExamples(g, IllusH + S(126));
+        if (page == 3) DrawTips(g, IllusH + S(118));
+        for (int i = 0; i < 4; i++)
+        {
+            int d = i == page ? S(22) : S(8);
+            int x = W / 2 - S(40) + i * S(22) + (i > page ? S(14) : 0);
+            Ui.Fill(g, i == page ? Theme.Accent : Theme.Track, new Rectangle(x, H - S(90), d, S(8)), S(4));
+        }
+    }
+
+    void DrawScreen(Graphics g)
+    {
+        Rectangle mon = new Rectangle(W / 2 - S(150), S(30), S(300), S(150));
+        Ui.Fill(g, Color.FromArgb(60, 0, 0, 0), new Rectangle(mon.X + S(4), mon.Y + S(6), mon.Width, mon.Height), S(10));
+        Ui.Fill(g, Color.FromArgb(235, 250, 250, 252), mon, S(10));
+        Ui.Fill(g, Color.FromArgb(90, 255, 255, 255), new Rectangle(W / 2 - S(30), mon.Bottom, S(60), S(14)), S(3));
+        bool right = Settings.RightSide;
+        Rectangle panel = new Rectangle(right ? mon.Right - S(80) : mon.X, mon.Y, S(80), mon.Height);
+        using (GraphicsPath p = Ui.Round(mon, S(10)))
+        {
+            g.SetClip(p);
+            using (SolidBrush b = new SolidBrush(Color.FromArgb(34, 34, 40))) g.FillRectangle(b, panel);
+            g.ResetClip();
+        }
+        for (int i = 0; i < 5; i++)
+        {
+            Ui.Fill(g, Swatches.Presets[(i * 2) % Swatches.Presets.Length], new Rectangle(panel.X + S(10), panel.Y + S(14) + i * S(26), S(16), S(16)), S(4));
+            Ui.Fill(g, Color.FromArgb(120, 255, 255, 255), new Rectangle(panel.X + S(32), panel.Y + S(19) + i * S(26), S(38), S(6)), S(3));
+        }
+        int cx = right ? mon.Right - S(2) : mon.X + S(2), cyy = mon.Y + S(80);
+        Point[] arrow = right
+            ? new[] { new Point(cx, cyy), new Point(cx - S(14), cyy - S(10)), new Point(cx - S(14), cyy + S(10)) }
+            : new[] { new Point(cx, cyy), new Point(cx + S(14), cyy - S(10)), new Point(cx + S(14), cyy + S(10)) };
+        using (SolidBrush b = new SolidBrush(Theme.Accent)) g.FillPolygon(b, arrow);
+    }
+
+    void DrawKeys(Graphics g)
+    {
+        string combo = HotkeyBox.Format(Settings.HotMods, Settings.HotKey);
+        string[] keys = combo.Split(new[] { " + " }, StringSplitOptions.None);
+        int total = 0;
+        int[] widths = keys.Select(k => Math.Max(S(64), TextRenderer.MeasureText(k, fKey).Width + S(30))).ToArray();
+        total = widths.Sum() + (keys.Length - 1) * S(30);
+        int x = (W - total) / 2, y = S(70);
+        for (int i = 0; i < keys.Length; i++)
+        {
+            Rectangle k = new Rectangle(x, y, widths[i], S(70));
+            Ui.Fill(g, Color.FromArgb(70, 0, 0, 0), new Rectangle(k.X, k.Y + S(6), k.Width, k.Height), S(12));
+            Ui.Fill(g, Color.FromArgb(250, 250, 252), k, S(12));
+            TextRenderer.DrawText(g, keys[i], fKey, k, Color.FromArgb(30, 30, 36), TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            x += widths[i];
+            if (i < keys.Length - 1)
+            {
+                TextRenderer.DrawText(g, "+", fKey, new Rectangle(x, y, S(30), S(70)), Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                x += S(30);
+            }
+        }
+    }
+
+    void DrawSearch(Graphics g)
+    {
+        Rectangle bar = new Rectangle(W / 2 - S(170), S(46), S(340), S(44));
+        Ui.Fill(g, Color.FromArgb(60, 0, 0, 0), new Rectangle(bar.X, bar.Y + S(5), bar.Width, bar.Height), S(10));
+        Ui.Fill(g, Color.FromArgb(34, 34, 40), bar, S(10));
+        Ui.Glyph(g, "", 11f, Color.FromArgb(170, 170, 180), new Rectangle(bar.X + S(8), bar.Y, S(30), bar.Height));
+        TextRenderer.DrawText(g, "asasin", fText, new Rectangle(bar.X + S(42), bar.Y, S(200), bar.Height), Color.White, TextFormatFlags.VerticalCenter);
+        Rectangle res = new Rectangle(bar.X, bar.Bottom + S(10), bar.Width, S(52));
+        Ui.Fill(g, Color.FromArgb(44, 44, 52), res, S(10));
+        Ui.Fill(g, Color.FromArgb(200, 30, 30), new Rectangle(res.X + S(12), res.Y + S(10), S(32), S(32)), S(6));
+        TextRenderer.DrawText(g, "Assassin's Creed Shadows", fText, new Rectangle(res.X + S(56), res.Y, S(260), res.Height), Color.White, TextFormatFlags.VerticalCenter);
+    }
+
+    void DrawTiles(Graphics g)
+    {
+        string[] glyphs = { "", "", "", "", "" };
+        int size = S(70), gap = S(18), x = (W - (size * 5 + gap * 4)) / 2;
+        for (int i = 0; i < 5; i++)
+        {
+            Rectangle r = new Rectangle(x + i * (size + gap), S(60) + (i % 2 == 0 ? 0 : S(20)), size, size);
+            Ui.Fill(g, Color.FromArgb(60, 0, 0, 0), new Rectangle(r.X, r.Y + S(6), r.Width, r.Height), S(14));
+            Ui.Fill(g, i == 0 ? Color.FromArgb(250, 204, 21) : Swatches.Presets[i % Swatches.Presets.Length], r, S(14));
+            Ui.Glyph(g, glyphs[i], 18f, Color.White, r);
+        }
+    }
+
+    void DrawExamples(Graphics g, int y)
+    {
+        string[][] ex = {
+            new[] { "steam", T("tes jeux et applications", "your games and apps") },
+            new[] { "= 12*7", T("calcule (Entrée copie le résultat)", "calculates (Enter copies the result)") },
+            new[] { "? météo", T("cherche sur le web", "searches the web") },
+            new[] { ">", T("commandes : verrouiller, veille, redémarrer…", "commands: lock, sleep, restart…") } };
+        foreach (string[] e in ex)
+        {
+            Rectangle pill = new Rectangle(S(40), y, S(96), S(26));
+            Ui.Fill(g, Theme.Surface, pill, S(6));
+            TextRenderer.DrawText(g, e[0], fSmall, pill, Theme.Fg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            TextRenderer.DrawText(g, e[1], fSmall, new Rectangle(pill.Right + S(12), y, W - pill.Right - S(52), S(26)), Theme.FgDim, TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            y += S(32);
+        }
+    }
+
+    void DrawTips(Graphics g, int y)
+    {
+        string[] tips = {
+            T("Ctrl+1 … 9 ouvre tes favoris, F1 affiche tous les raccourcis.", "Ctrl+1 … 9 opens your favorites, F1 shows every shortcut."),
+            T("Suppr supprime, et Ctrl+Z annule si tu t'es trompé.", "Delete removes an item, Ctrl+Z undoes it if you made a mistake."),
+            T("Tire le bord du panneau pour l'élargir, Ctrl+P pour l'épingler.", "Drag the panel's edge to widen it, Ctrl+P to pin it.") };
+        foreach (string t in tips)
+        {
+            Ui.Glyph(g, "", 9f, Theme.Accent, new Rectangle(S(36), y, S(24), S(22)));
+            TextRenderer.DrawText(g, t, fSmall, new Rectangle(S(64), y, W - S(104), S(22)), Theme.Fg, TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            y += S(24);
+        }
+    }
+}
+
+// =====================================================================
 //  Panneau latéral
 // =====================================================================
 class PanelForm : Form
@@ -3207,8 +3680,14 @@ class PanelForm : Form
     public bool Busy;
     public event EventHandler SettingsRequested;
     Bitmap glass;
-    Rectangle rcGear, rcViewBtn, rcSearch, rcClock, rcDisk, rcBin;
+    Rectangle rcGear, rcViewBtn, rcPin, rcSearch, rcClock, rcDisk, rcBin;
     int hoverBtn = -1;
+    readonly ToastControl toast;
+    bool resizing, hoverGrip;
+    int resizeStartX, resizeStartW;
+    bool appbar;
+    Screen pinScreen;
+    readonly uint abMsg = Native.RegisterWindowMessage("BureauCacheAppBar");
     readonly ContextMenuStrip menu;
     int loadedPx;
     bool loading, loadPending, loadedOnce;
@@ -3260,6 +3739,8 @@ class PanelForm : Form
         };
         View.HoverEnd += () => preview.HidePreview();
 
+        toast = new ToastControl(this);
+        Controls.Add(toast);
         Controls.Add(View);
         Controls.Add(search);
 
@@ -3278,7 +3759,7 @@ class PanelForm : Form
 
     void SetCue()
     {
-        Native.SendMessage(search.Handle, 0x1501, (IntPtr)1, L.T("Rechercher partout…", "Search everything…"));
+        Native.SendMessage(search.Handle, 0x1501, (IntPtr)1, L.T("Rechercher partout…   (F1 : aide)", "Search everything…   (F1: help)"));
     }
 
     protected override CreateParams CreateParams
@@ -3314,14 +3795,19 @@ class PanelForm : Form
         Invalidate(true);
     }
 
-    int X0 { get { return Settings.RightSide ? S(2) : 0; } }
-    int CW { get { return Width - S(2); } }
+    // Bande de redimensionnement le long du bord intérieur
+    int Grip { get { return S(6); } }
+    int X0 { get { return Settings.RightSide ? Grip : 0; } }
+    int CW { get { return Width - Grip; } }
+    bool InGrip(Point p) { return Settings.RightSide ? p.X < Grip : p.X >= Width - Grip; }
 
     void LayoutChrome()
     {
         int x0 = X0, cw = CW;
         rcGear = new Rectangle(x0 + cw - S(12) - S(34), S(12), S(34), S(34));
         rcViewBtn = new Rectangle(rcGear.X - S(38), S(12), S(34), S(34));
+        rcPin = new Rectangle(rcViewBtn.X - S(38), S(12), S(34), S(34));
+        toast.Bounds = new Rectangle(x0 + S(10), Height - S(64), cw - S(20), S(52));
         rcSearch = new Rectangle(x0 + S(12), S(58), cw - S(24), S(38));
         int th = search.PreferredHeight;
         search.Bounds = new Rectangle(rcSearch.X + S(36), rcSearch.Y + (rcSearch.Height - th) / 2 + S(1), rcSearch.Width - S(46), th);
@@ -3359,10 +3845,14 @@ class PanelForm : Form
         TextRenderer.DrawText(g, title, fTitle, new Point(x0 + S(16), S(16)), Theme.Fg, TextFormatFlags.NoPrefix);
         int tw = TextRenderer.MeasureText(title, fTitle).Width;
         string count = loading && !loadedOnce ? L.T("Chargement…", "Loading…") : All.Count + L.T(" éléments", " items");
-        TextRenderer.DrawText(g, count, fCount, new Point(x0 + S(16) + tw, S(20)), Theme.FgDim, TextFormatFlags.NoPrefix);
+        Rectangle countRect = new Rectangle(x0 + S(16) + tw, S(14), rcPin.X - S(4) - (x0 + S(16) + tw), S(30));
+        if (countRect.Width > S(30))
+            TextRenderer.DrawText(g, count, fCount, countRect, Theme.FgDim, TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
 
         if (hoverBtn == 0) Ui.Fill(g, Theme.HoverOverlay, rcViewBtn, S(8));
         if (hoverBtn == 1) Ui.Fill(g, Theme.HoverOverlay, rcGear, S(8));
+        if (hoverBtn == 5 || Settings.Pinned) Ui.Fill(g, Settings.Pinned ? Theme.SelOverlay : Theme.HoverOverlay, rcPin, S(8));
+        Ui.Glyph(g, Settings.Pinned ? "" : "", 11f, hoverBtn == 5 || Settings.Pinned ? Theme.Accent : Theme.FgDim, rcPin);
         Ui.Glyph(g, Settings.GridView ? "" : "", 11f, hoverBtn == 0 ? Theme.Accent : Theme.FgDim, rcViewBtn);
         Ui.Glyph(g, "", 11f, hoverBtn == 1 ? Theme.Accent : Theme.FgDim, rcGear);
 
@@ -3371,8 +3861,14 @@ class PanelForm : Form
 
         if (Settings.Widgets) DrawWidgets(g);
 
+        int bw = hoverGrip || resizing ? S(4) : S(2);
         using (SolidBrush b = new SolidBrush(Theme.Accent))
-            g.FillRectangle(b, Settings.RightSide ? 0 : Width - S(2), 0, S(2), Height);
+            g.FillRectangle(b, Settings.RightSide ? 0 : Width - bw, 0, bw, Height);
+        if (hoverGrip || resizing)
+        {
+            Rectangle h = new Rectangle(Settings.RightSide ? S(1) : Width - S(5), Height / 2 - S(24), S(4), S(48));
+            Ui.Fill(g, Color.White, h, S(2));
+        }
     }
 
     void DrawWidgets(Graphics g)
@@ -3400,11 +3896,11 @@ class PanelForm : Form
             TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPrefix);
 
         Ui.Glyph(g, "", 9f, Theme.FgDim, new Rectangle(rcBin.X + S(6), rcBin.Y + S(4), S(18), S(20)));
-        TextRenderer.DrawText(g, L.T("Corbeille", "Bin"), fSmall, new Rectangle(rcBin.X + S(24), rcBin.Y + S(4), rcBin.Width - S(28), S(20)), Theme.Fg,
+        string bt = binCount == 0 ? L.T("vide", "empty") : binCount.ToString();
+        TextRenderer.DrawText(g, bt, fSmall, new Rectangle(rcBin.X + S(24), rcBin.Y + S(4), rcBin.Width - S(28), S(20)), Theme.Fg,
             TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
-        string bt = binCount == 0 ? L.T("vide", "empty") : binCount + L.T(" élém.", " items");
-        TextRenderer.DrawText(g, bt, fSmall, new Rectangle(rcBin.X, rcBin.Y + S(24), rcBin.Width, S(18)), Theme.FgDim,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(g, L.T("corbeille", "bin"), fSmall, new Rectangle(rcBin.X, rcBin.Y + S(26), rcBin.Width, S(18)), Theme.FgDim,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
     }
 
     void RefreshWidgetData()
@@ -3425,6 +3921,7 @@ class PanelForm : Form
     {
         if (rcViewBtn.Contains(p)) return 0;
         if (rcGear.Contains(p)) return 1;
+        if (rcPin.Contains(p)) return 5;
         if (Settings.Widgets)
         {
             if (rcClock.Contains(p)) return 2;
@@ -3434,21 +3931,82 @@ class PanelForm : Form
         return -1;
     }
 
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        base.OnMouseDown(e);
+        if (e.Button == MouseButtons.Left && InGrip(e.Location))
+        {
+            resizing = true;
+            Busy = true;
+            resizeStartX = Cursor.Position.X;
+            resizeStartW = Width;
+            preview.HidePreview();
+        }
+    }
+
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
-        int h = HitButton(e.Location);
+        if (resizing)
+        {
+            int dx = Cursor.Position.X - resizeStartX;
+            int w = Math.Max(S(260), Math.Min(S(560), resizeStartW + (Settings.RightSide ? -dx : dx)));
+            if (w != Width)
+            {
+                int right = Right;
+                Width = w;
+                if (Settings.RightSide) { Left = right - w; openLeft = Left; }
+                Invalidate(true);
+            }
+            return;
+        }
+        bool g = InGrip(e.Location);
+        if (g != hoverGrip) { hoverGrip = g; Invalidate(); }
+        int h = g ? -1 : HitButton(e.Location);
         if (h != hoverBtn) { hoverBtn = h; Invalidate(); }
-        Cursor = h >= 0 && h != 2 ? Cursors.Hand : rcSearch.Contains(e.Location) ? Cursors.IBeam : Cursors.Default;
+        Cursor = g ? Cursors.SizeWE : h >= 0 && h != 2 ? Cursors.Hand : rcSearch.Contains(e.Location) ? Cursors.IBeam : Cursors.Default;
     }
 
-    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); if (hoverBtn != -1) { hoverBtn = -1; Invalidate(); } }
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        base.OnMouseUp(e);
+        if (!resizing) return;
+        resizing = false;
+        Busy = false;
+        ApplyWidth((int)Math.Round(Width / Ui.Scale / 10.0) * 10);
+    }
+
+    protected override void OnMouseDoubleClick(MouseEventArgs e)
+    {
+        base.OnMouseDoubleClick(e);
+        if (InGrip(e.Location)) ApplyWidth(340);
+    }
+
+    // Enregistre une nouvelle largeur (en pixels « 100 % ») et l'applique
+    void ApplyWidth(int logical)
+    {
+        logical = Math.Max(260, Math.Min(560, logical));
+        int right = Right;
+        Width = S(logical);
+        if (Settings.RightSide) { Left = right - Width; openLeft = Left; }
+        if (Settings.Glass && !liveBlurActive) RefreshStaticGlass();
+        if (appbar) AppBarSetPos();
+        Settings.PanelWidth = logical;
+        Settings.Notify();
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        if (hoverBtn != -1 || hoverGrip) { hoverBtn = -1; hoverGrip = false; Invalidate(); }
+    }
 
     protected override void OnMouseClick(MouseEventArgs e)
     {
         base.OnMouseClick(e);
         int h = HitButton(e.Location);
-        if (h == 0 && e.Button == MouseButtons.Left) { Settings.GridView = !Settings.GridView; Settings.Notify(); }
+        if (h == 5 && e.Button == MouseButtons.Left) TogglePin();
+        else if (h == 0 && e.Button == MouseButtons.Left) { Settings.GridView = !Settings.GridView; Settings.Notify(); }
         else if (h == 1 && e.Button == MouseButtons.Left) { HidePanel(); if (SettingsRequested != null) SettingsRequested(this, EventArgs.Empty); }
         else if (h == 3) { HidePanel(); try { ShellUtil.Open("explorer.exe", "shell:MyComputerFolder"); } catch { } }
         else if (h == 4 && e.Button == MouseButtons.Left) { HidePanel(); try { ShellUtil.Open("explorer.exe", "shell:RecycleBinFolder"); } catch { } }
@@ -3459,9 +4017,10 @@ class PanelForm : Form
             ToolStripMenuItem empty = Menus.Item(L.T("Vider la corbeille", "Empty Recycle Bin"), "", () =>
             {
                 Busy = true;
-                Native.SHEmptyRecycleBin(Handle, null, 0);
+                int r = Native.SHEmptyRecycleBin(Handle, null, 0);
                 Busy = false;
                 RefreshWidgetData();
+                if (r == 0) Toast(L.T("Corbeille vidée", "Recycle Bin emptied"), null, null);
             });
             empty.Enabled = binCount > 0;
             menu.Items.Add(empty);
@@ -3479,13 +4038,195 @@ class PanelForm : Form
             if (search.Text.Length > 0) search.Text = ""; else HidePanel();
             e.Handled = true;
         }
+        if (e.KeyCode == Keys.ControlKey && !View.ShowNumbers) { View.ShowNumbers = true; View.Invalidate(); }
         base.OnKeyDown(e);
     }
+
+    protected override void OnKeyUp(KeyEventArgs e)
+    {
+        if (e.KeyCode == Keys.ControlKey && View.ShowNumbers) { View.ShowNumbers = false; View.Invalidate(); }
+        base.OnKeyUp(e);
+    }
+
+    // Raccourcis clavier du panneau
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        Keys k = keyData & Keys.KeyCode;
+        bool ctrl = (keyData & Keys.Control) != 0, shift = (keyData & Keys.Shift) != 0, alt = (keyData & Keys.Alt) != 0;
+        DesktopItem sel = View.Selected;
+        if (alt) return base.ProcessCmdKey(ref msg, keyData);
+        if (k == Keys.Tab && !ctrl) { View.JumpGroup(shift ? -1 : 1); return true; }
+        if (k == Keys.F1) { search.Text = search.Text == "?" ? "" : "?"; search.SelectionStart = search.Text.Length; return true; }
+        if (ctrl && !shift && ((k >= Keys.D1 && k <= Keys.D9) || (k >= Keys.NumPad1 && k <= Keys.NumPad9)))
+        {
+            int n = k >= Keys.NumPad1 ? k - Keys.NumPad1 : k - Keys.D1;
+            List<DesktopItem> favs = Settings.Favorites.Select(f => All.FirstOrDefault(i => string.Equals(i.Key, f, StringComparison.OrdinalIgnoreCase)))
+                                                       .Where(i => i != null).ToList();
+            if (n < favs.Count) Launch(favs[n], null);
+            else Toast(L.T("Pas de favori n°" + (n + 1) + " : glisse un élément dans « Favoris ».", "No favorite #" + (n + 1) + ": drag an item into \"Favorites\"."), null, null);
+            return true;
+        }
+        if (ctrl && !shift && k == Keys.Z && toast.CanUndo) { toast.Undo(); return true; }
+        if (ctrl && !shift && k == Keys.P) { TogglePin(); return true; }
+        if (ctrl && !shift && k == Keys.G) { Settings.GridView = !Settings.GridView; Settings.Notify(); return true; }
+        if (ctrl && !shift && k == Keys.F) { if (sel != null && sel.Kind == ItemKind.Desktop) ToggleFavorite(sel); return true; }
+        if (!ctrl && k == Keys.F2) { if (sel != null && sel.IsDesktopFile) Rename(sel); return true; }
+        if (!ctrl && !shift && k == Keys.Delete && search.Text.Length == 0) { if (sel != null && sel.IsDesktopFile) Delete(sel); return true; }
+        if (k == Keys.Apps || (shift && k == Keys.F10)) { if (sel != null) ShowItemMenu(sel, View.SelectedPoint()); return true; }
+        if (ctrl && !shift && k == Keys.Enter)
+        {
+            if (sel != null && sel.HasPath) { HidePanel(); try { Process.Start("explorer.exe", "/select,\"" + sel.Target + "\""); } catch { } }
+            return true;
+        }
+        return base.ProcessCmdKey(ref msg, keyData);
+    }
+
+    List<KeyValuePair<string, string>> HelpLines()
+    {
+        Func<string, string, string, KeyValuePair<string, string>> h = (k, fr, en) => new KeyValuePair<string, string>(k, L.T(fr, en));
+        string ent = L.T("Entrée", "Enter"), maj = L.T("Maj", "Shift"), sup = L.T("Suppr", "Del"), esc = L.T("Échap", "Esc");
+        return new List<KeyValuePair<string, string>> {
+            h(ent, "Ouvrir l'élément sélectionné", "Open the selected item"),
+            h("↑ ↓ ← →", "Se déplacer dans la liste", "Move around"),
+            h("Tab / " + maj + "+Tab", "Section suivante / précédente", "Next / previous section"),
+            h("Ctrl+1 … 9", "Ouvrir un favori (maintiens Ctrl pour voir les numéros)", "Open a favorite (hold Ctrl to see numbers)"),
+            h("Ctrl+F", "Ajouter ou retirer des favoris", "Add to / remove from favorites"),
+            h("F2", "Renommer", "Rename"),
+            h(sup, "Supprimer (annulable)", "Delete (can be undone)"),
+            h("Ctrl+Z", "Annuler la dernière action", "Undo the last action"),
+            h("Ctrl+" + ent, "Ouvrir l'emplacement du fichier", "Open file location"),
+            h("Ctrl+" + maj + "+" + ent, "Exécuter en administrateur", "Run as administrator"),
+            h(maj + "+F10", "Options de l'élément (clic droit)", "Item options (right-click)"),
+            h("Ctrl+P", "Épingler / détacher le panneau", "Pin / unpin the panel"),
+            h("Ctrl+G", "Liste ou grille", "List or grid"),
+            h("= ? >", "Calcul, recherche web, commandes", "Math, web search, commands"),
+            h(esc, "Effacer la recherche, puis fermer", "Clear the search, then close"),
+            h("F1", "Afficher / masquer cette aide", "Show / hide this help"),
+        };
+    }
+
+    public void Toast(string text, Action undo, Action commit)
+    {
+        if (!Visible) { if (commit != null) try { commit(); } catch { } return; }
+        toast.Show(text, undo, commit);
+    }
+
+    public void FlushToast() { toast.Flush(); }
 
     protected override void OnDeactivate(EventArgs e)
     {
         base.OnDeactivate(e);
+        if (View.ShowNumbers) { View.ShowNumbers = false; View.Invalidate(); }
         if (!Busy && !menu.Visible) HidePanel();
+    }
+
+    // ---------- Épinglage (barre d'application Windows qui réserve la place) ----------
+    public void TogglePin()
+    {
+        Settings.Pinned = !Settings.Pinned;
+        Settings.SaveQuiet();
+        if (Settings.Pinned)
+        {
+            if (!IsOpen) ShowPanel(Screen.FromPoint(Cursor.Position));
+            Pin();
+            Toast(L.T("Panneau épinglé : il reste ouvert et les fenêtres lui laissent la place.", "Panel pinned: it stays open and windows make room for it."), null, null);
+        }
+        else
+        {
+            Unpin();
+            Toast(L.T("Panneau détaché.", "Panel unpinned."), null, null);
+        }
+        Invalidate();
+    }
+
+    void Pin()
+    {
+        pinScreen = Screen.FromControl(this);
+        if (liveBlurActive)
+        {
+            liveBlurActive = false;
+            blurTimer.Stop();
+        }
+        AppBarRegister();
+        RefreshStaticGlass();
+    }
+
+    public void ShowPinned(Screen scr)
+    {
+        ShowPanel(scr);
+        Pin();
+    }
+
+    public void Unpin()
+    {
+        AppBarRemove();
+        TopMost = true;
+    }
+
+    void RefreshStaticGlass()
+    {
+        if (!Settings.Glass) return;
+        try { Native.SetWindowDisplayAffinity(Handle, 0x11); } catch { }
+        Bitmap g = MakeGlass(new Rectangle(Left, Top, Width, Height));
+        try { Native.SetWindowDisplayAffinity(Handle, liveBlurActive ? 0x11u : 0u); } catch { }
+        if (g == null) return;
+        Bitmap old = glass;
+        glass = g;
+        if (old != null) old.Dispose();
+        Invalidate(true);
+    }
+
+    void AppBarRegister()
+    {
+        if (appbar) return;
+        Native.APPBARDATA d = new Native.APPBARDATA();
+        d.cbSize = Marshal.SizeOf(d);
+        d.hWnd = Handle;
+        d.uCallbackMessage = abMsg;
+        Native.SHAppBarMessage(0 /*ABM_NEW*/, ref d);
+        appbar = true;
+        AppBarSetPos();
+    }
+
+    void AppBarSetPos()
+    {
+        if (!appbar) return;
+        Native.APPBARDATA d = new Native.APPBARDATA();
+        d.cbSize = Marshal.SizeOf(d);
+        d.hWnd = Handle;
+        d.uEdge = Settings.RightSide ? 2u : 0u;
+        Rectangle b = pinScreen.Bounds;
+        d.rc = new Native.RECT { Left = b.Left, Top = b.Top, Right = b.Right, Bottom = b.Bottom };
+        if (Settings.RightSide) d.rc.Left = d.rc.Right - Width; else d.rc.Right = d.rc.Left + Width;
+        Native.SHAppBarMessage(2 /*ABM_QUERYPOS*/, ref d);
+        if (Settings.RightSide) d.rc.Left = d.rc.Right - Width; else d.rc.Right = d.rc.Left + Width;
+        Native.SHAppBarMessage(3 /*ABM_SETPOS*/, ref d);
+        Rectangle wa = pinScreen.WorkingArea;
+        openLeft = d.rc.Left;
+        anim.Stop();
+        Opacity = 1;
+        Bounds = new Rectangle(d.rc.Left, wa.Top, Width, wa.Height);
+    }
+
+    void AppBarRemove()
+    {
+        if (!appbar) return;
+        Native.APPBARDATA d = new Native.APPBARDATA();
+        d.cbSize = Marshal.SizeOf(d);
+        d.hWnd = Handle;
+        Native.SHAppBarMessage(1 /*ABM_REMOVE*/, ref d);
+        appbar = false;
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        if (appbar && m.Msg == (int)abMsg)
+        {
+            int code = m.WParam.ToInt32();
+            if (code == 1) AppBarSetPos();                                   // ABN_POSCHANGED
+            else if (code == 2) TopMost = m.LParam == IntPtr.Zero;          // ABN_FULLSCREENAPP : s'efface devant un jeu plein écran
+        }
+        base.WndProc(ref m);
     }
 
     // ---------- Chargement en arrière-plan ----------
@@ -3535,6 +4276,8 @@ class PanelForm : Form
     public void Rebuild(bool keepScroll)
     {
         string q = search.Text.Trim();
+        View.Help = q == "?" ? HelpLines() : null;
+        if (q == "?") q = "";
         View.ForceList = q.Length > 0;
         View.EmptyText = q.Length > 0 ? L.T("Aucun résultat pour « ", "No results for \"") + q + L.T(" »", "\"")
                                       : loading && !loadedOnce ? L.T("Chargement…", "Loading…") : L.T("Ton bureau est vide", "Your desktop is empty");
@@ -3701,6 +4444,13 @@ class PanelForm : Form
     void HandleDrop(DesktopItem it, Group from, Group to, int index)
     {
         if (to.Key == "recent" || to.IsSearch) return;
+        Settings.Snap snap = Settings.Snapshot();
+        if (from != to)
+        {
+            string msg = to.Key == "fav" ? L.T("« " + it.Name + " » ajouté aux favoris", "\"" + it.Name + "\" added to favorites")
+                                         : L.T("« " + it.Name + " » déplacé vers " + to.Title, "\"" + it.Name + "\" moved to " + to.Title);
+            BeginInvoke(new Action(() => Toast(msg, () => { Settings.Restore(snap); Rebuild(true); }, null)));
+        }
         if (to.Key == "fav")
         {
             int cur = Settings.FavIndex(it.Key);
@@ -3724,6 +4474,27 @@ class PanelForm : Form
         }
         Settings.SaveQuiet();
         Rebuild(true);
+    }
+
+    void ToggleFavorite(DesktopItem it)
+    {
+        Settings.Snap snap = Settings.Snapshot();
+        int i = Settings.FavIndex(it.Key);
+        if (i >= 0) Settings.Favorites.RemoveAt(i); else Settings.Favorites.Add(it.Key);
+        Settings.SaveQuiet();
+        Rebuild(true);
+        Toast(i >= 0 ? L.T("« " + it.Name + " » retiré des favoris", "\"" + it.Name + "\" removed from favorites")
+                     : L.T("« " + it.Name + " » ajouté aux favoris", "\"" + it.Name + "\" added to favorites"),
+              () => { Settings.Restore(snap); Rebuild(true); }, null);
+    }
+
+    void MoveToCategory(DesktopItem it, string cat)
+    {
+        Settings.Snap snap = Settings.Snapshot();
+        SetCategory(it, cat, true);
+        Rebuild(true);
+        Toast(L.T("« " + it.Name + " » déplacé vers " + Catalog.Display(cat), "\"" + it.Name + "\" moved to " + Catalog.Display(cat)),
+              () => { Settings.Restore(snap); Rebuild(true); }, null);
     }
 
     static void SetCategory(DesktopItem it, string cat, bool save)
@@ -3794,12 +4565,7 @@ class PanelForm : Form
         {
             menu.Items.Add(new ToolStripSeparator());
             bool fav = Settings.FavIndex(it.Key) >= 0;
-            menu.Items.Add(Menus.Item(fav ? L.T("Retirer des favoris", "Remove from favorites") : L.T("Ajouter aux favoris", "Add to favorites"), fav ? "" : "", () =>
-            {
-                if (fav) Settings.Favorites.RemoveAt(Settings.FavIndex(it.Key)); else Settings.Favorites.Add(it.Key);
-                Settings.SaveQuiet();
-                Rebuild(true);
-            }));
+            menu.Items.Add(Menus.Item(fav ? L.T("Retirer des favoris", "Remove from favorites") : L.T("Ajouter aux favoris", "Add to favorites"), fav ? "" : "", () => ToggleFavorite(it)));
         }
         if (it.IsDesktopFile)
         {
@@ -3807,7 +4573,7 @@ class PanelForm : Form
             foreach (string cat in Catalog.AllCats())
             {
                 string c = cat;
-                ToolStripMenuItem ci = Menus.Item(Catalog.Display(c), Catalog.GlyphOf(c), () => { SetCategory(it, c, true); Rebuild(true); });
+                ToolStripMenuItem ci = Menus.Item(Catalog.Display(c), Catalog.GlyphOf(c), () => MoveToCategory(it, c));
                 ci.Checked = string.Equals(it.Category, c, StringComparison.OrdinalIgnoreCase);
                 mv.DropDownItems.Add(ci);
             }
@@ -3851,47 +4617,122 @@ class PanelForm : Form
         menu.Show(View, pt);
     }
 
+    static void MovePath(string from, string to, bool folder)
+    {
+        if (folder) Directory.Move(from, to); else File.Move(from, to);
+    }
+
     void Rename(DesktopItem it)
     {
-        HidePanel();
+        preview.HidePreview();
         string ext = Path.GetExtension(it.Target);
         bool hiddenExt = !it.IsFolder && (ext.Equals(".lnk", StringComparison.OrdinalIgnoreCase) || ext.Equals(".url", StringComparison.OrdinalIgnoreCase));
-        using (RenameDialog d = new RenameDialog(it.Name, !it.IsFolder && !hiddenExt))
+        Busy = true;
+        try
         {
-            if (d.ShowDialog() != DialogResult.OK || d.Value == it.Name) return;
-            string newPath = Path.Combine(Path.GetDirectoryName(it.Target), d.Value + (hiddenExt ? ext : ""));
-            try
+            using (RenameDialog d = new RenameDialog(it.Name, !it.IsFolder && !hiddenExt))
             {
-                if (it.IsFolder) Directory.Move(it.Target, newPath); else File.Move(it.Target, newPath);
-                Settings.RenameKey(it.Key, newPath);
-                ReloadNow();
+                if (d.ShowDialog(this) != DialogResult.OK || d.Value == it.Name) return;
+                string oldPath = it.Target, oldName = it.Name;
+                string newPath = Path.Combine(Path.GetDirectoryName(oldPath), d.Value + (hiddenExt ? ext : ""));
+                bool folder = it.IsFolder;
+                try
+                {
+                    MovePath(oldPath, newPath, folder);
+                    Settings.RenameKey(oldPath, newPath);
+                    ReloadNow();
+                    Toast(L.T("Renommé en « " + d.Value + " »", "Renamed to \"" + d.Value + "\""), () =>
+                    {
+                        MovePath(newPath, oldPath, folder);
+                        Settings.RenameKey(newPath, oldPath);
+                        ReloadNow();
+                    }, null);
+                }
+                catch (Exception ex) { ShowError(L.T("Impossible de renommer :\n", "Can't rename:\n") + ex.Message); }
             }
-            catch (Exception ex) { ShowError(L.T("Impossible de renommer :\n", "Can't rename:\n") + ex.Message); }
+        }
+        finally
+        {
+            Busy = false;
+            if (Visible) { Activate(); search.Focus(); }
         }
     }
 
-    void Delete(DesktopItem it)
+    public static string StashRoot { get { return Path.Combine(Settings.Dir, "suppression"); } }
+
+    static void Recycle(string stash)
     {
-        HidePanel();
+        foreach (string p in Directory.GetFileSystemEntries(stash))
+        {
+            if (Directory.Exists(p))
+                Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(p, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+            else
+                Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(p, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+        }
+        Directory.Delete(stash, true);
+    }
+
+    // Éléments laissés en attente après une fermeture brutale : on finit de les envoyer à la corbeille
+    public static void RecycleLeftovers()
+    {
         try
         {
-            if (it.IsFolder)
-                Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(it.Target, Microsoft.VisualBasic.FileIO.UIOption.AllDialogs,
-                    Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
-            else
-                Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(it.Target, Microsoft.VisualBasic.FileIO.UIOption.AllDialogs,
-                    Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
-            Settings.RemoveKey(it.Key);
+            if (!Directory.Exists(StashRoot)) return;
+            foreach (string d in Directory.GetDirectories(StashRoot)) try { Recycle(d); } catch { }
         }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { ShowError(L.T("Impossible de supprimer :\n", "Can't delete:\n") + ex.Message); }
+        catch { }
+    }
+
+    // Suppression annulable : l'élément est mis de côté quelques secondes, puis envoyé à la corbeille
+    void Delete(DesktopItem it)
+    {
+        preview.HidePreview();
+        Settings.Snap snap = Settings.Snapshot();
+        string original = it.Target, name = it.Name;
+        bool folder = it.IsFolder;
+        string stash = Path.Combine(StashRoot, Guid.NewGuid().ToString("N"));
+        string held = Path.Combine(stash, Path.GetFileName(original));
+        try
+        {
+            Directory.CreateDirectory(stash);
+            MovePath(original, held, folder);
+        }
+        catch
+        {
+            // Impossible de le mettre de côté (autre disque, droits…) : corbeille directe, avec confirmation de Windows
+            try { Directory.Delete(stash, true); } catch { }
+            Busy = true;
+            try
+            {
+                if (folder) Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(original, Microsoft.VisualBasic.FileIO.UIOption.AllDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                else Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(original, Microsoft.VisualBasic.FileIO.UIOption.AllDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                Settings.RemoveKey(it.Key);
+                Toast(L.T("« " + name + " » placé dans la corbeille", "\"" + name + "\" moved to the Recycle Bin"), null, null);
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { ShowError(L.T("Impossible de supprimer :\n", "Can't delete:\n") + ex.Message); }
+            finally { Busy = false; }
+            ReloadNow();
+            return;
+        }
+        Settings.RemoveKey(it.Key);
         ReloadNow();
+        Toast(L.T("« " + name + " » supprimé", "\"" + name + "\" deleted"),
+            () =>
+            {
+                MovePath(held, original, folder);
+                try { Directory.Delete(stash, true); } catch { }
+                Settings.Restore(snap);
+                ReloadNow();
+            },
+            () => Recycle(stash));
     }
 
     void AddFilesToDesktop(string[] files, DragDropEffects eff)
     {
         string desk = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         Busy = true;
+        int added = 0;
         foreach (string f0 in files)
         {
             string f = f0.TrimEnd('\\');
@@ -3918,12 +4759,14 @@ class PanelForm : Form
                     if (eff == DragDropEffects.Move) Microsoft.VisualBasic.FileIO.FileSystem.MoveFile(f, dest, Microsoft.VisualBasic.FileIO.UIOption.AllDialogs);
                     else Microsoft.VisualBasic.FileIO.FileSystem.CopyFile(f, dest, Microsoft.VisualBasic.FileIO.UIOption.AllDialogs);
                 }
+                added++;
             }
             catch (OperationCanceledException) { }
             catch (Exception ex) { ShowError(L.T("Impossible d'ajouter « ", "Can't add \"") + name + L.T(" » :\n", "\":\n") + ex.Message); }
         }
         Busy = false;
         ReloadNow();
+        if (added > 0) Toast(added + L.T(added > 1 ? " éléments ajoutés au bureau" : " élément ajouté au bureau", added > 1 ? " items added to the desktop" : " item added to the desktop"), null, null);
     }
 
     void SearchKeyDown(object sender, KeyEventArgs e)
@@ -4022,6 +4865,7 @@ class PanelForm : Form
     public void HidePanel()
     {
         preview.HidePreview();
+        if (Settings.Pinned && appbar) return;
         if (!Visible || !opening) return;
         StartAnim(false);
     }
@@ -4067,7 +4911,7 @@ class PanelForm : Form
 // =====================================================================
 class SettingsActions
 {
-    public Action Preview, Quit, Install, Uninstall, InstallUpdate;
+    public Action Preview, Quit, Install, Uninstall, InstallUpdate, Welcome;
     public Func<bool> HotkeyOk;
 }
 
@@ -4091,7 +4935,7 @@ class SettingsForm : Form
     HotkeyBox hk;
     InputBox repo;
     Label lDelay, lWidth, lHotStatus, lInstall, lArchive, lUpdate;
-    FlatButton bInstall, bArchiveNow, bCheck;
+    FlatButton bInstall, bArchiveNow, bArchiveUndo, bCheck;
     Card customCard;
     string customSig;
 
@@ -4295,6 +5139,12 @@ class SettingsForm : Form
         sLang = NewSeg(v => Settings.Language = v, T("Système", "System"), "Français", "English");
         Row(T("Langue", "Language"), null, sLang, null);
         EndSection();
+
+        Section(T("AIDE", "HELP"));
+        Row(T("Visite guidée", "Guided tour"), T("Les 4 écrans de bienvenue, pour redécouvrir l'essentiel.", "The 4 welcome screens, to go over the basics again."),
+            Button(T("Revoir", "Show again"), false, S(130), () => { if (act.Welcome != null) act.Welcome(); }), null);
+        Row(T("Raccourcis clavier", "Keyboard shortcuts"), T("Appuie sur F1 dans le panneau pour tous les voir.", "Press F1 in the panel to see them all."), null, null);
+        EndSection();
     }
 
     void BuildOpening()
@@ -4445,6 +5295,13 @@ class SettingsForm : Form
             Settings.Fire();
         });
         lArchive = Row(T("Ranger maintenant", "Tidy up now"), "-", bArchiveNow, null);
+        bArchiveUndo = Button(T("Annuler", "Undo"), false, S(170), () =>
+        {
+            int n = Archiver.Undo();
+            MessageBox.Show(this, T(n + " élément(s) remis sur le bureau.", n + " item(s) put back on the desktop."), "BureauCache");
+            Settings.Fire();
+        });
+        Row(T("Annuler le dernier rangement", "Undo the last tidy-up"), T("Remet les éléments rangés à leur place sur le bureau.", "Puts the moved items back on the desktop."), bArchiveUndo, null);
         EndSection();
 
         Section(T("RÉINITIALISER", "RESET"));
@@ -4674,6 +5531,8 @@ class SettingsForm : Form
             bInstall.Text = T("Installer", "Install"); bInstall.Primary = true; bInstall.Danger = false;
         }
         bInstall.Invalidate();
+        bArchiveUndo.Enabled = Archiver.CanUndo;
+        bArchiveUndo.Invalidate();
         if (lUpdate.Text == "-" || lUpdate.Text.Length == 0)
             lUpdate.Text = Updater.RepoValid ? T("Clique pour vérifier.", "Click to check.") : T("Dépôt invalide.", "Invalid repository.");
     }
@@ -4839,7 +5698,8 @@ class App : ApplicationContext
         hotkey.Pressed += () =>
         {
             if (HotkeyBox.Capturing) return;
-            if (panel.IsOpen) panel.HidePanel();
+            if (panel.IsOpen && Settings.Pinned) { panel.ShowPanel(TargetScreen(Cursor.Position)); Native.SetForegroundWindow(panel.Handle); }
+            else if (panel.IsOpen) panel.HidePanel();
             else OpenManually(TargetScreen(Cursor.Position));
         };
 
@@ -4872,8 +5732,19 @@ class App : ApplicationContext
         t.IsBackground = true;
         t.Start();
 
-        if (Settings.FirstRun) { Settings.Save(); ShowSettings(); }
-        else Balloon(L.T("Amène la souris sur le bord " + (Settings.RightSide ? "droit" : "gauche") + " de l'écran", "Move the mouse to the " + (Settings.RightSide ? "right" : "left") + " edge of the screen") +
+        PanelForm.RecycleLeftovers();
+        bool updated = !Settings.FirstRun && Settings.LastVersion != Installer.Version;
+        Settings.LastVersion = Installer.Version;
+        if (Settings.Pinned) panel.ShowPinned(TargetScreen(Cursor.Position));
+        if (Settings.FirstRun) { Settings.Save(); ShowWelcome(); }
+        else if (updated)
+        {
+            Settings.SaveQuiet();
+            Balloon(L.T("BureauCache a été mis à jour en " + Installer.Version + ". Clique pour voir les nouveautés.",
+                        "BureauCache was updated to " + Installer.Version + ". Click to see what's new."),
+                    () => { try { ShellUtil.Open("https://github.com/" + Updater.RepoName + "/releases/tag/v" + Installer.Version, null); } catch { } });
+        }
+        else if (!Settings.Pinned) Balloon(L.T("Amène la souris sur le bord " + (Settings.RightSide ? "droit" : "gauche") + " de l'écran", "Move the mouse to the " + (Settings.RightSide ? "right" : "left") + " edge of the screen") +
             (Settings.HotkeyOn ? L.T(" ou appuie sur ", " or press ") + HotkeyBox.Format(Settings.HotMods, Settings.HotKey) : "") + ".", null);
     }
 
@@ -4944,8 +5815,19 @@ class App : ApplicationContext
         return new SettingsActions
         {
             Preview = Preview, Quit = ExitThread, Install = DoInstall, Uninstall = DoUninstall,
-            InstallUpdate = InstallUpdate, HotkeyOk = () => hotkeyOk
+            InstallUpdate = InstallUpdate, HotkeyOk = () => hotkeyOk, Welcome = ShowWelcome
         };
+    }
+
+    WelcomeForm welcome;
+
+    void ShowWelcome()
+    {
+        if (welcome != null && !welcome.IsDisposed) { welcome.Activate(); return; }
+        welcome = new WelcomeForm(() => OpenManually(TargetScreen(Cursor.Position)));
+        welcome.Show();
+        welcome.Activate();
+        Native.SetForegroundWindow(welcome.Handle);
     }
 
     void ShowSettings()
@@ -5109,7 +5991,7 @@ class App : ApplicationContext
                 panel.ShowPanel(scr);
             }
         }
-        else if (Settings.AutoClose)
+        else if (Settings.AutoClose && !Settings.Pinned)
         {
             Rectangle r = panel.Bounds;
             r.Inflate(20, 0);
@@ -5123,6 +6005,8 @@ class App : ApplicationContext
     protected override void ExitThreadCore()
     {
         poll.Stop();
+        try { panel.FlushToast(); } catch { }
+        try { panel.Unpin(); } catch { }
         try { hotkey.Register(false, 0, 0); hotkey.DestroyHandle(); } catch { }
         Native.RestoreDesktopIcons();
         foreach (FileSystemWatcher w in watchers) w.Dispose();

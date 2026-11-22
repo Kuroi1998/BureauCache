@@ -18,6 +18,7 @@ Aucun droit administrateur n'est nécessaire. Le programme se met ensuite à jou
   - `>` : commandes système (verrouiller, veille, redémarrer…)
 - **Organisation** : favoris, récents, catégories automatiques (Dossiers, Jeux, Applications, Fichiers) et personnalisées, glisser-déposer, badge « Nouveau », rangement automatique des fichiers inutilisés.
 - **Apparence** : thème clair/sombre/système, effet verre avec flou en direct, vue liste ou grille, aperçu au survol, widgets (heure, disque, corbeille).
+- **Ergonomie** : visite guidée, annulation (Ctrl+Z), raccourcis clavier (F1 pour la liste), panneau redimensionnable et mode épinglé.
 - **Sécurité** : un processus de surveillance réaffiche les icônes du bureau si le programme plante.
 - Français et anglais.
 
