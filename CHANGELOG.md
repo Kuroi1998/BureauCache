@@ -1,5 +1,33 @@
 # Nouveautés
 
+## 3.2 — Optimisation, sécurité et code
+
+Version de maintenance : aucune nouvelle fonction visible, mais un programme plus rapide, plus sûr et plus facile à faire évoluer.
+
+**Optimisation**
+- Recherche plus rapide : les noms normalisés (sans accents ni majuscules) sont calculés une seule fois au lieu de l'être à chaque touche.
+- Lecture des icônes environ 100 fois plus rapide (copie mémoire au lieu d'une lecture pixel par pixel).
+- Polices partagées au lieu d'être recréées à chaque dessin du panneau.
+- Flou en direct : les images de travail sont réutilisées au lieu d'être recréées toutes les 120 ms.
+- Détection du bord de l'écran : la liste des écrans est mise en cache (elle était recréée 50 fois par seconde).
+- Les icônes devenues inutiles après un passage liste ↔ grille sont libérées de la mémoire.
+- Réglages enregistrés de façon groupée : un glissement de curseur ne provoque plus des dizaines d'écritures sur le disque.
+
+**Sécurité et fiabilité**
+- Mises à jour : téléchargements limités aux serveurs HTTPS de GitHub, nom de fichier temporaire aléatoire, taille maximale et vérification que la version téléchargée est bien celle annoncée (en plus de l'empreinte SHA-256).
+- Les DLL système ne sont plus cherchées à côté de l'exe (protection contre les DLL piégées dans Téléchargements).
+- Réglages écrits de façon atomique : un arrêt brutal ne peut plus laisser un fichier corrompu.
+- Renommage : les noms dangereux (« .. », CON, NUL, AUX…) sont refusés.
+- Calculatrice : profondeur et longueur limitées (une expression comme « ((((((… » ne peut plus faire planter le programme).
+- La désinstallation ne supprime que le dossier d'installation attendu.
+- Correction : si le chargement des éléments échouait, le panneau pouvait rester bloqué sur « Chargement… ».
+
+**Code**
+- Le code est réparti en 37 fichiers rangés par thème (`src/App`, `Core`, `Data`, `Search`, `Shell`, `UI`), aucun ne dépassant 500 lignes (l'ancien fichier unique en faisait 6 100).
+- Utilitaires communs pour les boîtes de message, les fichiers, les chemins et les tâches de fond (fin des doublons).
+- Icônes nommées (`Glyphs.Settings`…) au lieu de codes illisibles.
+- Numéro de version écrit à un seul endroit (`src/Properties/AssemblyInfo.cs`).
+
 ## 3.1
 
 - Visite guidée au premier lancement (et à revoir depuis Paramètres > Général).
