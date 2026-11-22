@@ -1,0 +1,54 @@
+# Publie une version quand on pousse un tag vX.Y (ex. : git tag v3.1 && git push origin v3.1)
+name: Publier une version
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérifier que le numéro de version du code correspond au tag
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}".TrimStart('v')
+          $code = (Select-String -Path BureauCache.cs -Pattern 'public const string Version = "([^"]+)"').Matches[0].Groups[1].Value
+          if ($code -ne $tag) { throw "Le tag v$tag ne correspond pas à Installer.Version ($code) dans BureauCache.cs" }
+
+      - name: Compiler
+        shell: cmd
+        run: build.cmd
+
+      - name: Calculer l'empreinte SHA-256
+        shell: pwsh
+        run: |
+          $h = (Get-FileHash BureauCache.exe -Algorithm SHA256).Hash.ToLower()
+          "$h  BureauCache.exe" | Out-File -Encoding ascii -NoNewline BureauCache.exe.sha256
+          "SHA-256 : $h"
+
+      - name: Créer la version GitHub
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $notes = "CHANGELOG.md"
+          $section = ""
+          if (Test-Path $notes) {
+            $lines = Get-Content $notes -Encoding utf8
+            $start = [Array]::FindIndex($lines, [Predicate[string]]{ param($l) $l -match "^## $([regex]::Escape($tag.TrimStart('v')))\b" })
+            if ($start -ge 0) {
+              $end = [Array]::FindIndex($lines, $start + 1, [Predicate[string]]{ param($l) $l -match '^## ' })
+              if ($end -lt 0) { $end = $lines.Length }
+              $section = ($lines[($start + 1)..($end - 1)] -join "`n").Trim()
+            }
+          }
+          if (-not $section) { $section = "Version $tag" }
+          $section | Out-File -Encoding utf8 release-notes.md
+          gh release create $tag BureauCache.exe BureauCache.exe.sha256 --title "BureauCache $($tag.TrimStart('v'))" --notes-file release-notes.md

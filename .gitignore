@@ -1,0 +1,4 @@
+*.exe
+*.old
+*.sha256
+release-notes.md
