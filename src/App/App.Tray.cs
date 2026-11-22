@@ -1,0 +1,162 @@
+// BureauCache — icône de notification (près de l'horloge) : clics, menu, infobulle et point d'information
+using System;
+using System.Drawing;
+using System.Linq;
+using System.Windows.Forms;
+
+partial class App
+{
+    // Le clic simple attend la durée d'un double-clic avant d'agir, pour ne pas ouvrir le panneau ET les paramètres
+    readonly System.Windows.Forms.Timer clickTimer = new System.Windows.Forms.Timer();
+    bool updateAvailable;
+    string trayState;
+
+    void SetupTray()
+    {
+        trayMenu = Menus.Create();
+        tray = new NotifyIcon();
+        // Menu affiché par nous (et non automatiquement) : il passe au premier plan, se ferme quand on clique ailleurs
+        // et s'ouvre au-dessus de la barre des tâches, même quand aucune fenêtre de BureauCache n'est visible.
+        tray.MouseUp += (s, e) => { if (e.Button == MouseButtons.Right) ShowTrayMenu(); };
+        tray.MouseClick += (s, e) =>
+        {
+            if (e.Button != MouseButtons.Left) return;
+            clickTimer.Stop();
+            clickTimer.Start();
+        };
+        tray.MouseDoubleClick += (s, e) =>
+        {
+            if (e.Button != MouseButtons.Left) return;
+            clickTimer.Stop();
+            ShowSettings();
+        };
+        clickTimer.Interval = Math.Max(200, SystemInformation.DoubleClickTime);
+        clickTimer.Tick += (s, e) => { clickTimer.Stop(); TogglePanelFromTray(); };
+        tray.BalloonTipClicked += (s, e) => { if (balloonAction != null) balloonAction(); };
+        RefreshTray();
+        tray.Visible = true;
+    }
+
+    void TogglePanelFromTray()
+    {
+        // Cliquer sur l'icône fait perdre le focus au panneau, qui se ferme juste avant ce clic : on ne le rouvre pas
+        bool justClosed = (DateTime.Now - panel.LastHidden).TotalMilliseconds < 600;
+        if (panel.IsOpen && !Settings.Pinned) panel.HidePanel();
+        else if (!justClosed || Settings.Pinned) OpenManually(TargetScreen(Cursor.Position));
+    }
+
+    void ShowTrayMenu()
+    {
+        BuildTrayMenu();
+        Native.SetForegroundWindow(hotkey.Handle);
+        Point p = Cursor.Position;
+        Rectangle wa = Screen.FromPoint(p).WorkingArea;
+        bool bottom = p.Y > wa.Top + wa.Height / 2, right = p.X > wa.Left + wa.Width / 2;
+        ToolStripDropDownDirection dir = bottom ? (right ? ToolStripDropDownDirection.AboveLeft : ToolStripDropDownDirection.AboveRight)
+                                                : (right ? ToolStripDropDownDirection.BelowLeft : ToolStripDropDownDirection.BelowRight);
+        trayMenu.Show(p, dir);
+        // Le menu lui-même doit être au premier plan pour recevoir le clavier et se fermer quand on clique ailleurs
+        Native.SetForegroundWindow(trayMenu.Handle);
+        trayMenu.Focus();
+        Native.PostMessage(hotkey.Handle, 0 /*WM_NULL*/, IntPtr.Zero, IntPtr.Zero);
+    }
+
+    void Balloon(string text, Action onClick)
+    {
+        balloonAction = onClick;
+        tray.ShowBalloonTip(3000, "BureauCache", text, ToolTipIcon.Info);
+    }
+
+    void BuildTrayMenu()
+    {
+        trayMenu.Items.Clear();
+        ToolStripMenuItem title = new ToolStripMenuItem("BureauCache " + AppInfo.Version +
+            (updateAvailable ? L.T(" · mise à jour disponible", " · update available") : "")) { Enabled = false };
+        trayMenu.Items.Add(title);
+        trayMenu.Items.Add(new ToolStripSeparator());
+
+        ToolStripMenuItem open = Menus.Item(L.T("Ouvrir la liste", "Open the list"), Glyphs.List, () => OpenManually(TargetScreen(Cursor.Position)));
+        open.Font = new Font(trayMenu.Font, FontStyle.Bold);
+        open.ShortcutKeyDisplayString = HotkeyBox.Format(Settings.HotMods, Settings.HotKey);
+        trayMenu.Items.Add(open);
+        trayMenu.Items.Add(Menus.Item(L.T("Paramètres…", "Settings…"), Glyphs.Settings, ShowSettings));
+        trayMenu.Items.Add(new ToolStripSeparator());
+
+        ToolStripMenuItem pin = Menus.Item(L.T("Épingler le panneau", "Pin the panel"), Glyphs.Pin, () => panel.TogglePin());
+        pin.Checked = Settings.Pinned;
+        trayMenu.Items.Add(pin);
+        ToolStripMenuItem hide = Menus.Item(L.T("Cacher les icônes du bureau", "Hide desktop icons"), Glyphs.Eye, () => { Settings.HideIcons = !Settings.HideIcons; Settings.Notify(); });
+        hide.Checked = Settings.HideIcons;
+        trayMenu.Items.Add(hide);
+        ToolStripMenuItem start = Menus.Item(L.T("Lancer au démarrage de Windows", "Start with Windows"), Glyphs.Power, () =>
+        {
+            try { Startup.Set(!Startup.Enabled, Installer.IsInstalled ? Installer.Exe : null); } catch { }
+            Settings.Fire();
+        });
+        start.Checked = Startup.Enabled;
+        trayMenu.Items.Add(start);
+        trayMenu.Items.Add(new ToolStripSeparator());
+
+        if (updateAvailable && Updater.Latest != null)
+            trayMenu.Items.Add(Menus.Item(L.T("Installer la version ", "Install version ") + Updater.Latest, Glyphs.Download, InstallUpdate));
+        else
+            trayMenu.Items.Add(Menus.Item(L.T("Rechercher une mise à jour", "Check for updates"), Glyphs.Restart, CheckUpdateNow));
+        trayMenu.Items.Add(Menus.Item(L.T("Visite guidée", "Guided tour"), Glyphs.School, ShowWelcome));
+        trayMenu.Items.Add(new ToolStripSeparator());
+        trayMenu.Items.Add(Menus.Item(L.T("Quitter (réaffiche les icônes)", "Quit (shows icons again)"), Glyphs.Power, ExitThread));
+    }
+
+    // Vérification demandée depuis le menu : on répond toujours par une bulle
+    void CheckUpdateNow()
+    {
+        Background.Run(() =>
+        {
+            bool newer = Updater.Check();
+            try
+            {
+                panel.BeginInvoke(new Action(() =>
+                {
+                    updateAvailable = newer;
+                    RefreshTray();
+                    if (newer) Balloon(L.T("La version " + Updater.Latest + " est disponible. Clique ici pour l'installer.",
+                                           "Version " + Updater.Latest + " is available. Click here to install it."), InstallUpdate);
+                    else if (Updater.Error != null) Balloon(L.T("Vérification impossible : ", "Couldn't check: ") + Updater.Error, null);
+                    else Balloon(L.T("Tu as la dernière version (" + AppInfo.Version + ").", "You're up to date (" + AppInfo.Version + ")."), null);
+                }));
+            }
+            catch { }
+        });
+    }
+
+    // Icône et infobulle à jour : point orange = mise à jour, point vert = nouveaux fichiers sur le bureau
+    void RefreshTray()
+    {
+        if (tray == null) return;
+        int newFiles = Settings.NewBadge ? panel.All.Count(i => i.IsNew) : 0;
+        Color? badge = updateAvailable ? Color.FromArgb(249, 115, 22) : newFiles > 0 ? Color.FromArgb(22, 163, 74) : (Color?)null;
+        string tip = "BureauCache" + (Settings.HotkeyOn ? " · " + HotkeyBox.Format(Settings.HotMods, Settings.HotKey) : "");
+        if (updateAvailable && Updater.Latest != null) tip += "\n" + L.T("Mise à jour ", "Update ") + Updater.Latest + L.T(" disponible", " available");
+        else if (newFiles > 0) tip += "\n" + newFiles + L.T(newFiles > 1 ? " nouveaux fichiers" : " nouveau fichier", newFiles > 1 ? " new files" : " new file");
+        if (tip.Length > 63) tip = tip.Substring(0, 62) + "…"; // limite imposée par Windows
+
+        string state = Settings.Accent.ToArgb() + "|" + (badge.HasValue ? badge.Value.ToArgb().ToString() : "-");
+        if (state != trayState)
+        {
+            trayState = state;
+            Icon old = tray.Icon;
+            tray.Icon = Ui.MakeIcon(Settings.Accent, badge);
+            if (old != null) old.Dispose();
+        }
+        if (tray.Text != tip) tray.Text = tip;
+    }
+
+    // Fenêtre de paramètres réduite ou fermée : la première fois, on explique où BureauCache continue de tourner
+    void OnHiddenToTray()
+    {
+        if (Settings.TrayHintShown) return;
+        Settings.TrayHintShown = true;
+        Settings.SaveQuiet();
+        Balloon(L.T("BureauCache continue ici, près de l'horloge (flèche ^ si l'icône est cachée). Clic : la liste · double-clic : les paramètres.",
+                    "BureauCache keeps running here, by the clock (^ arrow if the icon is hidden). Click: the list · double-click: settings."), null);
+    }
+}

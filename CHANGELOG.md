@@ -1,5 +1,15 @@
 # Nouveautés
 
+## 3.3 — Icône de notification et réduction
+
+- Réduire (ou fermer) la fenêtre de paramètres la range près de l'horloge, au lieu de la barre des tâches. Une bulle explique la première fois où BureauCache continue de tourner.
+- Clic sur l'icône : ouvrir ou fermer la liste. Double-clic : les paramètres. Clic droit : le menu.
+- Menu de l'icône plus fiable quand aucune fenêtre n'est ouverte : il passe au premier plan et s'ouvre au-dessus de la barre des tâches.
+- Menu complété : version, épingler le panneau, rechercher ou installer une mise à jour, visite guidée, raccourci clavier affiché.
+- Icône qui informe : point orange quand une mise à jour est disponible, point vert quand de nouveaux fichiers sont arrivés sur le bureau, détails dans l'infobulle.
+- Paramètres > Général > « Icône près de l'horloge » : indique si l'icône est cachée dans la flèche ^ et ouvre le réglage de Windows pour l'afficher.
+- Option « Démarrage discret » : plus de bulle d'information au lancement.
+
 ## 3.2 — Optimisation, sécurité et code
 
 Version de maintenance : aucune nouvelle fonction visible, mais un programme plus rapide, plus sûr et plus facile à faire évoluer.

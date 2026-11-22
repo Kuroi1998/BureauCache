@@ -6,7 +6,7 @@ using System.Windows.Forms;
 
 class SettingsActions
 {
-    public Action Preview, Quit, Install, Uninstall, InstallUpdate, Welcome;
+    public Action Preview, Quit, Install, Uninstall, InstallUpdate, Welcome, HiddenToTray;
     public Func<bool> HotkeyOk;
 }
 
@@ -22,14 +22,14 @@ partial class SettingsForm : Form
     readonly SideNav nav;
     readonly int W, H, NavW;
 
-    Toggle tHide, tStartup, tAuto, tFull, tHot, tGlass, tLive, tAnim, tWidgets, tPreview, tSystem, tRecents, tGroups,
+    Toggle tQuiet, tHide, tStartup, tAuto, tFull, tHot, tGlass, tLive, tAnim, tWidgets, tPreview, tSystem, tRecents, tGroups,
         tSApps, tSRecent, tSSettings, tSCmd, tNew, tArchive, tAutoUpd;
     Segmented sSide, sZone, sScreen, sTheme, sView, sLang, sEngine, sNewDays, sArchDays;
     Slider slDelay, slWidth;
     Swatches swatch;
     HotkeyBox hk;
     InputBox repo;
-    Label lDelay, lWidth, lHotStatus, lInstall, lArchive, lUpdate;
+    Label lDelay, lWidth, lHotStatus, lInstall, lArchive, lUpdate, lTray;
     FlatButton bInstall, bArchiveNow, bArchiveUndo, bCheck;
     Card customCard;
     string customSig;

@@ -33,15 +33,15 @@ class HotkeyWindow : NativeWindow
 // =====================================================================
 //  Application
 // =====================================================================
-class App : ApplicationContext
+partial class App : ApplicationContext
 {
-    readonly NotifyIcon tray;
+    NotifyIcon tray;
     readonly PanelForm panel;
     SettingsForm settingsForm;
     readonly System.Windows.Forms.Timer poll;
     readonly List<FileSystemWatcher> watchers = new List<FileSystemWatcher>();
     readonly HotkeyWindow hotkey = new HotkeyWindow();
-    readonly ContextMenuStrip trayMenu;
+    ContextMenuStrip trayMenu;
     IntPtr listView = IntPtr.Zero;
     int edgeTicks, outsideTicks, pollCount;
     bool requireLeave, wasOpen, hotkeyOk = true, autoCloseArmed, lastEn;
@@ -58,16 +58,7 @@ class App : ApplicationContext
         panel.SettingsRequested += (s, e) => ShowSettings();
         lastEn = L.En;
 
-        trayMenu = Menus.Create();
-        trayMenu.Opening += (s, e) => BuildTrayMenu();
-
-        tray = new NotifyIcon();
-        tray.Icon = Ui.MakeIcon(Settings.Accent);
-        tray.Text = "BureauCache";
-        tray.ContextMenuStrip = trayMenu;
-        tray.MouseClick += (s, e) => { if (e.Button == MouseButtons.Left) ShowSettings(); };
-        tray.BalloonTipClicked += (s, e) => { if (balloonAction != null) balloonAction(); };
-        tray.Visible = true;
+        SetupTray();
 
         string[] dirs = Paths.Desktops;
         foreach (string d in dirs)
@@ -132,36 +123,8 @@ class App : ApplicationContext
                         "BureauCache was updated to " + Installer.Version + ". Click to see what's new."),
                     () => { try { ShellUtil.Open("https://github.com/" + Updater.RepoName + "/releases/tag/v" + Installer.Version, null); } catch { } });
         }
-        else if (!Settings.Pinned) Balloon(L.T("Amène la souris sur le bord " + (Settings.RightSide ? "droit" : "gauche") + " de l'écran", "Move the mouse to the " + (Settings.RightSide ? "right" : "left") + " edge of the screen") +
+        else if (!Settings.Pinned && !Settings.QuietStart) Balloon(L.T("Amène la souris sur le bord " + (Settings.RightSide ? "droit" : "gauche") + " de l'écran", "Move the mouse to the " + (Settings.RightSide ? "right" : "left") + " edge of the screen") +
             (Settings.HotkeyOn ? L.T(" ou appuie sur ", " or press ") + HotkeyBox.Format(Settings.HotMods, Settings.HotKey) : "") + ".", null);
-    }
-
-    void Balloon(string text, Action onClick)
-    {
-        balloonAction = onClick;
-        tray.ShowBalloonTip(3000, "BureauCache", text, ToolTipIcon.Info);
-    }
-
-    void BuildTrayMenu()
-    {
-        trayMenu.Items.Clear();
-        trayMenu.Items.Add(Menus.Item(L.T("Ouvrir la liste", "Open the list"), Glyphs.List, () => OpenManually(TargetScreen(Cursor.Position))));
-        ToolStripMenuItem st = Menus.Item(L.T("Paramètres…", "Settings…"), Glyphs.Settings, ShowSettings);
-        st.Font = new Font(trayMenu.Font, FontStyle.Bold);
-        trayMenu.Items.Add(st);
-        trayMenu.Items.Add(new ToolStripSeparator());
-        ToolStripMenuItem hide = Menus.Item(L.T("Cacher les icônes du bureau", "Hide desktop icons"), null, () => { Settings.HideIcons = !Settings.HideIcons; Settings.Notify(); });
-        hide.Checked = Settings.HideIcons;
-        trayMenu.Items.Add(hide);
-        ToolStripMenuItem start = Menus.Item(L.T("Lancer au démarrage de Windows", "Start with Windows"), null, () =>
-        {
-            try { Startup.Set(!Startup.Enabled, Installer.IsInstalled ? Installer.Exe : null); } catch { }
-            Settings.Fire();
-        });
-        start.Checked = Startup.Enabled;
-        trayMenu.Items.Add(start);
-        trayMenu.Items.Add(new ToolStripSeparator());
-        trayMenu.Items.Add(Menus.Item(L.T("Quitter (réaffiche les icônes)", "Quit (shows icons again)"), Glyphs.Power, ExitThread));
     }
 
     void RegisterHotkey() { hotkeyOk = hotkey.Register(Settings.HotkeyOn, Settings.HotMods, Settings.HotKey); }
@@ -172,9 +135,7 @@ class App : ApplicationContext
         ApplyIconVisibility();
         RegisterHotkey();
         panel.OnSettingsChanged();
-        Icon old = tray.Icon;
-        tray.Icon = Ui.MakeIcon(Settings.Accent);
-        if (old != null) old.Dispose();
+        RefreshTray();
         if (L.En != lastEn)
         {
             lastEn = L.En;
@@ -203,7 +164,7 @@ class App : ApplicationContext
         return new SettingsActions
         {
             Preview = Preview, Quit = ExitThread, Install = DoInstall, Uninstall = DoUninstall,
-            InstallUpdate = InstallUpdate, HotkeyOk = () => hotkeyOk, Welcome = ShowWelcome
+            InstallUpdate = InstallUpdate, HotkeyOk = () => hotkeyOk, Welcome = ShowWelcome, HiddenToTray = OnHiddenToTray
         };
     }
 
@@ -285,6 +246,7 @@ class App : ApplicationContext
             if (newer)
                 try
                 {
+                    panel.BeginInvoke(new Action(() => { updateAvailable = true; RefreshTray(); }));
                     panel.BeginInvoke(new Action(() => Balloon(L.T("BureauCache " + Updater.Latest + " est disponible. Clique pour l'installer.",
                         "BureauCache " + Updater.Latest + " is available. Click to install."), InstallUpdate)));
                 }
@@ -347,6 +309,7 @@ class App : ApplicationContext
     {
         pollCount++;
         if (pollCount % 50 == 0) ApplyIconVisibility();
+        if (pollCount % 250 == 0) RefreshTray(); // toutes les 5 s : point « nouveaux fichiers » sur l'icône
         if (pollCount % 25 == 0 && panel.Dirty && !panel.Busy) panel.RequestLoad();
         if (pollCount == 3000 || pollCount % 1080000 == 0) RunArchive();             // 1 min après le démarrage, puis toutes les 6 h
         if (pollCount == 1500 || pollCount % 180000 == 0) CheckUpdateInBackground();  // 30 s après le démarrage, puis toutes les heures

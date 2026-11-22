@@ -81,6 +81,7 @@ static class Native
     }
 
     [DllImport("kernel32.dll")] public static extern bool SetDefaultDllDirectories(uint flags);
+    [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
     public const uint LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x800;
     public const int SW_HIDE = 0, SW_SHOW = 5;
 

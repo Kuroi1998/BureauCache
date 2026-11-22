@@ -97,11 +97,14 @@ partial class PanelForm
         if (liveBlurActive) blurTimer.Start();
     }
 
+    public DateTime LastHidden = DateTime.MinValue;
+
     public void HidePanel()
     {
         preview.HidePreview();
         if (Settings.Pinned && appbar) return;
         if (!Visible || !opening) return;
+        LastHidden = DateTime.Now;
         StartAnim(false);
     }
 

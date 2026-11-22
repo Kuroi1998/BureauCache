@@ -11,6 +11,7 @@ partial class SettingsForm
     {
         loading = true;
         tHide.Checked = Settings.HideIcons;
+        tQuiet.Checked = Settings.QuietStart;
         tStartup.Checked = Startup.Enabled;
         sLang.Selected = Settings.Language;
         sSide.Selected = Settings.RightSide ? 1 : 0;
@@ -77,6 +78,10 @@ partial class SettingsForm
             bInstall.Text = T("Installer", "Install"); bInstall.Primary = true; bInstall.Danger = false;
         }
         bInstall.Invalidate();
+        bool? promoted = ShellUtil.TrayIconPromoted(Application.ExecutablePath);
+        lTray.Text = promoted == true ? T("✓ L'icône est affichée à côté de l'horloge.", "✓ The icon is shown next to the clock.")
+                   : promoted == false ? T("Rangée dans la flèche ^ : ouvre le réglage, puis active BureauCache.", "Hidden in the ^ arrow: open the setting, then turn BureauCache on.")
+                   : T("Si l'icône est dans la flèche ^, ouvre le réglage pour l'afficher.", "If the icon is in the ^ arrow, open the setting to show it.");
         bArchiveUndo.Enabled = Archiver.CanUndo;
         bArchiveUndo.Invalidate();
         if (lUpdate.Text == "-" || lUpdate.Text.Length == 0)
@@ -143,6 +148,13 @@ partial class SettingsForm
         Native.SetDarkTitleBar(Handle, Settings.Dark);
     }
 
+    // On revient souvent ici après avoir changé le réglage de Windows : on met l'état de l'icône à jour
+    protected override void OnActivated(EventArgs e)
+    {
+        base.OnActivated(e);
+        if (!loading) UpdateTexts();
+    }
+
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
@@ -156,9 +168,26 @@ partial class SettingsForm
         base.OnKeyDown(e);
     }
 
+    // La croix et le bouton « Réduire » rangent la fenêtre dans les icônes près de l'horloge
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
-        if (e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; Hide(); }
+        if (e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; HideToTray(); }
         base.OnFormClosing(e);
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        if (WindowState == FormWindowState.Minimized && Visible)
+        {
+            HideToTray();
+            WindowState = FormWindowState.Normal; // prête à réapparaître normalement au prochain clic sur l'icône
+        }
+    }
+
+    void HideToTray()
+    {
+        Hide();
+        if (act.HiddenToTray != null) act.HiddenToTray();
     }
 }

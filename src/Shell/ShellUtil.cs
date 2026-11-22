@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using Microsoft.Win32;
 
 // =====================================================================
 //  Raccourcis, liens, verbes du shell
@@ -93,6 +94,34 @@ static class ShellUtil
         i.nShow = 1;
         i.fMask = 0x0000000C;
         Native.ShellExecuteEx(ref i);
+    }
+
+    // Windows 11 note dans le registre si l'icône d'un programme est affichée à côté de l'horloge (IsPromoted = 1)
+    // ou rangée dans la flèche ^. Lecture seule : c'est à l'utilisateur de changer ce réglage de Windows.
+    // Renvoie null si l'information n'existe pas (Windows 10, ou icône encore jamais affichée).
+    public static bool? TrayIconPromoted(string exePath)
+    {
+        try
+        {
+            string tail = Path.Combine(Path.GetFileName(Path.GetDirectoryName(exePath)), Path.GetFileName(exePath));
+            using (RegistryKey root = Registry.CurrentUser.OpenSubKey(@"Control Panel\NotifyIconSettings"))
+            {
+                if (root == null) return null;
+                bool? found = null;
+                foreach (string name in root.GetSubKeyNames())
+                    using (RegistryKey k = root.OpenSubKey(name))
+                    {
+                        string p = k == null ? null : k.GetValue("ExecutablePath") as string;
+                        if (p == null || !p.EndsWith(tail, StringComparison.OrdinalIgnoreCase)) continue;
+                        object v = k.GetValue("IsPromoted");
+                        bool promoted = v is int && (int)v == 1;
+                        if (string.Equals(p, exePath, StringComparison.OrdinalIgnoreCase)) return promoted;
+                        found = promoted;
+                    }
+                return found;
+            }
+        }
+        catch { return null; }
     }
 
     public static void Open(string target, string args)

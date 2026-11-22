@@ -39,6 +39,15 @@ partial class SettingsForm
         Row(T("Langue", "Language"), null, sLang, null);
         EndSection();
 
+        Section(T("ICÔNE PRÈS DE L'HORLOGE", "ICON BY THE CLOCK"));
+        lTray = Row(T("Toujours visible", "Always visible"), "-",
+            Button(T("Ouvrir le réglage", "Open the setting"), false, S(150), () => { try { ShellUtil.Open("ms-settings:taskbar", null); } catch { } }), null);
+        tQuiet = NewToggle(v => Settings.QuietStart = v);
+        Row(T("Démarrage discret", "Quiet start"), T("Pas de bulle d'information au lancement.", "No info bubble at startup."), tQuiet, null);
+        Note(T("Clic sur l'icône : ouvrir la liste · double-clic : ces paramètres · clic droit : le menu. Réduire ou fermer cette fenêtre la range près de l'horloge, BureauCache continue de tourner.",
+               "Click the icon: open the list · double-click: these settings · right-click: the menu. Minimizing or closing this window tucks it by the clock; BureauCache keeps running."));
+        EndSection();
+
         Section(T("AIDE", "HELP"));
         Row(T("Visite guidée", "Guided tour"), T("Les 4 écrans de bienvenue, pour redécouvrir l'essentiel.", "The 4 welcome screens, to go over the basics again."),
             Button(T("Revoir", "Show again"), false, S(130), () => { if (act.Welcome != null) act.Welcome(); }), null);

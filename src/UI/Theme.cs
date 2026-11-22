@@ -77,11 +77,22 @@ static class Ui
         }
     }
 
-    public static Icon MakeIcon(Color accent)
+    public static Icon MakeIcon(Color accent) { return MakeIcon(accent, null); }
+
+    // badge : petit point de couleur en haut à droite (mise à jour disponible, nouveaux fichiers…)
+    public static Icon MakeIcon(Color accent, Color? badge)
     {
         using (Bitmap b = new Bitmap(32, 32))
         {
-            using (Graphics g = Graphics.FromImage(b)) DrawLogo(g, new Rectangle(1, 1, 30, 30), accent);
+            using (Graphics g = Graphics.FromImage(b))
+            {
+                DrawLogo(g, new Rectangle(1, 1, 30, 30), accent);
+                if (badge != null)
+                {
+                    using (SolidBrush ring = new SolidBrush(Color.White)) g.FillEllipse(ring, 17, 0, 15, 15);
+                    using (SolidBrush dot = new SolidBrush(badge.Value)) g.FillEllipse(dot, 19, 2, 11, 11);
+                }
+            }
             IntPtr h = b.GetHicon();
             Icon tmp = Icon.FromHandle(h);
             Icon copy = (Icon)tmp.Clone();

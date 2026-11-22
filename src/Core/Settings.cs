@@ -24,7 +24,7 @@ static class Settings
     public static bool HideIcons = true, RightSide = false, AutoClose = true, ShowSystem = true, ShowRecents = true,
         GroupCats = true, GridView = false, Glass = true, LiveBlur = true, Animations = true, NoFullscreen = true, HotkeyOn = true,
         SearchApps = true, SearchRecent = true, SearchSettings = true, SearchCommands = true,
-        NewBadge = true, ArchiveOn = false, HoverPreview = true, Widgets = true, AutoUpdate = true, Pinned = false;
+        NewBadge = true, ArchiveOn = false, HoverPreview = true, Widgets = true, AutoUpdate = true, Pinned = false, QuietStart = false, TrayHintShown = false;
     public static string LastVersion = "";
     public static List<string> ArchiveLog = new List<string>();
     public static int ThemeMode = 0, Language = 0, Delay = 120, PanelWidth = 340, EdgeZone = 0, ScreenIdx = -1,
@@ -115,6 +115,8 @@ static class Settings
                     case "Widgets": Widgets = b; break;
                     case "AutoUpdate": AutoUpdate = b; break;
                     case "Pinned": Pinned = b; break;
+                    case "QuietStart": QuietStart = b; break;
+                    case "TrayHintShown": TrayHintShown = b; break;
                     case "LastVersion": LastVersion = v; break;
                     case "ArchiveLog": ArchiveLog = SplitList(v); break;
                     case "Dark": oldDark = v; break;
@@ -248,7 +250,7 @@ static class Settings
                 "SearchApps=" + B(SearchApps), "SearchRecent=" + B(SearchRecent), "SearchSettings=" + B(SearchSettings),
                 "SearchCommands=" + B(SearchCommands), "NewBadge=" + B(NewBadge), "ArchiveOn=" + B(ArchiveOn),
                 "HoverPreview=" + B(HoverPreview), "Widgets=" + B(Widgets), "AutoUpdate=" + B(AutoUpdate),
-                "Pinned=" + B(Pinned), "LastVersion=" + LastVersion, "ArchiveLog=" + string.Join("|", ArchiveLog),
+                "Pinned=" + B(Pinned), "QuietStart=" + B(QuietStart), "TrayHintShown=" + B(TrayHintShown), "LastVersion=" + LastVersion, "ArchiveLog=" + string.Join("|", ArchiveLog),
                 "ThemeMode=" + ThemeMode, "Language=" + Language, "Delay=" + Delay, "PanelWidth=" + PanelWidth,
                 "EdgeZone=" + EdgeZone, "ScreenIdx=" + ScreenIdx, "HotMods=" + HotMods, "HotKey=" + HotKey,
                 "WebEngine=" + WebEngine, "NewDays=" + NewDays, "ArchiveDays=" + ArchiveDays,
