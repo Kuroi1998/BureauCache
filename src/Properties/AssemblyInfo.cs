@@ -1,4 +1,4 @@
-// BureauCache — informations du programme
+﻿// BureauCache — informations du programme
 // Le numéro de version n'est écrit qu'ici : publier.ps1 et GitHub Actions s'en servent.
 using System.Reflection;
 
@@ -12,6 +12,6 @@ using System.Reflection;
 
 static class AppInfo
 {
-    public const string Version = "3.2";
+    public const string Version = "3.3";
     public const string Repo = "Kuroi1998/BureauCache";
 }
