@@ -1,4 +1,4 @@
-# Publie une version quand on pousse un tag vX.Y (ex. : git tag v3.1 && git push origin v3.1)
+# Publie une version quand on pousse un tag vX.Y (voir publier.ps1)
 name: Publier une version
 
 on:
@@ -18,12 +18,18 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}".TrimStart('v')
-          $code = (Select-String -Path BureauCache.cs -Pattern 'public const string Version = "([^"]+)"').Matches[0].Groups[1].Value
-          if ($code -ne $tag) { throw "Le tag v$tag ne correspond pas à Installer.Version ($code) dans BureauCache.cs" }
+          $code = (Select-String -Path src/Properties/AssemblyInfo.cs -Pattern 'public const string Version = "([^"]+)"').Matches[0].Groups[1].Value
+          if ($code -ne $tag) { throw "Le tag v$tag ne correspond pas à AppInfo.Version ($code) dans src/Properties/AssemblyInfo.cs" }
 
       - name: Compiler
         shell: cmd
         run: build.cmd
+
+      - name: Vérifier la version de l'exe produit
+        shell: pwsh
+        run: |
+          $v = (Get-Item BureauCache.exe).VersionInfo.ProductVersion
+          if ($v -ne "${{ github.ref_name }}".TrimStart('v')) { throw "Version de l'exe inattendue : $v" }
 
       - name: Calculer l'empreinte SHA-256
         shell: pwsh
@@ -38,17 +44,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "${{ github.ref_name }}"
-          $notes = "CHANGELOG.md"
+          $ver = $tag.TrimStart('v')
+          $title = "BureauCache $ver"
           $section = ""
-          if (Test-Path $notes) {
-            $lines = Get-Content $notes -Encoding utf8
-            $start = [Array]::FindIndex($lines, [Predicate[string]]{ param($l) $l -match "^## $([regex]::Escape($tag.TrimStart('v')))\b" })
+          if (Test-Path CHANGELOG.md) {
+            $lines = Get-Content CHANGELOG.md -Encoding utf8
+            $start = [Array]::FindIndex($lines, [Predicate[string]]{ param($l) $l -match "^## $([regex]::Escape($ver))\b" })
             if ($start -ge 0) {
+              # « ## 3.2 — Optimisation, sécurité et code » donne le titre « BureauCache 3.2 — Optimisation, sécurité et code »
+              $suffix = ($lines[$start] -replace "^## $([regex]::Escape($ver))", '').Trim()
+              if ($suffix) { $title = "$title $suffix" }
               $end = [Array]::FindIndex($lines, $start + 1, [Predicate[string]]{ param($l) $l -match '^## ' })
               if ($end -lt 0) { $end = $lines.Length }
               $section = ($lines[($start + 1)..($end - 1)] -join "`n").Trim()
             }
           }
-          if (-not $section) { $section = "Version $tag" }
+          if (-not $section) { $section = "Version $ver" }
           $section | Out-File -Encoding utf8 release-notes.md
-          gh release create $tag BureauCache.exe BureauCache.exe.sha256 --title "BureauCache $($tag.TrimStart('v'))" --notes-file release-notes.md
+          gh release create $tag BureauCache.exe BureauCache.exe.sha256 --title $title --notes-file release-notes.md
