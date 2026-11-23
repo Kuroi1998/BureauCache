@@ -1,5 +1,15 @@
 # Nouveautés
 
+## Non publié
+
+**Météo**
+- Nouvelle tuile météo dans le panneau : une icône dessinée (soleil, nuages, pluie, neige, orage…), la température, le lieu et les températures du jour. Un clic affiche le ressenti, le vent et les prévisions sur 3 jours.
+- Le lieu se choisit en tapant le nom de sa ville (partout dans le monde) ou en laissant Windows détecter la position. La météo est désactivée tant qu'aucun lieu n'est choisi : rien n'est envoyé sans ton accord. Données Open-Meteo.com (CC BY 4.0).
+
+**Nettoyage rapide**
+- Clic droit sur la tuile Disque, puis « Nettoyer… » : fichiers temporaires, caches des navigateurs (Edge, Chrome, Brave, Vivaldi, Opera, Firefox) et des applications (Discord, Teams, Steam, VS Code), et au choix les rapports d'erreurs, les miniatures et la corbeille.
+- Analyse avec les tailles, puis confirmation. Windows, les programmes, tes documents, tes mots de passe et ton historique ne sont jamais touchés. Le cache d'une application ouverte est ignoré.
+
 ## 3.5 — Ouverture depuis le bureau
 
 - Le panneau s'ouvre de nouveau au bord de l'écran quand le bureau est au premier plan, par exemple après avoir réduit BureauCache près de l'horloge. Avec l'option « Pas en plein écran », Windows signalait le bureau comme « occupé » et BureauCache le prenait pour un jeu en plein écran. Les vrais jeux et les présentations restent détectés.

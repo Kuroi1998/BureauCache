@@ -85,7 +85,7 @@ partial class PanelForm
         try { if (!Native.SetWindowDisplayAffinity(Handle, liveBlurActive ? 0x11u : 0u)) liveBlurActive = false; }
         catch { liveBlurActive = false; }
         if (Settings.Glass) glass = MakeGlass(new Rectangle(openLeft, Top, Width, Height));
-        if (Settings.Widgets) { RefreshWidgetData(); widgetTimer.Start(); }
+        if (Settings.Widgets || Settings.WeatherOn) { RefreshWidgetData(); widgetTimer.Start(); }
         ApplyTheme();
         if (search.Text.Length > 0) search.Text = "";
         else Rebuild(true);

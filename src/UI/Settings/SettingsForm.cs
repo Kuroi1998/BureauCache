@@ -22,14 +22,14 @@ partial class SettingsForm : Form
     readonly SideNav nav;
     readonly int W, H, NavW;
 
-    Toggle tQuiet, tHide, tStartup, tAuto, tFull, tHot, tGlass, tLive, tAnim, tWidgets, tPreview, tSystem, tRecents, tGroups,
+    Toggle tQuiet, tHide, tStartup, tAuto, tFull, tHot, tGlass, tLive, tAnim, tWidgets, tWeather, tPreview, tSystem, tRecents, tGroups,
         tSApps, tSRecent, tSSettings, tSCmd, tNew, tArchive, tAutoUpd;
     Segmented sSide, sZone, sScreen, sTheme, sView, sLang, sEngine, sNewDays, sArchDays;
     Slider slDelay, slWidth;
     Swatches swatch;
     HotkeyBox hk;
     InputBox repo;
-    Label lDelay, lWidth, lHotStatus, lInstall, lArchive, lUpdate, lTray;
+    Label lDelay, lWidth, lHotStatus, lInstall, lArchive, lUpdate, lTray, lWeatherPlace;
     FlatButton bInstall, bArchiveNow, bArchiveUndo, bCheck;
     Card customCard;
     string customSig;
