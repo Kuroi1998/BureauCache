@@ -366,6 +366,9 @@ partial class PanelForm : Form
         resizing = false;
         Busy = false;
         ApplyWidth((int)Math.Round(Width / Ui.Scale / 10.0) * 10);
+        // Le glissement a déjà fixé Width : si l'arrondi tombe juste, ApplyPanelGeometry ne voit aucun
+        // changement et la réservation du panneau épinglé garderait l'ancienne largeur (R-27)
+        AppBarSetPos();
     }
 
     protected override void OnMouseDoubleClick(MouseEventArgs e)

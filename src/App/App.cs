@@ -163,7 +163,7 @@ partial class App : ApplicationContext
     {
         return new SettingsActions
         {
-            Preview = Preview, Quit = ExitThread, Install = DoInstall, Uninstall = DoUninstall,
+            Preview = Preview, Quit = QuitByUser, Install = DoInstall, Uninstall = DoUninstall,
             InstallUpdate = InstallUpdate, HotkeyOk = () => hotkeyOk, Welcome = ShowWelcome, HiddenToTray = OnHiddenToTray
         };
     }
@@ -334,7 +334,7 @@ partial class App : ApplicationContext
     void Poll(object sender, EventArgs e)
     {
         pollCount++;
-        if (pollCount == 500 && Updater.TrialStarted) Updater.ConfirmStart(Application.ExecutablePath); // 10 s de fonctionnement : mise à jour confirmée
+        if (pollCount >= 500) ConfirmTrial(); // 10 s de fonctionnement : mise à jour confirmée
         if (pollCount % 50 == 0) ApplyIconVisibility();
         if (pollCount % 250 == 0) RefreshTray(); // toutes les 5 s : point « nouveaux fichiers » sur l'icône
         if (pollCount % 25 == 0 && panel.Dirty && !panel.Busy) panel.RequestLoad();
@@ -373,6 +373,24 @@ partial class App : ApplicationContext
             else outsideTicks = 0;
             if (outsideTicks >= 25) { outsideTicks = 0; panel.HidePanel(); }
         }
+    }
+
+    // Confirme l'essai de cette version, sauf pendant le remplacement de l'exe par une autre mise à jour :
+    // la confirmation effacerait alors le filet de la version suivante (Q24-03)
+    void ConfirmTrial()
+    {
+        if (!Updater.TrialStarted || installingUpdate) return;
+        Updater.TrialStarted = false;
+        try { Updater.ConfirmStart(Application.ExecutablePath); } catch { }
+    }
+
+    // Sortie demandée par l'utilisateur (menu, Paramètres) : la version a démarré et répond, l'essai est
+    // réussi même avant 10 s (R-26). Une sortie après une erreur WinForms ou une relance après mise à jour
+    // ne passe pas par ici et ne confirme rien (Q24-08).
+    void QuitByUser()
+    {
+        ConfirmTrial();
+        ExitThread();
     }
 
     protected override void ExitThreadCore()

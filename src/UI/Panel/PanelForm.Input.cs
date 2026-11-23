@@ -164,6 +164,15 @@ partial class PanelForm
         {
             if (!IsOpen) ShowPanel(Screen.FromPoint(Cursor.Position));
             Pin();
+            if (!appbar)
+            {
+                // Windows a refusé de réserver la place : le panneau n'est pas présenté comme épinglé (Q24-04)
+                Settings.Pinned = false;
+                Settings.SaveQuiet();
+                Toast(L.T("Windows n'a pas permis d'épingler le panneau.", "Windows didn't allow the panel to be pinned.", "Windows no permitió fijar el panel."), null, null);
+                Invalidate();
+                return;
+            }
             Toast(L.T("Panneau épinglé : il reste ouvert et les fenêtres lui laissent la place.", "Panel pinned: it stays open and windows make room for it.", "Panel fijado. Permanece abierto y las ventanas dejan espacio para él."), null, null);
         }
         else
@@ -211,7 +220,8 @@ partial class PanelForm
         d.cbSize = Marshal.SizeOf(d);
         d.hWnd = Handle;
         d.uCallbackMessage = abMsg;
-        Native.SHAppBarMessage(0 /*ABM_NEW*/, ref d);
+        // Refus du Shell (fenêtre déjà inscrite, Explorer absent) : pas de réservation fictive (R-09)
+        if (Native.SHAppBarMessage(0 /*ABM_NEW*/, ref d) == UIntPtr.Zero) return;
         appbar = true;
         AppBarSetPos();
     }

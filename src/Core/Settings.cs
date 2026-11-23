@@ -51,6 +51,9 @@ static class Settings
     public static string Dir { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BureauCache"); } }
     public static string FilePath { get { return Path.Combine(Dir, "settings.ini"); } }
     public const long MaxFileSize = 2 * 1024 * 1024;
+    // Historique d'usage borné : au-delà, les entrées les plus anciennes sont oubliées, pour que le fichier
+    // écrit reste toujours relisible sous MaxFileSize (R-14). 2 000 chemins de 260 caractères font ~550 Ko.
+    public const int MaxUsage = 2000;
 
     public static bool RefreshSystemTheme()
     {
@@ -206,7 +209,21 @@ static class Settings
         WebEngine = Math.Max(0, Math.Min(3, WebEngine));
         if (NewDays < 1) NewDays = 3;
         if (ArchiveDays < 7 || ArchiveDays > 36500) ArchiveDays = 60;
+        // Une durée importée hors des choix proposés s'afficherait comme le premier choix tout en restant
+        // utilisée : elle est ramenée au premier choix au moins aussi long, pour ne jamais ranger plus tôt
+        // que demandé (R-33). Au-delà du plus long choix, c'est ce dernier.
+        NewDays = RoundUp(NewDaysChoices, NewDays);
+        ArchiveDays = RoundUp(ArchiveDaysChoices, ArchiveDays);
         return true;
+    }
+
+    public static readonly int[] NewDaysChoices = { 1, 3, 7 };
+    public static readonly int[] ArchiveDaysChoices = { 30, 60, 90, 180 };
+
+    internal static int RoundUp(int[] choices, int value)
+    {
+        foreach (int c in choices) if (c >= value) return c;
+        return choices[choices.Length - 1];
     }
 
     static string B(bool b) { return b ? "1" : "0"; }
@@ -254,7 +271,14 @@ static class Settings
         {
             Directory.CreateDirectory(Dir);
             tmp = Path.Combine(Dir, Guid.NewGuid().ToString("N") + ".tmp");
-            File.WriteAllLines(tmp, Serialize(), new UTF8Encoding(false));
+            string[] lines = Serialize();
+            // Un fichier que Load refuserait ne remplace jamais le précédent (Q24-01)
+            if (Utf8Size(lines) > MaxFileSize)
+            {
+                System.Diagnostics.Trace.TraceError("BureauCache settings: file would exceed " + MaxFileSize + " bytes, not saved.");
+                return false;
+            }
+            File.WriteAllLines(tmp, lines, new UTF8Encoding(false));
             if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
             else File.Move(tmp, FilePath);
             return true;
@@ -267,7 +291,29 @@ static class Settings
         finally { if (tmp != null) try { File.Delete(tmp); } catch { } }
     }
 
+    // Le fichier écrit doit rester relisible : au-delà de MaxFileSize, la moitié la plus ancienne de
+    // l'historique d'usage est oubliée, autant de fois que nécessaire (R-14, Q24-01)
     static string[] Serialize()
+    {
+        PruneUsage();
+        string[] lines = SerializeLines();
+        while (Usage.Count > 0 && Utf8Size(lines) > MaxFileSize)
+        {
+            foreach (string k in Usage.OrderBy(kv => kv.Value[1]).Take((Usage.Count + 1) / 2).Select(kv => kv.Key).ToList())
+                Usage.Remove(k);
+            lines = SerializeLines();
+        }
+        return lines;
+    }
+
+    internal static long Utf8Size(string[] lines)
+    {
+        long size = 0;
+        foreach (string line in lines) size += Encoding.UTF8.GetByteCount(line) + 2;
+        return size;
+    }
+
+    static string[] SerializeLines()
     {
         {
             return new string[] {
@@ -341,7 +387,20 @@ static class Settings
         long[] u;
         if (!Usage.TryGetValue(key, out u)) u = new long[] { 0, 0 };
         Usage[key] = new long[] { u[0] + 1, DateTime.Now.Ticks };
+        PruneUsage();
         SaveQuiet();
+    }
+
+    // Ramène l'historique vers MaxUsage entrées en oubliant les plus anciennes. Une entrée de moins de
+    // 180 jours (la plus longue durée de rangement proposée) est gardée : elle protège encore un élément
+    // du rangement automatique (Q24-02). La taille du fichier reste bornée par Serialize.
+    internal static void PruneUsage()
+    {
+        if (Usage.Count <= MaxUsage) return;
+        long protect = DateTime.Now.AddDays(-ArchiveDaysChoices[ArchiveDaysChoices.Length - 1]).Ticks;
+        foreach (string k in Usage.Where(kv => kv.Value[1] < protect).OrderBy(kv => kv.Value[1])
+                                  .Take(Usage.Count - MaxUsage).Select(kv => kv.Key).ToList())
+            Usage.Remove(k);
     }
 
     public static void RenameKey(string o, string n)

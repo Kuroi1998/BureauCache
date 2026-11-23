@@ -1,5 +1,13 @@
 ﻿# Nouveautés
 
+## Non publié
+
+- Les réglages ne peuvent plus être perdus quand l'historique d'utilisation devient très long. Les éléments utilisés depuis plus de 180 jours sont oubliés en premier.
+- Quitter BureauCache juste après une mise à jour ne fait plus revenir à l'ancienne version au démarrage suivant.
+- Panneau épinglé : l'espace réservé à l'écran suit la largeur ajustée à la souris. Si Windows refuse l'épinglage, un message le dit.
+- L'effet verre s'applique tout de suite quand on l'active panneau ouvert.
+- La calculatrice reconnaît « 1 + ,5 ». Les erreurs de téléchargement s'affichent dans la langue choisie.
+
 ## 3.7.1 — Espagnol et stabilisation du panneau
 
 - Interface disponible en espagnol. Le changement de langue conserve la rubrique active et son défilement. La calculatrice accepte les nombres espagnols copiés avec un séparateur de milliers.

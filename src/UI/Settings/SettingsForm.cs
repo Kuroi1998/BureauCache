@@ -44,8 +44,8 @@ partial class SettingsForm : Form
 
     static int S(int v) { return Ui.S(v); }
     static string T(string fr, string en, string es = null) { return L.T(fr, en, es); }
-    static readonly int[] NewDaysOpts = { 1, 3, 7 };
-    static readonly int[] ArchiveOpts = { 30, 60, 90, 180 };
+    static readonly int[] NewDaysOpts = Settings.NewDaysChoices;
+    static readonly int[] ArchiveOpts = Settings.ArchiveDaysChoices;
 
     public int CurrentPage { get { return nav.Selected; } }
 

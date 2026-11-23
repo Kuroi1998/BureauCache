@@ -21,6 +21,13 @@ if (-not (Test-Path $Cle)) { throw "Clé introuvable : $Cle (voir outils\creer-c
 $publiques = Get-ClesPubliquesDuCode $depot
 if ($publiques.Count -eq 0) { throw "src\Core\UpdateKeys.cs ne contient aucune clé publique." }
 $tag = "v$Version"
+# Toutes les commandes gh visent le dépôt d'origin, celui où le tag est contrôlé, et non le dépôt du dossier
+# courant : lancé depuis un autre dépôt, le script agirait sinon sur un brouillon de celui-ci (R-28)
+$origine = git -C $depot remote get-url origin
+# Hôte exact (Q24-06) : https://github.com/…, git@github.com:…, ssh://git@github.com/…, ssh://git@ssh.github.com:443/…
+if ($origine -notmatch '^(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/|ssh://git@ssh\.github\.com:443/)([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?/?$') { throw "Remote origin inattendu : $origine" }
+$repo = $Matches[1]
+Write-Host "Dépôt GitHub : $repo"
 
 # 1. Le tag local doit être celui de GitHub (un tag déplacé côté GitHub ferait compiler autre chose)
 $local = git -C $depot rev-parse --verify --quiet "$tag^{commit}"
@@ -32,7 +39,7 @@ $distant = if ($ligne) { ($ligne -split '\s+')[0] } else { $null }
 if ($distant -ne $local) { throw "Le tag $tag de GitHub ($distant) diffère du tag local ($local) : n'utilise pas ce brouillon." }
 
 # 2. Le brouillon doit exister et ne pas être publié
-$infos = gh release view $tag --json isDraft,assets | ConvertFrom-Json
+$infos = gh release view $tag --repo $repo --json isDraft,assets | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0) { throw "Version $tag introuvable sur GitHub (la compilation de la CI est-elle terminée ?)" }
 if (-not $infos.isDraft) { throw "La version $tag est déjà publiée : rien à signer." }
 
@@ -85,13 +92,13 @@ try {
     $fichierSig = Join-Path $tmp 'BureauCache.exe.sig'
     [IO.File]::WriteAllText($fichierSha, "$hex  BureauCache.exe", (New-Object Text.ASCIIEncoding))
     [IO.File]::WriteAllText($fichierSig, $signature, (New-Object Text.ASCIIEncoding))
-    gh release upload $tag $final $fichierSha $fichierSig --clobber
+    gh release upload $tag --repo $repo $final $fichierSha $fichierSig --clobber
     if ($LASTEXITCODE -ne 0) { throw "Envoi des fichiers impossible : le brouillon n'est pas publié." }
 
     # 7. Relecture de ce que GitHub sert réellement, avant de publier
     $verif = Join-Path $tmp 'verification'
     New-Item -ItemType Directory $verif | Out-Null
-    gh release download $tag -p BureauCache.exe -p BureauCache.exe.sig -D $verif
+    gh release download $tag --repo $repo -p BureauCache.exe -p BureauCache.exe.sig -p BureauCache.exe.sha256 -D $verif
     if ($LASTEXITCODE -ne 0) { throw "Relecture du brouillon impossible : il n'est pas publié." }
     $flux = [IO.File]::OpenRead((Join-Path $verif 'BureauCache.exe'))
     try { $relu = $sha.ComputeHash($flux) } finally { $flux.Dispose() }
@@ -99,8 +106,12 @@ try {
         -not (Test-Signature $relu ([IO.File]::ReadAllText((Join-Path $verif 'BureauCache.exe.sig'))) $publiques)) {
         throw "Le brouillon ne sert pas les fichiers envoyés : il n'est pas publié. Vérifie-le sur GitHub."
     }
+    # L'empreinte publiée est relue aussi : fausse, elle rendrait la version inutilisable par les clients (R-29)
+    # Octet par octet avec le fichier produit ici : un séparateur exotique passerait un découpage (Q24-07)
+    $shaRelu = [Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $verif 'BureauCache.exe.sha256')))
+    if ($shaRelu -cne [Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $tmp 'BureauCache.exe.sha256')))) { throw "Le brouillon sert une empreinte .sha256 différente : il n'est pas publié. Vérifie-le sur GitHub." }
 
-    gh release edit $tag --draft=false
+    gh release edit $tag --repo $repo --draft=false
     if ($LASTEXITCODE -ne 0) { throw "Fichiers en place, mais la publication a échoué : publie le brouillon sur GitHub." }
     Write-Host "Version $Version compilée, signée et publiée." -ForegroundColor Green
 } finally {
