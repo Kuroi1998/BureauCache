@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Tests de BureauCache (voir DECISIONS.md, D-002).
+    Les tests référencent le vrai BureauCache.exe produit par build.cmd (C# 5, csc du .NET Framework) :
+    on teste exactement le binaire distribué, sans recompiler les sources avec un autre compilateur.
+    Lancer :      dotnet test tests/BureauCache.Tests
+    Sans recompiler l'exe :  dotnet test tests/BureauCache.Tests -p:SkipAppBuild=true
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <RootNamespace>BureauCache.Tests</RootNamespace>
+    <AssemblyName>BureauCache.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.6.4" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.6.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="BureauCache">
+      <HintPath>$(MSBuildThisFileDirectory)..\..\BureauCache.exe</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Recompile l'application avant les tests pour ne jamais tester un exe périmé -->
+  <Target Name="BuildApp" BeforeTargets="ResolveAssemblyReferences" Condition="'$(SkipAppBuild)' != 'true'">
+    <Exec Command="&quot;$(MSBuildThisFileDirectory)..\..\build.cmd&quot;" />
+  </Target>
+
+</Project>

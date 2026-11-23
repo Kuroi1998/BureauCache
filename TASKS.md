@@ -7,8 +7,9 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 
 | ID | Titre | Statut | Porteur | Branche | Lien |
 |---|---|---|---|---|---|
-| T-001 | Mettre en place le projet de tests (`tests/`) | À faire | Claude puis ChatGPT | `chore/T-001-tests` | D-002 |
-| T-002 | Tests de `Calc` (séparateurs FR/EN, exposants, limites) | À faire | ChatGPT | `chore/T-001-tests` | QA-03, R-16 |
+| T-001 | Mettre en place le projet de tests (`tests/`) | Revue | Claude | `chore/T-001-tests` | D-002 |
+| T-002 | Tests de `Calc` (séparateurs FR/EN, exposants, limites) | À faire | ChatGPT | — | QA-03, R-16 |
+| T-007 | Calculatrice : relire les résultats qui ont un séparateur de milliers | À faire | Claude | — | R-19 |
 | T-003 | Rangement : ne pas archiver un dossier dont l'activité n'est pas confirmée | À faire | Claude | — | R-01 |
 | T-004 | Rangement concurrent d'une opération utilisateur sur le même élément | À faire | Claude | — | R-03 |
 | T-005 | Politique de confiance des mises à jour (signature indépendante ?) | À faire | Gemini (recherche) puis Claude | — | R-04 |
@@ -18,7 +19,19 @@ Les autres risques ouverts (R-05 à R-18) restent dans [AUDIT_QA_BureauCache.md]
 
 ---
 
-## Tâche en cours : aucune
+## Tâche en cours : T-001 — Projet de tests
+
+**Objectif :** pouvoir tester automatiquement la logique de l'application, en local et en CI.
+**Critères d'acceptation :**
+- [x] `dotnet test tests/BureauCache.Tests` compile l'exe avec build.cmd puis lance les tests
+- [x] Premiers tests de `Calc` (opérateurs, nombres, fonctions, refus, format, aller-retour)
+- [x] Workflow `.github/workflows/tests.yml` sur les pull requests et sur `main`
+- [x] Compile avec build.cmd sans nouvel avertissement
+- [ ] Workflow vu vert sur GitHub
+**Fichiers concernés :** `tests/BureauCache.Tests/*`, `src/Properties/AssemblyInfo.cs`, `.github/workflows/tests.yml`
+**Décisions liées :** D-002
+**Journal :**
+- 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 
 <!-- Recopier ce bloc pour la tâche active :
 

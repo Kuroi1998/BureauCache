@@ -5,3 +5,8 @@ release-notes.md
 
 # Exports jetables pour Gemini et ChatGPT
 .ai/
+
+# Tests
+tests/**/bin/
+tests/**/obj/
+TestResults/
