@@ -1,16 +1,34 @@
 # Nouveautés
 
-## Non publié
+## 3.4 — Mises à jour signées et fiabilité
 
+**Mises à jour**
 - Mises à jour signées : chaque nouvelle version est signée avec une clé qui ne passe jamais par GitHub, et BureauCache refuse d'installer une version dont la signature n'est pas valide. Même un compte GitHub piraté ne suffirait pas à diffuser une fausse mise à jour.
-- Mises à jour plus sûres : si une nouvelle version n'arrive pas à démarrer, BureauCache revient automatiquement à la version précédente au lancement suivant.
-- Rangement automatique plus prudent : un dossier n'est rangé que si **tout** son contenu, sous-dossiers compris, est inutilisé. Un dossier trop volumineux pour être vérifié reste sur le bureau.
-- Rangement automatique : il attend la fin d'un renommage, d'une copie ou d'une suppression en cours (et de son délai d'annulation), ainsi que la fermeture des fenêtres de confirmation, avant de se lancer.
-- Rangement automatique : un dossier qui contient une jonction ou un lien symbolique n'est plus rangé, et le rangement fonctionne avec un dossier d'archive OneDrive.
-- Calculatrice : un résultat copié avec Entrée se relit correctement, même avec des milliers (« 1 234,5 », « 1,000 »). En anglais, « 1,000 » ne donne plus 1.
-- Calculatrice : une saisie aux séparateurs incohérents (« 1.234,5 », « 12,34.5 ») est refusée au lieu de donner un résultat faux. Un nombre collé au format de l'autre langue reste compris.
-- Calculatrice : `-2^2` vaut -4, comme en mathématiques (le signe s'applique après la puissance). Écrire `(-2)^2` pour obtenir 4.
-- Calculatrice : les très petits résultats gardent leur précision et s'affichent en notation scientifique (`1,04E-09` au lieu de `0,000000001`).
+- Retour automatique : si une nouvelle version n'arrive pas à démarrer, BureauCache revient à la version précédente au lancement suivant.
+- Téléchargement plus strict : redirections contrôlées une à une, taille limitée, version téléchargée identique à celle annoncée, remplacement de l'exe sans risque de le perdre.
+- Un dépôt de mises à jour personnalisé est signalé à l'installation, et le résultat d'une vérification faite pour un autre dépôt est ignoré.
+
+**Rangement automatique**
+- Plus prudent : un dossier n'est rangé que si **tout** son contenu, sous-dossiers compris, est inutilisé. Un dossier trop volumineux pour être vérifié, ou qui contient une jonction ou un lien symbolique, reste sur le bureau.
+- Il attend la fin d'un renommage, d'une copie ou d'une suppression en cours (et de son délai d'annulation), ainsi que la fermeture des fenêtres de confirmation.
+- Chaque élément est revérifié juste avant d'être déplacé, et le journal d'annulation est enregistré immédiatement.
+- Fonctionne avec un bureau synchronisé par OneDrive.
+
+**Calculatrice**
+- Un résultat copié avec Entrée se relit correctement, même avec des milliers (« 1 234,5 », « 1,000 ») ou en notation scientifique. En anglais, « 1,000 » ne donne plus 1.
+- Une saisie aux séparateurs incohérents (« 1.234,5 », « 12,34.5 ») est refusée au lieu de donner un résultat faux. Un nombre collé au format de l'autre langue reste compris.
+- `-2^2` vaut -4, comme en mathématiques. Écrire `(-2)^2` pour obtenir 4.
+- Les très petits résultats gardent leur précision (`1,04E-09` au lieu de `0,000000001`).
+
+**Corrections**
+- Annuler (Ctrl+Z) une suppression ou un renommage qui échoue garde la possibilité de réessayer.
+- Un fichier illisible sur le bureau n'empêche plus d'afficher les autres.
+- Curseurs et sélecteurs des paramètres : un clic droit ne change plus la valeur, et un glissement interrompu est bien relâché.
+- Le panneau se referme au bon endroit après avoir été redimensionné.
+- Icône de notification : un double-clic n'ouvre plus aussi la liste.
+- Paramètres : un échec d'enregistrement ou d'import est signalé, et le nombre d'éléments des catégories personnalisées reste à jour.
+- La désinstallation en ligne de commande s'arrête proprement si BureauCache est encore ouvert.
+- Moins de mémoire consommée par les icônes et les menus.
 
 ## 3.3 — Icône de notification et réduction
 
