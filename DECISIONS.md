@@ -17,6 +17,13 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 **Alternatives écartées :** projet SDK `dotnet build`. Il apporterait un C# récent, mais imposerait une installation au contributeur et à la CI.
 **Conséquences :** tout code proposé par une IA doit être relu pour la syntaxe C# 5. `build.cmd` est le test de compilation de référence.
 
+## D-003 — Calculatrice : la puissance avant le signe (2026-11-23) · Statut : Acceptée
+
+**Contexte :** `-2^2` valait 4, parce que le moins unaire était appliqué avant la puissance (R-20).
+**Décision (chef de projet) :** on suit la notation mathématique : `-2^2 = -(2^2) = -4`. La puissance reste associative à droite, l'exposant peut être signé (`2^-1`), et le pourcentage s'applique avant la puissance (`10%^2 = 0,01`).
+**Alternatives écartées :** la convention d'Excel (4), moins attendue dans un lanceur qui ressemble à une calculatrice de poche ou à un moteur de recherche.
+**Conséquences :** un calcul `-x^n` copié depuis Excel peut donner un résultat différent. Les tests de `CalcTests` fixent ce comportement.
+
 ## D-002 — Tests dans un projet séparé qui référence BureauCache.exe (2026-11-23) · Statut : Acceptée
 
 **Contexte :** aucun test automatisé n'existait. La logique pure (`Calc`, `Search`, normalisation, validation de noms) est testable sans interface.

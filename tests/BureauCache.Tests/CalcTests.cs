@@ -30,6 +30,14 @@ namespace BureauCache.Tests
         [DataRow("(2+3)*4", 20.0)]
         [DataRow("10-4-3", 3.0)]
         [DataRow("2^3^2", 512.0)]          // puissance associative à droite
+        [DataRow("-2^2", -4.0)]            // le signe après la puissance (D-003)
+        [DataRow("(-2)^2", 4.0)]
+        [DataRow("-3^2+10", 1.0)]
+        [DataRow("2^-2", 0.25)]
+        [DataRow("-2^-2", -0.25)]
+        [DataRow("2*-3", -6.0)]
+        [DataRow("2^2^-1", 1.4142135623730951)]
+        [DataRow("10%^2", 0.01)]           // le pourcentage s'applique avant la puissance
         [DataRow("2**3", 8.0)]
         [DataRow("6×7", 42.0)]
         [DataRow("84÷2", 42.0)]

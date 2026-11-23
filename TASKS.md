@@ -10,7 +10,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-001 | Mettre en place le projet de tests (`tests/`) | Revue | Claude | `chore/T-001-tests` | D-002 |
 | T-002 | Tests de `Calc` (séparateurs FR/EN, exposants, limites) | Revue | ChatGPT puis Claude | `chore/T-001-tests` | QA-03, R-16 |
 | T-007 | Calculatrice : séparateurs de milliers et virgule après le point | Revue | Claude | `fix/T-007-calc-separateurs` | QA-13 (ex R-19, R-16) |
-| T-008 | Calculatrice : convention de `-2^2` et précision des petits nombres | À faire (décision humaine pour R-20) | Toi puis Claude | — | R-20, R-21 |
+| T-008 | Calculatrice : convention de `-2^2` et précision des petits nombres | En cours : `-2^2` fait (QA-14, D-003), précision à faire | Claude | `fix/T-007-calc-separateurs` | R-21 |
 | T-003 | Rangement : ne pas archiver un dossier dont l'activité n'est pas confirmée | À faire | Claude | — | R-01 |
 | T-004 | Rangement concurrent d'une opération utilisateur sur le même élément | À faire | Claude | — | R-03 |
 | T-005 | Politique de confiance des mises à jour (signature indépendante ?) | À faire | Gemini (recherche) puis Claude | — | R-04 |

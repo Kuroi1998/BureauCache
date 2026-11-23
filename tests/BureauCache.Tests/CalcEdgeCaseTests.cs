@@ -120,7 +120,6 @@ namespace BureauCache.Tests
                 AssertRejected(expression);
         }
 
-        [Ignore("Décision en attente (R-20) : -2^2 vaut 4 aujourd'hui (convention d'Excel), -4 en notation mathématique.")]
         [TestMethod]
         public void Puissance_prioritaire_sur_le_moins_unaire()
         {

@@ -138,37 +138,36 @@ static class Calc
 
         double Term()
         {
-            double v = Factor();
+            double v = Unary();
             while (true)
             {
-                if (Eat('*') || Eat('x')) v *= Factor();
-                else if (Eat('/')) v /= Factor();
+                if (Eat('*') || Eat('x')) v *= Unary();
+                else if (Eat('/')) v /= Unary();
                 else return v;
             }
         }
 
-        double Factor()
-        {
-            Enter();
-            double b = Unary();
-            if (Eat('^')) b = Math.Pow(b, Factor());
-            depth--;
-            return b;
-        }
-
+        // Le signe s'applique après la puissance, comme en mathématiques : -2^2 = -(2^2) = -4 (D-003)
         double Unary()
         {
             Enter();
             double v;
             if (Eat('-')) v = -Unary();
             else if (Eat('+')) v = Unary();
-            else
-            {
-                v = Primary();
-                if (Eat('%')) v /= 100;
-            }
+            else v = Power();
             depth--;
             return v;
+        }
+
+        // Puissance associative à droite (2^3^2 = 2^9) ; l'exposant peut être signé (2^-1)
+        double Power()
+        {
+            Enter();
+            double b = Primary();
+            if (Eat('%')) b /= 100;
+            if (Eat('^')) b = Math.Pow(b, Unary());
+            depth--;
+            return b;
         }
 
         double Primary()
