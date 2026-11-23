@@ -110,10 +110,12 @@ partial class SettingsForm
         int days = Settings.ArchiveDays;
         var favorites = new HashSet<string>(Settings.Favorites, StringComparer.OrdinalIgnoreCase);
         var usage = new Dictionary<string, long[]>(Settings.Usage, StringComparer.OrdinalIgnoreCase);
+        DateTime limit = Archiver.Limit;
+        string folder = Archiver.Folder;
         lArchive.Text = T("Analyse du bureau…", "Checking the desktop…", "Analizando el escritorio…");
         Background.Run(() =>
         {
-            int n = Archiver.CountCandidates(favorites, usage);
+            int n = Archiver.CountCandidates(favorites, usage, limit, folder);
             try
             {
                 BeginInvoke(new Action(() =>

@@ -116,7 +116,9 @@ class PreviewForm : Form
             string parsing = thumbs ? it.Target : it.Kind == ItemKind.App ? it.Args : null;
             if (string.IsNullOrEmpty(parsing) || my != token) return;
             Bitmap b;
-            thumbSlots.Wait();
+            // Attente par tranches : un fil dépassé par un nouveau survol abandonne au lieu d'attendre sans fin
+            // derrière deux appels du shell bloqués (Q26-06)
+            while (!thumbSlots.Wait(200)) if (my != token) return;
             try
             {
                 if (my != token) return;
@@ -144,6 +146,13 @@ class PreviewForm : Form
             return;
         }
         base.WndProc(ref m);
+    }
+
+    // La miniature appartient à l'aperçu : libérée avec lui (Q26-06)
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) { token++; if (img != null) { img.Dispose(); img = null; } }
+        base.Dispose(disposing);
     }
 
     public void HidePreview()

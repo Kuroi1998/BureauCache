@@ -20,6 +20,8 @@ static class Updater
         public string Version, Url, ShaUrl, SigUrl, Notes, Error;
         public string Repository;
         public bool Available;
+        // Version plus récente publiée sans ses fichiers d'installation : la vérification a réussi (Q26-04)
+        public bool Incomplete;
     }
 
     static Release current = new Release();
@@ -137,13 +139,17 @@ static class Updater
             bool newer = IsNewer(result.Version, Installer.Version);
             result.Available = newer && result.Url != null && result.ShaUrl != null && signed;
             // Version plus récente publiée sans ses fichiers d'installation : ne pas annoncer « à jour » (R-06)
-            if (newer && !result.Available)
-                result.Error = L.T("la version " + result.Version + " est publiée, mais son installation n'est pas encore disponible.",
-                                   "version " + result.Version + " is published, but it can't be installed yet.",
-                                   "la versión " + result.Version + " está publicada, pero aún no se puede instalar.");
+            result.Incomplete = newer && !result.Available;
         }
         catch (Exception ex) { result.Error = ex.Message; }
         return result;
+    }
+
+    public static string IncompleteText(Release r)
+    {
+        return L.T("La version " + r.Version + " est publiée, mais pas encore installable. Réessaie plus tard.",
+                   "Version " + r.Version + " is published but can't be installed yet. Try again later.",
+                   "La versión " + r.Version + " está publicada, pero aún no se puede instalar. Inténtalo más tarde.");
     }
 
     public static bool AcceptCheck(Release result)

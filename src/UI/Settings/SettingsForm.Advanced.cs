@@ -161,6 +161,7 @@ partial class SettingsForm
                         bCheck.Text = T("Installer la ", "Install ", "Instalar ") + release.Version;
                     }
                     else if (release.Error != null) lUpdate.Text = release.Error;
+                    else if (release.Incomplete) lUpdate.Text = Updater.IncompleteText(release);
                     else lUpdate.Text = T("Tu as la dernière version.", "You're up to date.", "Tienes la última versión.");
                 }));
             }

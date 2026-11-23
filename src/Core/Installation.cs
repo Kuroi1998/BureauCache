@@ -107,6 +107,7 @@ static class Installer
     public static List<string> Uninstall()
     {
         var left = new List<string>();
+        Settings.SaveBlocked = true;     // plus aucune sauvegarde jusqu'à la sortie : elle recréerait le dossier (Q26-03)
         Settings.CancelPendingSave(); // sinon un enregistrement différé recréerait le dossier des réglages
         Native.RestoreDesktopIcons();
         try { Startup.Set(false); } catch { }
@@ -114,33 +115,49 @@ static class Installer
         try { File.Delete(StartMenuLnk); } catch { }
         if (File.Exists(StartMenuLnk)) left.Add(L.T("le raccourci du menu Démarrer", "the Start menu shortcut", "el acceso directo del menú Inicio"));
         try { Registry.CurrentUser.DeleteSubKeyTree(UninstKey, false); } catch { }
-        try { using (RegistryKey k = Registry.CurrentUser.OpenSubKey(UninstKey)) if (k != null) left.Add(L.T("l'entrée « Applications installées »", "the \"Installed apps\" entry", "la entrada de «Aplicaciones instaladas»")); } catch { }
+        // Une lecture refusée n'est pas une preuve de suppression (Q26-03)
+        bool entryLeft;
+        try { using (RegistryKey k = Registry.CurrentUser.OpenSubKey(UninstKey)) entryLeft = k != null; } catch { entryLeft = true; }
+        if (entryLeft) left.Add(L.T("l'entrée « Applications installées »", "the \"Installed apps\" entry", "la entrada de «Aplicaciones instaladas»"));
         PanelForm.RecycleLeftovers();
         try { File.Delete(Settings.FilePath); } catch { }
         if (File.Exists(Settings.FilePath)) left.Add(L.T("le fichier des réglages", "the settings file", "el archivo de configuración") + " (" + Settings.FilePath + ")");
         try { Directory.Delete(PanelForm.StashRoot); } catch { }
         try { Directory.Delete(Settings.Dir); } catch { }
         if (Directory.Exists(PanelForm.StashRoot)) left.Add(L.T("des éléments mis de côté", "set-aside items", "elementos apartados") + " (" + PanelForm.StashRoot + ")");
-        // Garde-fou : on ne supprime que le dossier d'installation attendu
+        else if (Directory.Exists(Settings.Dir)) left.Add(L.T("le dossier des réglages", "the settings folder", "la carpeta de configuración") + " (" + Settings.Dir + ")");
+        // Garde-fou : on ne supprime que le dossier d'installation attendu. La suppression part à la toute fin du
+        // processus (StartFolderRemoval), après le dernier dialogue : l'exe encore ouvert la bloquerait (Q26-03)
         string expected = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "BureauCache");
-        if (Directory.Exists(Dir) && string.Equals(Path.GetFullPath(Dir).TrimEnd('\\'), expected.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
-        {
-            ProcessStartInfo psi = new ProcessStartInfo("cmd.exe", "/c ping 127.0.0.1 -n 6 > nul & rmdir /s /q \"" + Dir + "\"");
-            psi.WindowStyle = ProcessWindowStyle.Hidden;
-            psi.CreateNoWindow = true;
-            psi.UseShellExecute = false;
-            psi.WorkingDirectory = Path.GetTempPath();
-            try { Process.Start(psi); }
-            catch { left.Add(L.T("le dossier du programme", "the program folder", "la carpeta del programa") + " (" + Dir + ")"); }
-        }
+        removeFolderOnExit = Directory.Exists(Dir) && string.Equals(Path.GetFullPath(Dir).TrimEnd('\\'), expected.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
         return left;
+    }
+
+    static bool removeFolderOnExit;
+
+    // Appelé juste avant la fin du processus. Le dossier est retenté chaque seconde pendant 30 s, le temps que ce
+    // processus et le gardien (--watchdog) se terminent.
+    public static void StartFolderRemoval()
+    {
+        if (!removeFolderOnExit) return;
+        removeFolderOnExit = false;
+        string q = "\"" + Dir + "\"";
+        ProcessStartInfo psi = new ProcessStartInfo("cmd.exe",
+            "/c for /l %i in (1,1,30) do (if exist " + q + " (ping 127.0.0.1 -n 2 > nul & rmdir /s /q " + q + " 2> nul))");
+        psi.WindowStyle = ProcessWindowStyle.Hidden;
+        psi.CreateNoWindow = true;
+        psi.UseShellExecute = false;
+        psi.WorkingDirectory = Path.GetTempPath();
+        try { Process.Start(psi); } catch { }
     }
 
     // Message de fin de désinstallation, avec ce qui reste à supprimer à la main (R-05)
     public static void ReportUninstall(List<string> left)
     {
         if (left.Count == 0)
-            Dialogs.Info(null, L.T("BureauCache a été désinstallé.", "BureauCache has been uninstalled.", "BureauCache se ha desinstalado."));
+            Dialogs.Info(null, L.T("BureauCache a été désinstallé. Son dossier sera supprimé quelques secondes après la fermeture de ce message.",
+                                   "BureauCache has been uninstalled. Its folder will be removed a few seconds after you close this message.",
+                                   "BureauCache se ha desinstalado. Su carpeta se eliminará unos segundos después de cerrar este mensaje."));
         else
             Dialogs.Warn(null, L.T("BureauCache est désinstallé, mais ces éléments n'ont pas pu être supprimés :",
                                    "BureauCache is uninstalled, but these items couldn't be removed:",

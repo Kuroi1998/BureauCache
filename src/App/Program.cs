@@ -68,6 +68,7 @@ static class Program
         }
         if (App.RelaunchPath != null)
             try { Process.Start(App.RelaunchPath); } catch { }
+        Installer.StartFolderRemoval();
     }
 
     static void StartWatchdog()
@@ -109,5 +110,6 @@ static class Program
             return;
         }
         Installer.ReportUninstall(Installer.Uninstall());
+        Installer.StartFolderRemoval();
     }
 }

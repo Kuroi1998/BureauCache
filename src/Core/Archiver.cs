@@ -17,7 +17,7 @@ static class Archiver
     internal enum Activity { Recent, Old, Unknown }
 
     // Limite en temps universel : l'heure locale se répète lors du changement d'heure d'octobre
-    static DateTime Limit { get { return DateTime.UtcNow.AddDays(-Settings.ArchiveDays); } }
+    internal static DateTime Limit { get { return DateTime.UtcNow.AddDays(-Settings.ArchiveDays); } }
 
     public static List<string> Candidates()
     {
@@ -29,11 +29,10 @@ static class Archiver
         return res;
     }
 
-    // Décompte pour la page Organisation, sur un fil de fond (R-23) : favoris et historique sont copiés sur le
-    // fil d'interface avant l'appel, le parcours des dossiers ne lit plus rien des réglages.
-    public static int CountCandidates(HashSet<string> favorites, Dictionary<string, long[]> usage)
+    // Décompte pour la page Organisation, sur un fil de fond (R-23) : favoris, historique, date limite et dossier
+    // d'archive sont relevés ensemble sur le fil d'interface ; le parcours ne lit plus rien des réglages (Q26-08)
+    public static int CountCandidates(HashSet<string> favorites, Dictionary<string, long[]> usage, DateTime limit, string folder)
     {
-        DateTime limit = Limit;
         string[] entries;
         try { entries = Directory.GetFileSystemEntries(Desk); } catch { return 0; }
         int n = 0;
@@ -41,7 +40,7 @@ static class Archiver
         {
             try
             {
-                if (favorites.Contains(p) || !PassesFilters(p)) continue;
+                if (favorites.Contains(p) || !PassesFilters(p, folder)) continue;
                 long[] u;
                 if (usage.TryGetValue(p, out u) && new DateTime(u[1], DateTimeKind.Local).ToUniversalTime() >= limit) continue;
                 if (ActivityOf(p, limit, MaxScan) == Activity.Old) n++;
@@ -52,10 +51,10 @@ static class Archiver
     }
 
     // Filtres qui ne dépendent pas des réglages : dossier d'archive, éléments cachés ou système, raccourcis
-    static bool PassesFilters(string p)
+    static bool PassesFilters(string p, string folder)
     {
         string name = Path.GetFileName(p);
-        if (string.Equals(p, Folder, StringComparison.OrdinalIgnoreCase)) return false;
+        if (string.Equals(p, folder, StringComparison.OrdinalIgnoreCase)) return false;
         FileAttributes a = File.GetAttributes(p);
         if ((a & (FileAttributes.Hidden | FileAttributes.System)) != 0) return false;
         string ext = Path.GetExtension(p).ToLowerInvariant();
@@ -67,7 +66,7 @@ static class Archiver
     {
         try
         {
-            if (!PassesFilters(p)) return false;
+            if (!PassesFilters(p, Folder)) return false;
             if (Settings.FavIndex(p) >= 0) return false;
             long[] u;
             if (Settings.Usage.TryGetValue(p, out u) && new DateTime(u[1], DateTimeKind.Local).ToUniversalTime() >= limit) return false;

@@ -40,7 +40,7 @@ public class OpenRisksTests
     {
         var favorites = new HashSet<string>(Settings.Favorites, StringComparer.OrdinalIgnoreCase);
         var usage = new Dictionary<string, long[]>(Settings.Usage, StringComparer.OrdinalIgnoreCase);
-        Assert.AreEqual(Archiver.Candidates().Count, Archiver.CountCandidates(favorites, usage));
+        Assert.AreEqual(Archiver.Candidates().Count, Archiver.CountCandidates(favorites, usage, Archiver.Limit, Archiver.Folder));
     }
 
     // R-23 : un favori n'est jamais compté
@@ -51,6 +51,6 @@ public class OpenRisksTests
         if (candidates.Count == 0) Assert.Inconclusive("Aucun élément ancien sur ce bureau.");
         var favorites = new HashSet<string>(candidates, StringComparer.OrdinalIgnoreCase);
         var usage = new Dictionary<string, long[]>(StringComparer.OrdinalIgnoreCase);
-        Assert.AreEqual(0, Archiver.CountCandidates(favorites, usage));
+        Assert.AreEqual(0, Archiver.CountCandidates(favorites, usage, Archiver.Limit, Archiver.Folder));
     }
 }

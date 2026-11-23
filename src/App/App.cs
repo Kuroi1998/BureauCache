@@ -45,7 +45,7 @@ partial class App : ApplicationContext
     IntPtr listView = IntPtr.Zero;
     int pollCount;
     readonly System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
-    long edgeSince = -1, outsideSince = -1, nextArchive = 60000, nextUpdateCheck = 30000;
+    long edgeSince = -1, outsideSince = -1, nextArchive = 60000, nextUpdateCheck = 30000, lastPoll;
     bool requireLeave, wasOpen, hotkeyOk = true, autoCloseArmed;
     int lastLanguage;
     Action balloonAction;
@@ -196,6 +196,7 @@ partial class App : ApplicationContext
     {
         autoCloseArmed = false;
         outsideSince = -1;
+        edgeSince = -1;
         panel.ShowPanel(scr);
     }
 
@@ -341,7 +342,12 @@ partial class App : ApplicationContext
         // Les échéances se mesurent en temps écoulé, pas en ticks : le minuteur de Windows Forms tourne
         // plus lentement que demandé (granularité de 15,6 ms, interface chargée) (R-11)
         long now = clock.ElapsedMilliseconds;
-        if (now >= 10000) ConfirmTrial(); // 10 s de fonctionnement : mise à jour confirmée
+        // Après une veille, le chronomètre a avancé sans que l'application tourne : un délai de souris entamé
+        // avant la veille ne compte plus (Q26-01)
+        if (now - lastPoll > 2000) { edgeSince = -1; outsideSince = -1; }
+        lastPoll = now;
+        // L'essai demande 10 s de fonctionnement réel, mesurées en ticks traités : la veille ne compte pas (Q26-01)
+        if (pollCount >= 500 && now >= 10000) ConfirmTrial();
         if (pollCount % 50 == 0) ApplyIconVisibility();
         if (pollCount % 250 == 0) RefreshTray(); // point « nouveaux fichiers » sur l'icône
         if (pollCount % 25 == 0 && panel.Dirty && !panel.Busy) panel.RequestLoad();
@@ -364,6 +370,9 @@ partial class App : ApplicationContext
         wasOpen = open;
         if (requireLeave && !atEdge) requireLeave = false;
 
+        // Chaque délai repart de zéro dès que sa condition cesse d'être vraie (Q26-02)
+        if (open) edgeSince = -1;
+        if (!open || !Settings.AutoClose || Settings.Pinned) outsideSince = -1;
         if (!open)
         {
             if (!atEdge || requireLeave) { edgeSince = -1; return; }

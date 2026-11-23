@@ -97,18 +97,20 @@ partial class ItemsView : Control
     public void SetGroups(List<Group> g, bool keepScroll)
     {
         string selKey = Selected != null ? Selected.Key : null;
-        string hoverKey = hover >= 0 && hover < rows.Count && !rows[hover].IsHeader ? rows[hover].Item.Key : null;
+        DesktopItem hoverItem = hover >= 0 && hover < rows.Count && !rows[hover].IsHeader ? rows[hover].Item : null;
         groups = g;
         LayoutRows();
         if (!keepScroll) { scroll = scrollTarget = 0; }
         Clamp();
         sel = -1;
-        // Un rechargement qui laisse le même élément sous le pointeur garde son survol et son aperçu (R-18)
+        // Une reconstruction qui laisse le même élément sous le pointeur garde son survol et son aperçu (R-18).
+        // Même objet seulement : un rechargement crée de nouvelles instances, dont le contenu ou l'icône ont pu
+        // changer, et l'aperçu montrerait alors des données ou une icône périmées (Q26-07)
         int kept = -1;
-        if (keepScroll && hoverKey != null)
+        if (keepScroll && hoverItem != null)
         {
             int r = RowAt(PointToClient(Cursor.Position));
-            if (r >= 0 && r < rows.Count && !rows[r].IsHeader && rows[r].Item.Key == hoverKey) kept = r;
+            if (r >= 0 && r < rows.Count && !rows[r].IsHeader && ReferenceEquals(rows[r].Item, hoverItem)) kept = r;
         }
         hover = kept;
         if (kept < 0) EndHover();

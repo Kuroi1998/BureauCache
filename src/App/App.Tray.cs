@@ -125,6 +125,7 @@ partial class App
                     RefreshTray();
                     if (release.Available) Balloon(L.T("La version " + Updater.Latest + " est disponible. Clique ici pour l'installer.",
                                            "Version " + Updater.Latest + " is available. Click here to install it.", "La versión " + Updater.Latest + " está disponible. Haz clic para instalarla."), InstallUpdate);
+                    else if (release.Incomplete) Balloon(Updater.IncompleteText(release), null);
                     else if (release.Error != null) Balloon(L.T("Vérification impossible : ", "Couldn't check: ", "No se pudo comprobar: ") + release.Error, null);
                     else Balloon(L.T("Tu as la dernière version (" + AppInfo.Version + ").", "You're up to date (" + AppInfo.Version + ").", "Tienes la última versión (" + AppInfo.Version + ")."), null);
                 }));

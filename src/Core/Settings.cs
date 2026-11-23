@@ -107,6 +107,7 @@ static class Settings
                     lines = reader.ReadToEnd().Split('\n');
             }
             if (!lines.Any(line => line.Trim() == "HideIcons=0" || line.Trim() == "HideIcons=1")) return false;
+            ScreenName = "";   // un INI d'avant 3.8 n'a pas ce nom : celui de la configuration précédente ne doit pas rester (Q26-05)
             foreach (string line in lines)
             {
                 int i = line.IndexOf('=');
@@ -218,6 +219,9 @@ static class Settings
         // que demandé (R-33). Au-delà du plus long choix, c'est ce dernier.
         NewDays = RoundUp(NewDaysChoices, NewDays);
         ArchiveDays = RoundUp(ArchiveDaysChoices, ArchiveDays);
+        // Ancien réglage par indice : converti en nom d'écran avec la disposition actuelle (Q26-05)
+        if (ScreenIdx >= 0 && ScreenName.Length == 0)
+            try { Screen[] all = Screen.AllScreens; if (ScreenIdx < all.Length) ScreenName = all[ScreenIdx].DeviceName; } catch { }
         return true;
     }
 
@@ -281,8 +285,11 @@ static class Settings
         if (saveTimer != null) saveTimer.Stop();
     }
 
+    public static bool SaveBlocked;   // posé par la désinstallation (Q26-03)
+
     public static bool Save()
     {
+        if (SaveBlocked) return false;
         string tmp = null;
         try
         {
