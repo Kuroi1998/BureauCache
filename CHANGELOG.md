@@ -5,6 +5,7 @@
 - Calculatrice : un résultat copié avec Entrée se relit correctement, même avec des milliers (« 1 234,5 », « 1,000 »). En anglais, « 1,000 » ne donne plus 1.
 - Calculatrice : une saisie aux séparateurs incohérents (« 1.234,5 », « 12,34.5 ») est refusée au lieu de donner un résultat faux. Un nombre collé au format de l'autre langue reste compris.
 - Calculatrice : `-2^2` vaut -4, comme en mathématiques (le signe s'applique après la puissance). Écrire `(-2)^2` pour obtenir 4.
+- Calculatrice : les très petits résultats gardent leur précision et s'affichent en notation scientifique (`1,04E-09` au lieu de `0,000000001`).
 
 ## 3.3 — Icône de notification et réduction
 

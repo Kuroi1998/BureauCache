@@ -275,7 +275,6 @@ namespace BureauCache.Tests
                 AssertRoundTrip(1e100, "EN");
         }
 
-        [Ignore("Défaut confirmé R-21 : Format garde 10 décimales, 1.04e-9 devient 0,000000001.")]
         [TestMethod]
         public void Aller_retour_pres_du_seuil_de_formatage_en_francais()
         {
@@ -283,7 +282,6 @@ namespace BureauCache.Tests
                 AssertRoundTrip(1.04e-9, "FR");
         }
 
-        [Ignore("Défaut confirmé R-21 : Format garde 10 décimales, 1.04e-9 devient 0,000000001.")]
         [TestMethod]
         public void Aller_retour_pres_du_seuil_de_formatage_en_anglais()
         {

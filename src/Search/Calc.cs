@@ -107,7 +107,9 @@ static class Calc
     public static string Format(double v)
     {
         double magnitude = Math.Abs(v);
-        if (magnitude > 0 && magnitude < 1e-9)
+        // Sous 1e-4, les 10 décimales du format fixe ne garderaient que quelques chiffres significatifs
+        // (1,04e-9 s'affichait 0,000000001) : on passe en notation scientifique à 15 chiffres.
+        if (magnitude > 0 && magnitude < 1e-4)
             return v.ToString("G15", L.Culture);
         if (magnitude < 1e15 && Math.Abs(v - Math.Round(v)) < 1e-10) return Math.Round(v).ToString("#,0", L.Culture);
         return v.ToString("#,0.##########", L.Culture);

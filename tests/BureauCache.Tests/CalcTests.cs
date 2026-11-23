@@ -143,6 +143,32 @@ namespace BureauCache.Tests
             }
         }
 
+        // R-21 : sous 1e-4, notation scientifique pour garder les chiffres significatifs
+        [TestMethod]
+        public void Format_des_petits_nombres()
+        {
+            using (LanguageScope.French())
+            {
+                Assert.AreEqual("0,0001", Calc.Format(0.0001));          // seuil : encore en format fixe
+                Assert.AreEqual("0,3333333333", Calc.Format(1.0 / 3));    // 10 décimales au-dessus du seuil
+                Assert.AreEqual("5E-05", Calc.Format(0.00005));
+                Assert.AreEqual("1,04E-09", Calc.Format(1.04e-9));
+                Assert.AreEqual("1E-05", Calc.Format(0.1 * 0.0001));      // bruit flottant masqué
+            }
+            using (LanguageScope.English())
+                Assert.AreEqual("-1.23456789012E-07", Calc.Format(-1.23456789012e-7));
+        }
+
+        [DataTestMethod]
+        [DataRow(1.23456789012e-7)]
+        [DataRow(-9.87e-5)]
+        [DataRow(4.2e-12)]
+        public void Aller_retour_des_petits_nombres(double value)
+        {
+            AssertRoundTrip(value, false);
+            AssertRoundTrip(value, true);
+        }
+
         // QA-03 : la calculatrice doit relire ses propres résultats (copier-coller d'un résultat)
         [DataTestMethod]
         [DataRow(2.5, false)]

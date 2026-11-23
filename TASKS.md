@@ -10,7 +10,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-001 | Mettre en place le projet de tests (`tests/`) | Revue | Claude | `chore/T-001-tests` | D-002 |
 | T-002 | Tests de `Calc` (séparateurs FR/EN, exposants, limites) | Revue | ChatGPT puis Claude | `chore/T-001-tests` | QA-03, R-16 |
 | T-007 | Calculatrice : séparateurs de milliers et virgule après le point | Revue | Claude | `fix/T-007-calc-separateurs` | QA-13 (ex R-19, R-16) |
-| T-008 | Calculatrice : convention de `-2^2` et précision des petits nombres | En cours : `-2^2` fait (QA-14, D-003), précision à faire | Claude | `fix/T-007-calc-separateurs` | R-21 |
+| T-008 | Calculatrice : convention de `-2^2` et précision des petits nombres | Revue | Claude | `fix/T-007-calc-separateurs` | QA-14, QA-15, D-003 |
 | T-003 | Rangement : ne pas archiver un dossier dont l'activité n'est pas confirmée | À faire | Claude | — | R-01 |
 | T-004 | Rangement concurrent d'une opération utilisateur sur le même élément | À faire | Claude | — | R-03 |
 | T-005 | Politique de confiance des mises à jour (signature indépendante ?) | À faire | Gemini (recherche) puis Claude | — | R-04 |
@@ -36,6 +36,8 @@ Les autres risques ouverts (R-05 à R-18) restent dans [AUDIT_QA_BureauCache.md]
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.
 - 2026-11-23 · Claude · T-007 : `Calc.NormalizeNumbers` lit chaque nombre séparément. R-19 et R-16 sont corrigés (QA-13). `12,34.5` est désormais refusé (décision R-16 tranchée), et un nombre au format français collé en anglais est accepté, par symétrie. Suite : 130 réussis, 3 ignorés (R-20, R-21).
+- 2026-11-23 · Toi · R-20 : notation mathématique retenue (D-003).
+- 2026-11-23 · Claude · T-008 : `-2^2 = -4` (QA-14) et notation scientifique sous 1e-4 (QA-15). Suite : 145 réussis, 0 ignoré.
 
 <!-- Recopier ce bloc pour la tâche active :
 
