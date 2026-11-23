@@ -332,6 +332,7 @@ partial class App : ApplicationContext
     void Poll(object sender, EventArgs e)
     {
         pollCount++;
+        if (pollCount == 500) Updater.ConfirmStart(Application.ExecutablePath); // 10 s de fonctionnement : mise à jour confirmée
         if (pollCount % 50 == 0) ApplyIconVisibility();
         if (pollCount % 250 == 0) RefreshTray(); // toutes les 5 s : point « nouveaux fichiers » sur l'icône
         if (pollCount % 25 == 0 && panel.Dirty && !panel.Busy) panel.RequestLoad();

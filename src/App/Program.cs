@@ -41,11 +41,20 @@ static class Program
             using (EventWaitHandle show = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEvent))
             using (EventWaitHandle quit = new EventWaitHandle(false, EventResetMode.AutoReset, QuitEvent))
             {
-                Updater.CleanupOld();
-                if (Installer.RunningFromInstall) try { Installer.RegisterVersion(); } catch { }
-                StartWatchdog();
-                try { Application.Run(new App(show, quit)); }
-                finally { Native.RestoreDesktopIcons(); }
+                if (Updater.BeginStart(Application.ExecutablePath) == Updater.StartState.RolledBack)
+                {
+                    // L'ancienne version est revenue à la place de l'exe : on la relance, une fois le mutex libéré
+                    Dialogs.Warn(null, L.T("La nouvelle version de BureauCache n'a pas réussi à démarrer.\nLa version précédente a été restaurée.",
+                                           "The new version of BureauCache failed to start.\nThe previous version has been restored."));
+                    App.RelaunchPath = Application.ExecutablePath;
+                }
+                else
+                {
+                    if (Installer.RunningFromInstall) try { Installer.RegisterVersion(); } catch { }
+                    StartWatchdog();
+                    try { Application.Run(new App(show, quit)); }
+                    finally { Native.RestoreDesktopIcons(); }
+                }
             }
         }
         if (App.RelaunchPath != null)
