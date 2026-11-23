@@ -13,7 +13,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-008 | Calculatrice : convention de `-2^2` et précision des petits nombres | Revue | Claude | `fix/T-007-calc-separateurs` | QA-14, QA-15, D-003 |
 | T-003 | Rangement : ne pas archiver un dossier dont l'activité n'est pas confirmée | Revue | Claude | `fix/T-003-T-004-rangement` | QA-16 (ex R-01) |
 | T-004 | Rangement concurrent d'une opération utilisateur sur le même élément | Revue (essai manuel à faire) | Claude puis Toi | `fix/T-003-T-004-rangement` | QA-17 (ex R-03) |
-| T-005 | Mises à jour signées par une clé hors de GitHub | En cours : **clés à créer par toi** | Gemini, Toi, Claude | `feat/T-005-signature` | R-04, D-004 |
+| T-005 | Mises à jour signées par une clé hors de GitHub | Revue (première version signée à publier) | Gemini, Toi, Claude | `feat/T-005-signature` | R-04, D-004 |
 | T-006 | Conserver l'ancienne version jusqu'à un démarrage réussi | Revue | Claude | `fix/T-006-retour-arriere` | QA-19 (ex R-07) |
 
 Les autres risques ouverts (R-05 à R-18) restent dans [AUDIT_QA_BureauCache.md](AUDIT_QA_BureauCache.md) jusqu'à leur planification.
@@ -47,7 +47,10 @@ Les autres risques ouverts (R-05 à R-18) restent dans [AUDIT_QA_BureauCache.md]
 - 2026-11-23 · Toi · Choix (D-004) : RSA détachée ; compilation par la CI et signature en local ; clé chiffrée avec une copie de secours.
 - 2026-11-23 · Claude · Code (`Updater.VerifySignature`, `UpdateKeys`), CI en brouillon, scripts `outils\creer-cles.ps1` et `outils\signer-version.ps1`. 15 tests ; scripts essayés avec des valeurs de test jetables (relecture, mauvais mot de passe, fichier altéré, signature acceptée par le vrai exe). Seul le garde-fou `Cles_embarquees_valides` échoue, en attente des clés.
 
-**Étape à faire par toi (T-005) :** dans un terminal PowerShell, à la racine du dépôt, sur la branche `feat/T-005-signature`, lancer `.\outils\creer-cles.ps1`. Puis copier `principale.cle` et `secours.cle` sur une clé USB et supprimer `secours.cle` du PC. Préviens Claude ensuite.
+- 2026-11-23 · Toi · Clés créées avec `creer-cles.ps1` (2 × RSA-3072, `principale.cle` dans `%USERPROFILE%\BureauCache-cles`, `secours.cle` retirée du PC).
+- 2026-11-23 · Claude · Contrôle : 2 clés publiques distinctes de 3072 bits dans `UpdateKeys.cs`, aucune partie privée ; suite complète : 186 réussis.
+
+**Reste pour T-005 :** publier une première version signée (3.4) avec `publier.ps1` puis `outils\signer-version.ps1`, et vérifier qu'une installation 3.4 refuse une version non signée (essai sur un dépôt de test).
 
 **Essai manuel T-006 (machine de test) :** copier une ancienne version en `BureauCache.exe.old` à côté de l'exe installé, puis créer un fichier vide `BureauCache.exe.trial`. Lancer BureauCache : le message « La version précédente a été restaurée » doit s'afficher, puis l'ancienne version démarre. Sans le fichier `.trial`, attendre 10 s : `.old` doit disparaître.
 
