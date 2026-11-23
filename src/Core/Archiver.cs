@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 
 // =====================================================================
 //  Rangement automatique du bureau
@@ -12,41 +11,89 @@ static class Archiver
     public static string Desk { get { return Paths.Desktop; } }
     public static string Folder { get { return Path.Combine(Desk, Settings.ArchiveName); } }
 
-    static DateTime Max(DateTime a, DateTime b) { return a > b ? a : b; }
+    // Nombre maximal d'entrées examinées dans un dossier : au-delà, son ancienneté n'est pas confirmée
+    internal const int MaxScan = 5000;
+
+    internal enum Activity { Recent, Old, Unknown }
+
+    static DateTime Limit { get { return DateTime.Now.AddDays(-Settings.ArchiveDays); } }
 
     public static List<string> Candidates()
     {
         List<string> res = new List<string>();
-        DateTime limit = DateTime.Now.AddDays(-Settings.ArchiveDays);
+        DateTime limit = Limit;
         string[] entries;
         try { entries = Directory.GetFileSystemEntries(Desk); } catch { return res; }
-        foreach (string p in entries)
-        {
-            try
-            {
-                string name = Path.GetFileName(p);
-                if (string.Equals(p, Folder, StringComparison.OrdinalIgnoreCase)) continue;
-                FileAttributes a = File.GetAttributes(p);
-                if ((a & (FileAttributes.Hidden | FileAttributes.System)) != 0) continue;
-                string ext = Path.GetExtension(p).ToLowerInvariant();
-                if (ext == ".lnk" || ext == ".url" || name.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase)) continue;
-                if (Settings.FavIndex(p) >= 0) continue;
-                DateTime last = Max(File.GetLastWriteTime(p), File.GetCreationTime(p));
-                long[] u;
-                if (Settings.Usage.TryGetValue(p, out u)) last = Max(last, new DateTime(u[1]));
-                if ((a & FileAttributes.Directory) != 0)
-                    try { foreach (string c in Directory.EnumerateFileSystemEntries(p).Take(300)) last = Max(last, File.GetLastWriteTime(c)); } catch { }
-                if (last < limit) res.Add(p);
-            }
-            catch { }
-        }
+        foreach (string p in entries) if (IsCandidate(p, limit)) res.Add(p);
         return res;
     }
 
-    public static int Run(List<string> items)
+    // Vrai si l'élément du bureau peut être rangé : ni exclu, ni utilisé depuis la limite, et ancienneté confirmée
+    static bool IsCandidate(string p, DateTime limit)
+    {
+        try
+        {
+            string name = Path.GetFileName(p);
+            if (string.Equals(p, Folder, StringComparison.OrdinalIgnoreCase)) return false;
+            FileAttributes a = File.GetAttributes(p);
+            if ((a & (FileAttributes.Hidden | FileAttributes.System)) != 0) return false;
+            string ext = Path.GetExtension(p).ToLowerInvariant();
+            if (ext == ".lnk" || ext == ".url" || name.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase)) return false;
+            if (Settings.FavIndex(p) >= 0) return false;
+            long[] u;
+            if (Settings.Usage.TryGetValue(p, out u) && new DateTime(u[1]) >= limit) return false;
+            return ActivityOf(p, limit, MaxScan) == Activity.Old;
+        }
+        catch { return false; }
+    }
+
+    // Ancienneté d'un fichier ou d'un dossier (R-01). Un dossier n'est « ancien » que si lui-même et tout son
+    // contenu, sous-dossiers compris, le sont. Le parcours s'arrête au premier élément récent. Si le dossier ne peut
+    // pas être lu entièrement (droits, erreur) ou dépasse maxEntries, l'ancienneté n'est pas confirmée : Unknown.
+    internal static Activity ActivityOf(string path, DateTime limit, int maxEntries)
+    {
+        try
+        {
+            DirectoryInfo dir = new DirectoryInfo(path);
+            FileSystemInfo root = dir.Exists ? (FileSystemInfo)dir : new FileInfo(path);
+            if (!root.Exists) return Activity.Unknown;
+            if (IsRecent(root, limit)) return Activity.Recent;
+            if (!dir.Exists) return Activity.Old;
+            int seen = 0;
+            Stack<DirectoryInfo> pending = new Stack<DirectoryInfo>();
+            pending.Push(dir);
+            while (pending.Count > 0)
+            {
+                foreach (FileSystemInfo child in pending.Pop().EnumerateFileSystemInfos())
+                {
+                    if (++seen > maxEntries) return Activity.Unknown;
+                    if (IsRecent(child, limit)) return Activity.Recent;
+                    DirectoryInfo sub = child as DirectoryInfo;
+                    if (sub != null) pending.Push(sub);
+                }
+            }
+            return Activity.Old;
+        }
+        catch { return Activity.Unknown; }
+    }
+
+    // La date de création compte aussi : un élément ancien copié récemment a été apporté récemment
+    static bool IsRecent(FileSystemInfo info, DateTime limit)
+    {
+        return info.LastWriteTime >= limit || info.CreationTime >= limit;
+    }
+
+    // Rangement automatique : les candidats viennent d'être évalués, pas besoin de les revérifier
+    public static int RunNow() { return Run(Candidates(), false); }
+
+    // Rangement d'une liste établie plus tôt (ex. : après confirmation) : chaque élément est revérifié (R-03)
+    public static int Run(List<string> items) { return Run(items, true); }
+
+    static int Run(List<string> items, bool revalidate)
     {
         if (items.Count == 0) return 0;
         string folder = Folder;
+        DateTime limit = Limit;
         try
         {
             Directory.CreateDirectory(folder);
@@ -58,6 +105,8 @@ static class Archiver
         List<string> log = new List<string>();
         foreach (string p in items)
         {
+            // L'élément a pu être utilisé, renommé ou déplacé depuis l'établissement de la liste
+            if (revalidate && !IsCandidate(p, limit)) continue;
             try
             {
                 string dest = Unique(Path.Combine(folder, Path.GetFileName(p)));

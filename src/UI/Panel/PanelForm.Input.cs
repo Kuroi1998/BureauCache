@@ -140,6 +140,9 @@ partial class PanelForm
 
     public void FlushToast() { toast.Flush(); }
 
+    // Une action sur un fichier (renommage, suppression) peut encore être annulée
+    public bool UndoPending { get { return toast.CanUndo; } }
+
     protected override void OnDeactivate(EventArgs e)
     {
         base.OnDeactivate(e);

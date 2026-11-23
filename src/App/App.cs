@@ -263,10 +263,16 @@ partial class App : ApplicationContext
         });
     }
 
+    bool archiveDue;
+
     void RunArchive()
     {
+        archiveDue = false;
         if (!Settings.ArchiveOn) return;
-        int n = Archiver.Run(Archiver.Candidates());
+        // Une opération sur les fichiers est en cours dans le panneau (renommage, copie, corbeille : ses dialogues
+        // laissent tourner ce minuteur) ou peut encore être annulée : on réessaie chaque minute (R-03)
+        if (panel.Busy || panel.UndoPending) { archiveDue = true; return; }
+        int n = Archiver.RunNow();
         if (n > 0)
         {
             panel.ReloadNow();
@@ -320,7 +326,8 @@ partial class App : ApplicationContext
         if (pollCount % 50 == 0) ApplyIconVisibility();
         if (pollCount % 250 == 0) RefreshTray(); // toutes les 5 s : point « nouveaux fichiers » sur l'icône
         if (pollCount % 25 == 0 && panel.Dirty && !panel.Busy) panel.RequestLoad();
-        if (pollCount == 3000 || pollCount % 1080000 == 0) RunArchive();             // 1 min après le démarrage, puis toutes les 6 h
+        if (pollCount == 3000 || pollCount % 1080000 == 0 || (archiveDue && pollCount % 3000 == 0))
+            RunArchive();                                                             // 1 min après le démarrage, puis toutes les 6 h (reporté si besoin)
         if (pollCount == 1500 || pollCount % 180000 == 0) CheckUpdateInBackground();  // 30 s après le démarrage, puis toutes les heures
 
         Point p = Cursor.Position;
