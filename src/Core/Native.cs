@@ -21,6 +21,7 @@ static class Native
     [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] static extern IntPtr GetShellWindow();
     [DllImport("user32.dll")] public static extern bool DestroyIcon(IntPtr hIcon);
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT r);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(IntPtr hWnd, StringBuilder sb, int max);
@@ -137,18 +138,27 @@ static class Native
 
     public static bool ForegroundIsFullscreen()
     {
-        int st;
-        if (SHQueryUserNotificationState(out st) == 0 && (st == 2 || st == 3 || st == 4)) return true;
         IntPtr h = GetForegroundWindow();
-        if (h == IntPtr.Zero) return false;
         StringBuilder sb = new StringBuilder(64);
-        GetClassName(h, sb, 64);
-        string cls = sb.ToString();
-        if (cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd" || cls == "Shell_SecondaryTrayWnd") return false;
+        if (h != IntPtr.Zero) GetClassName(h, sb, 64);
+        int st;
+        if (SHQueryUserNotificationState(out st) != 0) st = 0;
         RECT r;
-        if (!GetWindowRect(h, out r)) return false;
-        Rectangle b = Screen.FromHandle(h).Bounds;
-        return r.Left <= b.Left && r.Top <= b.Top && r.Right >= b.Right && r.Bottom >= b.Bottom;
+        Rectangle window = h != IntPtr.Zero && GetWindowRect(h, out r) ? Rectangle.FromLTRB(r.Left, r.Top, r.Right, r.Bottom) : Rectangle.Empty;
+        Rectangle screen = h != IntPtr.Zero ? Screen.FromHandle(h).Bounds : Rectangle.Empty;
+        return IsFullscreen(h != IntPtr.Zero, sb.ToString(), h != IntPtr.Zero && h == GetShellWindow(), st, window, screen);
+    }
+
+    // Décision séparée des appels Windows, pour être testée. Le bureau et la barre des tâches ne sont jamais du plein
+    // écran : ils sont écartés AVANT l'état de notification, car Windows répond « occupé » (2) quand le bureau est au
+    // premier plan, ce qui empêchait le panneau de s'ouvrir depuis le bureau (option « Pas en plein écran »).
+    internal static bool IsFullscreen(bool hasWindow, string cls, bool isShellWindow, int notificationState, Rectangle window, Rectangle screen)
+    {
+        if (!hasWindow || isShellWindow) return false;
+        if (cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd" || cls == "Shell_SecondaryTrayWnd") return false;
+        if (notificationState == 2 || notificationState == 3 || notificationState == 4) return true;   // jeu, Direct3D, présentation
+        if (window.IsEmpty || screen.IsEmpty) return false;
+        return window.Left <= screen.Left && window.Top <= screen.Top && window.Right >= screen.Right && window.Bottom >= screen.Bottom;
     }
 
     public static void SetDarkTitleBar(IntPtr hwnd, bool dark)
