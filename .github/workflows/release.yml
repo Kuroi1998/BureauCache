@@ -67,4 +67,6 @@ jobs:
           }
           if (-not $section) { $section = "Version $ver" }
           $section | Out-File -Encoding utf8 release-notes.md
-          gh release create $tag BureauCache.exe BureauCache.exe.sha256 --title $title --notes-file release-notes.md
+          # Brouillon : invisible des installations tant qu'il n'est pas signé et publié par outils/signer-version.ps1
+          # (la clé de signature ne passe jamais par GitHub, voir DECISIONS.md D-004)
+          gh release create $tag BureauCache.exe BureauCache.exe.sha256 --draft --title $title --notes-file release-notes.md

@@ -17,6 +17,17 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 **Alternatives écartées :** projet SDK `dotnet build`. Il apporterait un C# récent, mais imposerait une installation au contributeur et à la CI.
 **Conséquences :** tout code proposé par une IA doit être relu pour la syntaxe C# 5. `build.cmd` est le test de compilation de référence.
 
+## D-004 — Mises à jour signées par une clé hors de GitHub (2026-11-23) · Statut : Acceptée
+
+**Contexte :** la mise à jour vérifiait seulement un SHA-256 publié par le même dépôt que l'exe : un compte ou un dépôt GitHub compromis pouvait remplacer les deux (R-04). La recherche de Gemini (T-005) a comparé les options disponibles en 2026 pour un développeur individuel en France, sans budget.
+**Décision (chef de projet, sur recommandation de Gemini et de Claude) :**
+- **Signature RSA-3072 détachée** (PKCS#1 v1.5, SHA-256) dans `BureauCache.exe.sig`, vérifiée par `Updater.VerifySignature` avec les API du framework (`RSACryptoServiceProvider`, fournisseur 24).
+- **GitHub Actions compile** et crée un **brouillon**. La signature se fait **en local** (`outils/signer-version.ps1`), puis le brouillon est publié. La clé privée ne va jamais sur GitHub.
+- **Deux clés publiques embarquées** (`src/Core/UpdateKeys.cs`) : la principale, et une clé de secours rangée hors ligne pour pouvoir changer de clé. Les clés privées sont chiffrées par mot de passe (PBKDF2-SHA256, AES-256, HMAC), stockées hors OneDrive (`%USERPROFILE%\BureauCache-cles`) et copiées sur une clé USB.
+- **Dépôt officiel seulement** : un dépôt personnalisé (fork) n'a pas la clé de l'éditeur. Pour lui, la vérification reste le SHA-256, et la confirmation d'installation l'indique.
+**Alternatives écartées :** Azure Trusted Signing (inaccessible aux particuliers de l'UE, payant) ; Certum (environ 50 à 70 € par an) ; SignPath Foundation (gratuit, mais certificat au nom de la fondation, délai d'admission, et un workflow compromis peut demander une signature : à reconsidérer plus tard pour SmartScreen seulement) ; attestations GitHub (aucune protection contre un dépôt compromis, invérifiables en C# 5) ; Ed25519 (absent du .NET Framework).
+**Conséquences :** à partir de la 3.4, toute version du dépôt officiel doit être signée, sinon elles ne sont ni proposées ni installées. La 3.3 installe la 3.4 comme avant (SHA-256 seul). Perdre les deux clés privées ou le mot de passe bloque les mises à jour automatiques : seul un téléchargement manuel resterait possible. SmartScreen n'est pas affecté.
+
 ## D-003 — Calculatrice : la puissance avant le signe (2026-11-23) · Statut : Acceptée
 
 **Contexte :** `-2^2` valait 4, parce que le moins unaire était appliqué avant la puissance (R-20).

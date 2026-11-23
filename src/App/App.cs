@@ -227,7 +227,10 @@ partial class App : ApplicationContext
         Updater.Release release = Updater.AvailableRelease;
         if (release == null) { CheckUpdateNow(); return; }
         string notes = Updater.ShortNotes(release);
-        if (!Dialogs.Ask(null, L.T("Installer BureauCache " + release.Version + " ?\nLe programme va redémarrer.", "Install BureauCache " + release.Version + "?\nThe program will restart.") +
+        string origin = Updater.IsOfficial(release.Repository) ? "" :
+            "\n\n" + L.T("Attention : cette version vient du dépôt « " + release.Repository + " », pas du dépôt officiel. Elle n'est pas signée par l'éditeur de BureauCache.",
+                         "Warning: this version comes from the \"" + release.Repository + "\" repository, not the official one. It is not signed by the BureauCache publisher.");
+        if (!Dialogs.Ask(null, L.T("Installer BureauCache " + release.Version + " ?\nLe programme va redémarrer.", "Install BureauCache " + release.Version + "?\nThe program will restart.") + origin +
             (notes.Length > 0 ? "\n\n" + L.T("Nouveautés :", "What's new:") + "\n" + notes : ""))) return;
         if (installingUpdate || Updater.AvailableRelease != release) return;
         installingUpdate = true;
