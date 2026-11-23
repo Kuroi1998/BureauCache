@@ -46,8 +46,22 @@ static class Cleaner
     static string Local { get { return Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData); } }
     static string Roaming { get { return Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData); } }
 
-    // Racines autorisées et zones interdites, calculées sur ce PC
-    public static string[] Roots { get { return Full(new[] { Local, Roaming, Path.GetTempPath() }); } }
+    // Racines autorisées : AppData local et itinérant, s'ils sont sur un disque local (revue QA-23 : un AppData redirigé
+    // vers un partage réseau est exclu). %TEMP% n'est PAS une racine : il n'est nettoyé que s'il est dans AppData\Local
+    // (cas normal), jamais s'il a été redirigé vers un partage, un dossier de données ou la racine d'un disque.
+    public static string[] Roots { get { return Full(new[] { Local, Roaming }).Where(LocalFolder).ToArray(); } }
+
+    static bool LocalFolder(string path)
+    {
+        try
+        {
+            if (path.StartsWith(@"\\", StringComparison.Ordinal)) return false;
+            string root = Path.GetPathRoot(path);
+            if (string.Equals(root.TrimEnd('\\'), path.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase)) return false;
+            return new DriveInfo(root).DriveType == DriveType.Fixed;
+        }
+        catch { return false; }
+    }
     public static string[] Forbidden
     {
         get
@@ -67,14 +81,34 @@ static class Cleaner
         return paths.Where(p => !string.IsNullOrEmpty(p)).Select(p => Path.GetFullPath(p).TrimEnd('\\') + "\\").Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
-    // Vrai si path est dans une racine autorisée et hors des zones interdites
+    // Vrai si path est dans une racine autorisée et hors des zones interdites. Racines et zones sont comparées comme
+    // des dossiers complets (séparateur final ajouté) : « allowed-voisin » n'est pas dans « allowed » (revue QA-23).
     internal static bool IsAllowed(string path, string[] roots, string[] forbidden)
     {
         string full;
-        try { full = Path.GetFullPath(path).TrimEnd('\\') + "\\"; }
+        try { full = Dir(path); }
         catch { return false; }
-        if (forbidden.Any(f => full.StartsWith(f, StringComparison.OrdinalIgnoreCase))) return false;
-        return roots.Any(r => full.StartsWith(r, StringComparison.OrdinalIgnoreCase));
+        if (forbidden.Any(f => !string.IsNullOrEmpty(f) && full.StartsWith(Dir(f), StringComparison.OrdinalIgnoreCase))) return false;
+        return roots.Any(r => !string.IsNullOrEmpty(r) && full.StartsWith(Dir(r), StringComparison.OrdinalIgnoreCase));
+    }
+
+    static string Dir(string path) { return Path.GetFullPath(path).TrimEnd('\\') + "\\"; }
+
+    // Vrai si un dossier entre la racine autorisée et path (path compris) est une jonction, un lien ou un point de
+    // montage : la cible serait en réalité ailleurs (revue QA-23)
+    internal static bool CrossesLink(string path, string[] roots)
+    {
+        try
+        {
+            string full = Dir(path);
+            string root = roots.Select(r => Dir(r)).Where(r => full.StartsWith(r, StringComparison.OrdinalIgnoreCase))
+                               .OrderByDescending(r => r.Length).FirstOrDefault();
+            if (root == null) return true;
+            for (DirectoryInfo d = new DirectoryInfo(full); d != null && d.FullName.TrimEnd('\\').Length >= root.TrimEnd('\\').Length; d = d.Parent)
+                if (d.Exists && Linked(d.Attributes)) return true;
+            return false;
+        }
+        catch { return true; }
     }
 
     // ---------- Catégories ----------
@@ -164,12 +198,13 @@ static class Cleaner
     static bool Linked(FileAttributes a) { return (a & FileAttributes.ReparsePoint) != 0; }
     static bool CloudOnly(FileAttributes a) { return (a & (FileAttributes.Offline | RecallOnOpen | RecallOnDataAccess)) != 0; }
 
-    // Fichiers supprimables d'une cible, sans jamais entrer dans une jonction ni un lien
+    // Fichiers supprimables d'une cible : jamais à travers une jonction, un lien ou un point de montage (ni dans la
+    // cible, ni au-dessus d'elle), jamais dans une zone interdite, même sous une cible autorisée (revue QA-23)
     internal static IEnumerable<FileInfo> Files(CleanTarget t, string[] roots, string[] forbidden, DateTime nowUtc)
     {
-        if (!IsAllowed(t.Dir, roots, forbidden)) yield break;
+        if (!IsAllowed(t.Dir, roots, forbidden) || CrossesLink(t.Dir, roots)) yield break;
         DirectoryInfo root = new DirectoryInfo(t.Dir);
-        if (!root.Exists || Linked(root.Attributes)) yield break;
+        if (!root.Exists) yield break;
         Stack<DirectoryInfo> pending = new Stack<DirectoryInfo>();
         pending.Push(root);
         while (pending.Count > 0)
@@ -180,17 +215,37 @@ static class Cleaner
             catch { continue; }
             foreach (FileSystemInfo e in entries)
             {
-                FileAttributes a;
-                try { a = e.Attributes; } catch { continue; }
-                if (Linked(a) || CloudOnly(a)) continue;
-                DirectoryInfo sub = e as DirectoryInfo;
-                if (sub != null) { if (t.Recurse) pending.Push(sub); continue; }
-                FileInfo f = (FileInfo)e;
-                if (t.Pattern != "*" && !Matches(f.Name, t.Pattern)) continue;
-                if (t.MinAge > TimeSpan.Zero && (nowUtc - f.LastWriteTimeUtc < t.MinAge || nowUtc - f.CreationTimeUtc < t.MinAge)) continue;
-                yield return f;
+                FileInfo f = e as FileInfo;
+                if (f == null)
+                {
+                    DirectoryInfo sub = (DirectoryInfo)e;
+                    if (t.Recurse && Usable(sub, roots, forbidden)) pending.Push(sub);
+                    continue;
+                }
+                if (Eligible(f, t, nowUtc)) yield return f;
             }
         }
+    }
+
+    static bool Usable(DirectoryInfo d, string[] roots, string[] forbidden)
+    {
+        try { return !Linked(d.Attributes) && IsAllowed(d.FullName, roots, forbidden); }
+        catch { return false; }
+    }
+
+    // Un fichier en lecture seule est laissé en place : retirer l'attribut modifierait aussi les autres noms d'un lien
+    // physique, et c'est souvent un fichier protégé volontairement
+    static bool Eligible(FileInfo f, CleanTarget t, DateTime nowUtc)
+    {
+        try
+        {
+            FileAttributes a = f.Attributes;
+            if (Linked(a) || CloudOnly(a) || (a & FileAttributes.ReadOnly) != 0) return false;
+            if (t.Pattern != "*" && !Matches(f.Name, t.Pattern)) return false;
+            if (t.MinAge > TimeSpan.Zero && (nowUtc - f.LastWriteTimeUtc < t.MinAge || nowUtc - f.CreationTimeUtc < t.MinAge)) return false;
+            return true;
+        }
+        catch { return false; }
     }
 
     // Motif simple « préfixe*suffixe »
@@ -273,24 +328,19 @@ static class Cleaner
             {
                 long count, size;
                 Native.RecycleBinInfo(out count, out size);
-                if (Native.EmptyRecycleBinQuietly()) { r.Freed += size; r.Deleted += (int)Math.Min(int.MaxValue, count); }
+                if (count > 0 && Native.EmptyRecycleBinQuietly()) { r.Freed += size; r.Deleted += (int)Math.Min(int.MaxValue, count); }
                 continue;
             }
-            List<string> running = new List<string>();
             foreach (CleanTarget t in c.Targets)
             {
-                if (IsRunning(t.Processes, running)) continue;
+                if (IsRunning(t.Processes, new List<string>())) continue;   // revérifié juste avant chaque cible
+                Dictionary<string, bool> dirOk = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
                 foreach (FileInfo f in Files(t, roots, forbidden, now).ToList())
                 {
-                    long len = 0;
-                    try
-                    {
-                        len = f.Length;
-                        if ((f.Attributes & FileAttributes.ReadOnly) != 0) f.Attributes &= ~FileAttributes.ReadOnly;
-                        f.Delete();
-                        r.Freed += len; r.Deleted++;
-                    }
-                    catch { r.Skipped++; }   // fichier utilisé : on le laisse
+                    long freed = Delete(f, t, roots, forbidden, dirOk);
+                    if (freed < 0) { r.Skipped++; continue; }
+                    r.Freed += freed;
+                    r.Deleted++;
                 }
                 RemoveEmptyDirs(t, roots, forbidden);
             }
@@ -298,10 +348,31 @@ static class Cleaner
         return r;
     }
 
-    // Sous-dossiers devenus vides (jamais la cible elle-même, jamais à travers un lien)
+    // Suppression d'un fichier après une dernière vérification : il a pu changer depuis l'inventaire. Une ouverture
+    // EXCLUSIVE préalable échoue si un programme l'a encore ouvert, même en partageant la suppression (revue QA-23).
+    // Renvoie la taille libérée, ou -1 si le fichier est laissé en place.
+    static long Delete(FileInfo f, CleanTarget t, string[] roots, string[] forbidden, Dictionary<string, bool> dirOk)
+    {
+        try
+        {
+            f.Refresh();
+            if (!f.Exists || !Eligible(f, t, DateTime.UtcNow)) return -1;
+            bool ok;
+            if (!dirOk.TryGetValue(f.DirectoryName, out ok))
+                dirOk[f.DirectoryName] = ok = IsAllowed(f.DirectoryName, roots, forbidden) && !CrossesLink(f.DirectoryName, roots);
+            if (!ok) return -1;
+            long length = f.Length;
+            using (new FileStream(f.FullName, FileMode.Open, FileAccess.Read, FileShare.None)) { }
+            f.Delete();
+            return length;
+        }
+        catch { return -1; }   // fichier utilisé ou inaccessible : on le laisse
+    }
+
+    // Sous-dossiers devenus vides (jamais la cible elle-même, jamais à travers un lien, jamais dans une zone interdite)
     static void RemoveEmptyDirs(CleanTarget t, string[] roots, string[] forbidden)
     {
-        if (!t.Recurse || !IsAllowed(t.Dir, roots, forbidden)) return;
+        if (!t.Recurse || !IsAllowed(t.Dir, roots, forbidden) || CrossesLink(t.Dir, roots)) return;
         List<DirectoryInfo> all = new List<DirectoryInfo>();
         Stack<DirectoryInfo> pending = new Stack<DirectoryInfo>();
         try { pending.Push(new DirectoryInfo(t.Dir)); } catch { return; }
@@ -312,7 +383,7 @@ static class Cleaner
             try { subs = d.GetDirectories(); } catch { continue; }
             foreach (DirectoryInfo s in subs)
             {
-                try { if (Linked(s.Attributes)) continue; } catch { continue; }
+                if (!Usable(s, roots, forbidden)) continue;
                 all.Add(s);
                 pending.Push(s);
             }

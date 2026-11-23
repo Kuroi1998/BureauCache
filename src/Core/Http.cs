@@ -13,12 +13,17 @@ static class Http
     public static string FetchText(string url, string[] hosts, long maximum)
     {
         ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072; // TLS 1.2
+        string firstHost = null;
         for (int redirect = 0; redirect <= 3; redirect++)
         {
             Uri u;
-            if (!Uri.TryCreate(url, UriKind.Absolute, out u) || u.Scheme != Uri.UriSchemeHttps ||
+            if (!Uri.TryCreate(url, UriKind.Absolute, out u) || u.Scheme != Uri.UriSchemeHttps || !u.IsDefaultPort ||
                 Array.IndexOf(hosts, u.Host.ToLowerInvariant()) < 0)
                 throw new IOException(L.T("Adresse refusée : ", "Address refused: ") + url);
+            // Une redirection reste sur le même service : la requête (coordonnées, ville) ne part pas ailleurs (revue QA-23)
+            if (firstHost == null) firstHost = u.Host;
+            else if (!string.Equals(u.Host, firstHost, StringComparison.OrdinalIgnoreCase))
+                throw new IOException(L.T("Redirection refusée : ", "Redirect refused: ") + url);
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(u);
             request.AllowAutoRedirect = false;
             request.UserAgent = "BureauCache/" + AppInfo.Version;

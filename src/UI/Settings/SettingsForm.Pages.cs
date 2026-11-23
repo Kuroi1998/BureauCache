@@ -117,6 +117,7 @@ partial class SettingsForm
         tWeather = NewToggle(v =>
         {
             Settings.WeatherOn = v;
+            if (!v) Weather.Reset();
             if (v && !Weather.Configured) BeginInvoke(new Action(() => { WeatherPlaceDialog.Run(); UpdateTexts(); }));
         });
         Row(T("Météo", "Weather"), T("Temps et prévisions du lieu choisi (données Open-Meteo.com, CC BY 4.0).", "Weather and forecast for the chosen place (Open-Meteo.com data, CC BY 4.0)."), tWeather, null);

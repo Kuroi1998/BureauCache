@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Device.Location;
 using System.Globalization;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 
 // =====================================================================
@@ -28,6 +27,7 @@ class WeatherReport
     public bool IsDay = true;
     public List<WeatherDay> Days = new List<WeatherDay>();
     public DateTime Fetched;
+    public DateTime LocalToday;   // date du jour dans le fuseau du lieu (pour « Aujourd'hui », « Demain »)
 }
 
 class WeatherPlace
@@ -57,8 +57,10 @@ static class Weather
     static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
     public static WeatherReport Current;
+    public static bool Failed;            // la dernière tentative a échoué (tuile : « indisponible »)
     static DateTime lastAttempt = DateTime.MinValue;
-    static int refreshing;
+    static int refreshing, generation;    // generation change à chaque changement de lieu (revue QA-23)
+    static readonly object sync = new object();
 
     public static bool Fahrenheit
     {
@@ -84,29 +86,41 @@ static class Weather
         }
     }
 
-    // Lieu changé : on oublie la météo de l'ancien lieu
+    // Lieu changé ou météo masquée : on oublie la météo de l'ancien lieu, et une réponse en cours pour l'ancien lieu
+    // sera ignorée à son arrivée
     public static void Reset()
     {
-        Current = null;
-        lastAttempt = DateTime.MinValue;
+        lock (sync)
+        {
+            generation++;
+            Current = null;
+            Failed = false;
+            lastAttempt = DateTime.MinValue;
+        }
     }
 
     public static void RefreshAsync(Action done)
     {
         if (Interlocked.CompareExchange(ref refreshing, 1, 0) != 0) return;
-        lastAttempt = DateTime.Now;
-        double lat = Settings.WeatherLat, lon = Settings.WeatherLon;
+        int gen;
+        double lat, lon;
+        lock (sync) { gen = generation; lastAttempt = DateTime.Now; lat = Settings.WeatherLat; lon = Settings.WeatherLon; }
         bool f = Fahrenheit;
         Background.Run(() =>
         {
-            try
-            {
-                WeatherReport r = ParseForecast(Http.FetchText(ForecastUrl(lat, lon, f), Hosts, MaxResponse));
-                if (r != null && lat == Settings.WeatherLat && lon == Settings.WeatherLon) { r.Fetched = DateTime.Now; Current = r; }
-            }
+            WeatherReport r = null;
+            try { r = ParseForecast(Http.FetchText(ForecastUrl(lat, lon, f), Hosts, MaxResponse)); }
             catch { }
             finally
             {
+                lock (sync)
+                {
+                    if (gen == generation && Settings.WeatherOn)
+                    {
+                        if (r != null) { r.Fetched = DateTime.Now; Current = r; }
+                        Failed = r == null;
+                    }
+                }
                 Interlocked.Exchange(ref refreshing, 0);
                 if (done != null) done();
             }
@@ -116,6 +130,8 @@ static class Weather
     // ---------- URLs ----------
     internal static string ForecastUrl(double lat, double lon, bool fahrenheit)
     {
+        if (!ValidCoord(lat, 90)) throw new ArgumentOutOfRangeException("lat");
+        if (!ValidCoord(lon, 180)) throw new ArgumentOutOfRangeException("lon");
         return "https://api.open-meteo.com/v1/forecast?latitude=" + lat.ToString("0.####", Inv) + "&longitude=" + lon.ToString("0.####", Inv) +
             "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day" +
             "&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=3" +
@@ -169,114 +185,67 @@ static class Weather
         return p ?? new WeatherPlace { Name = L.T("Ma position", "My location"), Lat = lat, Lon = lon };
     }
 
-    // ---------- Lecture des réponses JSON ----------
-    static readonly Regex Number = new Regex(@"^-?\d+(\.\d+)?([eE][+-]?\d+)?$");
-
-    static string Section(string json, string name, char open, char close)
+    // ---------- Lecture des réponses JSON (analyseur strict Json, revue QA-23) ----------
+    // Texte destiné à l'affichage : caractères de contrôle (\t, \n, \b, \f…) remplacés par des espaces
+    internal static string Display(string s)
     {
-        Match m = Regex.Match(json, "\"" + Regex.Escape(name) + "\"\\s*:\\s*\\" + open);
-        if (!m.Success) return null;
-        int start = m.Index + m.Length, depth = 1;
-        for (int i = start; i < json.Length; i++)
-        {
-            if (json[i] == '"') { i = SkipString(json, i); continue; }
-            if (json[i] == open) depth++;
-            else if (json[i] == close && --depth == 0) return json.Substring(start, i - start);
-        }
-        return null;
-    }
-
-    static int SkipString(string s, int i)
-    {
-        for (i++; i < s.Length; i++)
-        {
-            if (s[i] == '\\') i++;
-            else if (s[i] == '"') return i;
-        }
-        return s.Length;
-    }
-
-    static bool Num(string obj, string key, out double v)
-    {
-        v = double.NaN;
-        Match m = Regex.Match(obj, "\"" + Regex.Escape(key) + "\"\\s*:\\s*(-?[0-9.eE+]+)");
-        return m.Success && Number.IsMatch(m.Groups[1].Value) && double.TryParse(m.Groups[1].Value, NumberStyles.Float, Inv, out v);
-    }
-
-    static string Str(string obj, string key)
-    {
-        Match m = Regex.Match(obj, "\"" + Regex.Escape(key) + "\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
-        return m.Success ? Unescape(m.Groups[1].Value) : null;
-    }
-
-    static List<string> Values(string obj, string key)
-    {
-        string a = Section(obj, key, '[', ']');
-        List<string> res = new List<string>();
-        if (a == null) return res;
-        foreach (string part in a.Split(',')) res.Add(part.Trim().Trim('"'));
-        return res;
-    }
-
-    internal static string Unescape(string s)
-    {
+        if (s == null) return null;
         StringBuilder sb = new StringBuilder(s.Length);
-        for (int i = 0; i < s.Length; i++)
-        {
-            char c = s[i];
-            if (c != '\\' || i + 1 >= s.Length) { sb.Append(c); continue; }
-            char n = s[++i];
-            if (n == 'u' && i + 4 < s.Length)
-            {
-                int code;
-                if (int.TryParse(s.Substring(i + 1, 4), NumberStyles.HexNumber, Inv, out code)) { sb.Append((char)code); i += 4; continue; }
-            }
-            sb.Append(n == 'n' || n == 'r' || n == 't' ? ' ' : n);
-        }
-        return sb.ToString().Replace('\r', ' ').Replace('\n', ' ');
+        foreach (char c in s) sb.Append(char.IsControl(c) ? ' ' : c);
+        return sb.ToString();
     }
+
+    // Contenu d'une chaîne JSON décodé pour l'affichage
+    internal static string Unescape(string s) { return Display(Json.Decode(s)); }
+
+    static object Root(string json)
+    {
+        try { return Json.Parse(json); }
+        catch (FormatException) { return null; }
+    }
+
+    static bool Finite(double v) { return !double.IsNaN(v) && !double.IsInfinity(v); }
+    static bool ValidCoord(double v, double limit) { return Finite(v) && Math.Abs(v) <= limit; }
 
     internal static WeatherReport ParseForecast(string json)
     {
-        string cur = Section(json, "current", '{', '}');
+        object root = Root(json);
+        Dictionary<string, object> cur = Json.Obj(root, "current");
         if (cur == null) return null;
-        WeatherReport r = new WeatherReport();
-        double code, isDay;
-        if (!Num(cur, "temperature_2m", out r.Temp) || !Num(cur, "weather_code", out code)) return null;
-        Num(cur, "apparent_temperature", out r.Feels);
-        Num(cur, "wind_speed_10m", out r.Wind);
+        WeatherReport r = new WeatherReport { Temp = Json.Num(cur, "temperature_2m"), Feels = Json.Num(cur, "apparent_temperature"), Wind = Json.Num(cur, "wind_speed_10m") };
+        double code = Json.Num(cur, "weather_code"), isDay = Json.Num(cur, "is_day");
+        if (!Finite(r.Temp) || !Finite(code)) return null;
         r.Code = (int)code;
-        if (Num(cur, "is_day", out isDay)) r.IsDay = isDay != 0;
-        string daily = Section(json, "daily", '{', '}');
-        if (daily != null)
-        {
-            List<string> dates = Values(daily, "time"), codes = Values(daily, "weather_code"),
-                         max = Values(daily, "temperature_2m_max"), min = Values(daily, "temperature_2m_min");
+        if (Finite(isDay)) r.IsDay = isDay != 0;
+        string now = Json.Str(cur, "time");
+        DateTime today;
+        if (now != null && now.Length >= 10 && DateTime.TryParseExact(now.Substring(0, 10), "yyyy-MM-dd", Inv, DateTimeStyles.None, out today)) r.LocalToday = today;
+        Dictionary<string, object> daily = Json.Obj(root, "daily");
+        List<object> dates = Json.List(daily, "time"), codes = Json.List(daily, "weather_code"),
+                     max = Json.List(daily, "temperature_2m_max"), min = Json.List(daily, "temperature_2m_min");
+        if (dates != null && codes != null && max != null && min != null)
             for (int i = 0; i < dates.Count && i < codes.Count && i < max.Count && i < min.Count; i++)
             {
                 WeatherDay d = new WeatherDay();
-                double c, hi, lo;
-                if (!DateTime.TryParseExact(dates[i], "yyyy-MM-dd", Inv, DateTimeStyles.None, out d.Date) ||
-                    !double.TryParse(codes[i], NumberStyles.Float, Inv, out c) ||
-                    !double.TryParse(max[i], NumberStyles.Float, Inv, out hi) ||
-                    !double.TryParse(min[i], NumberStyles.Float, Inv, out lo)) continue;
-                d.Code = (int)c; d.Max = hi; d.Min = lo;
+                string date = dates[i] as string;
+                if (date == null || !DateTime.TryParseExact(date, "yyyy-MM-dd", Inv, DateTimeStyles.None, out d.Date)) continue;
+                if (!(codes[i] is double) || !(max[i] is double) || !(min[i] is double)) continue;   // « NaN » en texte, null… : jour ignoré
+                d.Code = (int)(double)codes[i]; d.Max = (double)max[i]; d.Min = (double)min[i];
                 r.Days.Add(d);
             }
-        }
         return r;
     }
 
     internal static List<WeatherPlace> ParseSearch(string json)
     {
         List<WeatherPlace> res = new List<WeatherPlace>();
-        string list = Section(json, "results", '[', ']');
+        List<object> list = Json.List(Root(json), "results");
         if (list == null) return res;
-        foreach (Match m in Regex.Matches(list, @"\{(?:[^{}""]|""(?:[^""\\]|\\.)*"")*\}"))
+        foreach (object o in list)
         {
-            WeatherPlace p = new WeatherPlace { Name = Str(m.Value, "name"), Admin1 = Str(m.Value, "admin1"), Country = Str(m.Value, "country") };
-            if (string.IsNullOrEmpty(p.Name) || !Num(m.Value, "latitude", out p.Lat) || !Num(m.Value, "longitude", out p.Lon)) continue;
-            if (Math.Abs(p.Lat) > 90 || Math.Abs(p.Lon) > 180) continue;
+            WeatherPlace p = new WeatherPlace { Name = Display(Json.Str(o, "name")), Admin1 = Display(Json.Str(o, "admin1")), Country = Display(Json.Str(o, "country")),
+                                                Lat = Json.Num(o, "latitude"), Lon = Json.Num(o, "longitude") };
+            if (string.IsNullOrEmpty(p.Name) || !ValidCoord(p.Lat, 90) || !ValidCoord(p.Lon, 180)) continue;
             res.Add(p);
         }
         return res;
@@ -284,10 +253,12 @@ static class Weather
 
     internal static WeatherPlace ParseReverse(string json, double lat, double lon)
     {
-        string name = Str(json, "city");
-        if (string.IsNullOrEmpty(name)) name = Str(json, "locality");
+        if (!ValidCoord(lat, 90) || !ValidCoord(lon, 180)) return null;
+        object root = Root(json);
+        string name = Display(Json.Str(root, "city"));
+        if (string.IsNullOrEmpty(name)) name = Display(Json.Str(root, "locality"));
         if (string.IsNullOrEmpty(name)) return null;
-        return new WeatherPlace { Name = name, Admin1 = Str(json, "principalSubdivision"), Country = Str(json, "countryName"), Lat = lat, Lon = lon };
+        return new WeatherPlace { Name = name, Admin1 = Display(Json.Str(root, "principalSubdivision")), Country = Display(Json.Str(root, "countryName")), Lat = lat, Lon = lon };
     }
 
     // ---------- Codes météo WMO ----------
@@ -330,5 +301,14 @@ static class Weather
         }
     }
 
-    public static string Temp(double t) { return Math.Round(t).ToString("0", L.Culture) + "°"; }
+    public static string Temp(double t) { return Finite(t) ? Math.Round(t).ToString("0", L.Culture) + "°" : "—"; }
+
+    // « Aujourd'hui », « Demain » ou le jour de la semaine, d'après la date du lieu (pas celle de ce PC)
+    public static string DayName(WeatherReport r, DateTime date)
+    {
+        DateTime today = r.LocalToday != DateTime.MinValue ? r.LocalToday : DateTime.Today;
+        if (date == today) return L.T("Aujourd'hui", "Today");
+        if (date == today.AddDays(1)) return L.T("Demain", "Tomorrow");
+        return date.ToString("dddd", L.Culture);
+    }
 }

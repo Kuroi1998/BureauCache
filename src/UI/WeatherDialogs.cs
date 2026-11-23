@@ -47,8 +47,8 @@ class WeatherPlaceDialog : ThemedDialog
         status = AddLabel("", pad + bLocate.Width + Ui.S(10), Ui.S(279));
         status.MaximumSize = new Size(w - bLocate.Width - Ui.S(10), 0);
 
-        Label privacy = AddLabel(L.T("La recherche envoie le nom tapé à Open-Meteo. La détection demande la position à Windows, puis envoie les coordonnées arrondies à BigDataCloud pour trouver le nom de la ville. Ensuite, seules les coordonnées du lieu choisi sont envoyées à Open-Meteo, toutes les 30 minutes au plus.",
-            "Search sends the typed name to Open-Meteo. Detection asks Windows for the location, then sends the rounded coordinates to BigDataCloud to find the city name. Afterwards, only the chosen place's coordinates are sent to Open-Meteo, at most every 30 minutes."), pad, Ui.S(318));
+        Label privacy = AddLabel(L.T("La recherche envoie le nom tapé à Open-Meteo. La détection demande la position à Windows, puis envoie les coordonnées arrondies à BigDataCloud pour trouver le nom de la ville. Ensuite, seules les coordonnées du lieu choisi sont envoyées à Open-Meteo, quand le panneau s'ouvre : au plus toutes les 30 minutes (5 minutes après un échec).",
+            "Search sends the typed name to Open-Meteo. Detection asks Windows for the location, then sends the rounded coordinates to BigDataCloud to find the city name. Afterwards, only the chosen place's coordinates are sent to Open-Meteo when the panel opens: at most every 30 minutes (5 minutes after a failure)."), pad, Ui.S(318));
         privacy.MaximumSize = new Size(w, 0);
         privacy.Font = Ui.Font("Segoe UI", 8.25f);
 
@@ -178,8 +178,8 @@ class WeatherDetailDialog : ThemedDialog
         WeatherIcons.Draw(g, w.Code, w.IsDay, new RectangleF(pad, Ui.S(40), Ui.S(72), Ui.S(72)));
         TextRenderer.DrawText(g, Weather.Temp(w.Temp), fBig, new Rectangle(pad + Ui.S(84), Ui.S(38), Ui.S(130), Ui.S(50)), Theme.Fg, flags);
         TextRenderer.DrawText(g, Weather.Describe(w.Code), fText, new Rectangle(pad + Ui.S(84), Ui.S(84), width - Ui.S(84), Ui.S(22)), Theme.Fg, flags);
-        string extra = L.T("Ressenti ", "Feels like ") + Weather.Temp(w.Feels) + "  ·  " + L.T("Vent ", "Wind ") +
-            Math.Round(w.Wind).ToString("0", L.Culture) + " " + Weather.WindUnit;
+        string wind = double.IsNaN(w.Wind) ? "—" : Math.Round(w.Wind).ToString("0", L.Culture) + " " + Weather.WindUnit;
+        string extra = L.T("Ressenti ", "Feels like ") + Weather.Temp(w.Feels) + "  ·  " + L.T("Vent ", "Wind ") + wind;
         TextRenderer.DrawText(g, extra, fSmall, new Rectangle(pad, Ui.S(122), width, Ui.S(20)), Theme.FgDim, flags);
 
         int y = Ui.S(152);
@@ -188,7 +188,7 @@ class WeatherDetailDialog : ThemedDialog
             WeatherDay d = w.Days[i];
             Rectangle row = new Rectangle(pad, y, width, Ui.S(40));
             Ui.Fill(g, Theme.HoverOverlay, row, Ui.S(8));
-            string name = i == 0 ? L.T("Aujourd'hui", "Today") : i == 1 ? L.T("Demain", "Tomorrow") : d.Date.ToString("dddd", L.Culture);
+            string name = Weather.DayName(w, d.Date);
             TextRenderer.DrawText(g, name, fText, new Rectangle(row.X + Ui.S(12), row.Y, Ui.S(130), row.Height), Theme.Fg, flags);
             WeatherIcons.Draw(g, d.Code, true, new RectangleF(row.X + Ui.S(150), row.Y + Ui.S(5), Ui.S(30), Ui.S(30)));
             TextRenderer.DrawText(g, Weather.Describe(d.Code), fSmall, new Rectangle(row.X + Ui.S(186), row.Y, Ui.S(110), row.Height), Theme.FgDim, flags);

@@ -178,14 +178,11 @@ static class Native
         try { SetWindowTheme(hwnd, dark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
     }
 
-    // Vide la corbeille de tous les disques sans fenêtre ni son. Une corbeille déjà vide renvoie E_UNEXPECTED : c'est un succès.
+    // Vide la corbeille de tous les disques sans fenêtre ni son. Seul S_OK est un succès (l'appelant ne l'appelle que si
+    // la corbeille contient quelque chose : E_UNEXPECTED n'est donc plus pris pour un succès, revue QA-23).
     public static bool EmptyRecycleBinQuietly()
     {
-        try
-        {
-            int hr = SHEmptyRecycleBin(IntPtr.Zero, null, 0x1 | 0x2 | 0x4);
-            return hr == 0 || hr == unchecked((int)0x8000FFFF);
-        }
+        try { return SHEmptyRecycleBin(IntPtr.Zero, null, 0x1 | 0x2 | 0x4) == 0; }
         catch { return false; }
     }
 

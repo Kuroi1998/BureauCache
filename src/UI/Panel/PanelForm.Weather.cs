@@ -26,7 +26,9 @@ partial class PanelForm
         if (!Weather.Configured || w == null)
         {
             Ui.Glyph(g, Glyphs.Search, 10f, Theme.FgDim, new Rectangle(rcWeather.X + S(8), rcWeather.Y, S(28), rcWeather.Height));
-            string msg = !Weather.Configured ? L.T("Météo : choisir une ville…", "Weather: choose a city…") : L.T("Météo : chargement…", "Weather: loading…");
+            string msg = !Weather.Configured ? L.T("Météo : choisir une ville…", "Weather: choose a city…")
+                : Weather.Failed ? L.T("Météo indisponible (nouvel essai dans 5 min)", "Weather unavailable (retry in 5 min)")
+                : L.T("Météo : chargement…", "Weather: loading…");
             TextRenderer.DrawText(g, msg, fSmall, new Rectangle(rcWeather.X + S(40), rcWeather.Y, rcWeather.Width - S(48), rcWeather.Height), Theme.FgDim, left);
             return;
         }
@@ -68,7 +70,7 @@ partial class PanelForm
         Menus.Clear(menu.Items);
         menu.Items.Add(Menus.Item(L.T("Actualiser", "Refresh"), Glyphs.Restart, () => { Weather.Reset(); RefreshWeatherIfDue(); }));
         menu.Items.Add(Menus.Item(L.T("Changer de lieu…", "Change location…"), Glyphs.Globe, () => { HidePanel(); WeatherPlaceDialog.Run(); }));
-        menu.Items.Add(Menus.Item(L.T("Masquer la météo", "Hide weather"), Glyphs.Eye, () => { Settings.WeatherOn = false; Settings.Notify(); }));
+        menu.Items.Add(Menus.Item(L.T("Masquer la météo", "Hide weather"), Glyphs.Eye, () => { Settings.WeatherOn = false; Weather.Reset(); Settings.Notify(); }));
         ShowPanelMenu(this, location);
     }
 

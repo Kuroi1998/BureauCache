@@ -178,13 +178,42 @@ namespace BureauCache.Tests
             Assert.AreEqual(1, r.Skipped);
         }
 
+        // Revue QA-23 : retirer l'attribut modifierait aussi les autres noms d'un lien physique : le fichier est laissé
         [TestMethod]
-        public void Fichier_en_lecture_seule_supprime()
+        public void Fichier_en_lecture_seule_laisse_en_place()
         {
             string cache = Path.Combine(allowed, "Cache");
             string ro = Write(Path.Combine(cache, "ro.bin"));
             File.SetAttributes(ro, FileAttributes.ReadOnly);
-            Assert.AreEqual(1, Cleaner.Clean(new[] { Category(new CleanTarget { Dir = cache }) }, roots, forbidden).Deleted);
+            Assert.AreEqual(0, Cleaner.Clean(new[] { Category(new CleanTarget { Dir = cache }) }, roots, forbidden).Deleted);
+            Assert.IsTrue(File.Exists(ro));
+            Assert.AreEqual(FileAttributes.ReadOnly, File.GetAttributes(ro) & FileAttributes.ReadOnly);
+            File.SetAttributes(ro, FileAttributes.Normal);
+        }
+
+        // Revue QA-23 : un PARENT de la cible qui est une jonction emmènerait le nettoyage ailleurs
+        [TestMethod]
+        public void Parent_de_la_cible_en_jonction_ignore()
+        {
+            string precieux = Write(Path.Combine(outside, @"Cache\precieux.docx"));
+            Junction(Path.Combine(allowed, "Appli"), outside);
+            string cible = Path.Combine(allowed, @"Appli\Cache");   // le chemin lui-même n'est pas un lien
+            Assert.IsTrue(Cleaner.CrossesLink(cible, roots));
+            CleanResult r = Cleaner.Clean(new[] { Category(new CleanTarget { Dir = cible }) }, roots, forbidden);
+            Assert.IsTrue(File.Exists(precieux));
+            Assert.AreEqual(0, r.Deleted);
+            Assert.IsFalse(Cleaner.CrossesLink(Path.Combine(allowed, "Cache"), roots));
+        }
+
+        // Revue QA-23 : %TEMP% n'est plus une racine ; il n'est nettoyé que s'il est dans AppData\Local
+        [TestMethod]
+        public void Temp_n_est_pas_une_racine_autonome()
+        {
+            string temp = Path.GetFullPath(Path.GetTempPath()).TrimEnd('\\') + "\\";
+            Assert.IsFalse(Cleaner.Roots.Any(r => string.Equals(r, temp, StringComparison.OrdinalIgnoreCase)));
+            string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            Assert.AreEqual(temp.StartsWith(local + "\\", StringComparison.OrdinalIgnoreCase), Cleaner.IsAllowed(temp, Cleaner.Roots, Cleaner.Forbidden));
+            foreach (string r in Cleaner.Roots) Assert.IsFalse(r.StartsWith(@"\\"), "racine réseau : " + r);
         }
 
         [TestMethod]
