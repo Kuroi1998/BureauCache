@@ -1,5 +1,12 @@
 ﻿# Nouveautés
 
+## 3.7.1 — Espagnol et stabilisation du panneau
+
+- Interface disponible en espagnol. Le changement de langue conserve la rubrique active et son défilement. La calculatrice accepte les nombres espagnols copiés avec un séparateur de milliers.
+- Le panneau est visible par défaut en partage d’écran entier. Le réglage de masquage reste disponible. En mode visible, le redimensionnement conserve le fond flouté.
+- Les réglages de largeur, de côté et des widgets s’appliquent directement au panneau ouvert.
+- La recherche réutilise ses catalogues quand leurs réglages restent identiques.
+
 ## 3.7 — Refonte des paramètres
 
 - Fenêtre Paramètres redessinée et redimensionnable. Les six rubriques ont un en-tête fixe, les descriptions s’adaptent à la largeur et les réglages se parcourent au clavier.
