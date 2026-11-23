@@ -144,16 +144,14 @@ partial class App : ApplicationContext
             if (settingsForm != null && !settingsForm.IsDisposed)
             {
                 SettingsForm old2 = settingsForm;
-                int page = old2.CurrentPage;
-                Point loc = old2.Location;
-                bool vis = old2.Visible;
                 panel.BeginInvoke(new Action(() =>
                 {
+                    if (old2 != settingsForm || old2.IsDisposed) return;
+                    bool vis = old2.Visible;
+                    SettingsForm replacement = new SettingsForm(Actions());
+                    replacement.RestoreWindowState(old2);
+                    settingsForm = replacement;
                     old2.Dispose();
-                    settingsForm = new SettingsForm(Actions());
-                    settingsForm.SelectPage(page);
-                    settingsForm.StartPosition = FormStartPosition.Manual;
-                    settingsForm.Location = loc;
                     if (vis) settingsForm.Show();
                 }));
             }

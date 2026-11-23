@@ -10,6 +10,32 @@ using System.Windows.Forms;
 // =====================================================================
 abstract class FlatControl : Control
 {
+    protected bool SettingsKeyboard { get; private set; }
+
+    public void EnableSettingsKeyboard()
+    {
+        SettingsKeyboard = true;
+        SetStyle(ControlStyles.Selectable, true);
+        TabStop = true;
+    }
+
+    protected override bool IsInputKey(Keys keyData)
+    {
+        if (SettingsKeyboard && (keyData == Keys.Left || keyData == Keys.Right || keyData == Keys.Home || keyData == Keys.End)) return true;
+        return base.IsInputKey(keyData);
+    }
+
+    protected override void OnGotFocus(EventArgs e) { Invalidate(); base.OnGotFocus(e); }
+    protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
+
+    protected void DrawSettingsFocus(Graphics g)
+    {
+        if (SettingsKeyboard && Focused) ControlPaint.DrawFocusRectangle(g, Rectangle.Inflate(ClientRectangle, -1, -1),
+            SettingsHighContrast ? SystemColors.WindowText : Theme.Fg, BackColor);
+    }
+
+    protected bool SettingsHighContrast { get { return SettingsKeyboard && SystemInformation.HighContrast; } }
+
     protected FlatControl()
     {
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
@@ -34,6 +60,7 @@ class Toggle : FlatControl
 
     public Toggle()
     {
+        AccessibleRole = AccessibleRole.CheckButton;
         Size = new Size(Ui.S(44), Ui.S(24));
         TabStop = true;
         anim.Interval = 12;
@@ -67,7 +94,7 @@ class Toggle : FlatControl
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        if (e.KeyCode == Keys.Space) OnClick(EventArgs.Empty);
+        if (e.KeyCode == Keys.Space) { e.SuppressKeyPress = true; OnClick(EventArgs.Empty); }
         base.OnKeyDown(e);
     }
 
@@ -75,12 +102,20 @@ class Toggle : FlatControl
     {
         Graphics g = Prep(e);
         RectangleF r = new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f);
-        Ui.Fill(g, Theme.Mix(Theme.Track, Theme.Accent, pos), r, r.Height / 2);
+        Color track = SettingsHighContrast ? (on ? SystemColors.Highlight : SystemColors.Control) : Theme.Mix(Theme.Track, Theme.Accent, pos);
+        Ui.Fill(g, track, r, r.Height / 2);
+        if (SettingsHighContrast)
+            using (var path = Ui.Round(r, r.Height / 2))
+            using (Pen pen = new Pen(SystemColors.WindowText)) g.DrawPath(pen, path);
         float pad = Ui.S(3);
         float d = r.Height - pad * 2;
         float x = r.X + pad + pos * (r.Width - d - pad * 2);
-        using (SolidBrush b = new SolidBrush(Color.White)) g.FillEllipse(b, x, r.Y + pad, d, d);
+        Color thumb = SettingsHighContrast ? (on ? SystemColors.HighlightText : SystemColors.ControlText) : Color.White;
+        using (SolidBrush b = new SolidBrush(thumb)) g.FillEllipse(b, x, r.Y + pad, d, d);
+        DrawSettingsFocus(g);
     }
+
+    protected override void Dispose(bool disposing) { if (disposing) anim.Dispose(); base.Dispose(disposing); }
 }
 
 class Segmented : FlatControl
@@ -119,19 +154,34 @@ class Segmented : FlatControl
         base.OnMouseDown(e);
     }
 
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        int before = sel;
+        if (e.KeyCode == Keys.Left) Selected = sel - 1;
+        else if (e.KeyCode == Keys.Right) Selected = sel + 1;
+        else if (e.KeyCode == Keys.Home) Selected = 0;
+        else if (e.KeyCode == Keys.End) Selected = opts.Length - 1;
+        else { base.OnKeyDown(e); return; }
+        e.SuppressKeyPress = true;
+        if (before != sel && Changed != null) Changed(this, EventArgs.Empty);
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         Graphics g = Prep(e);
-        Ui.Fill(g, Theme.Surface, new RectangleF(0, 0, Width - 1, Height - 1), Ui.S(8));
+        Ui.Fill(g, SettingsHighContrast ? SystemColors.Control : Theme.Surface, new RectangleF(0, 0, Width - 1, Height - 1), Ui.S(8));
         float sw = SegW, pad = Ui.S(3);
         for (int i = 0; i < opts.Length; i++)
         {
             RectangleF r = new RectangleF(pad + i * sw, pad, sw, Height - pad * 2 - 1);
-            if (i == sel) Ui.Fill(g, Theme.Accent, r, Ui.S(6));
-            else if (i == hover) Ui.Fill(g, Theme.Hover, r, Ui.S(6));
-            TextRenderer.DrawText(g, opts[i], Font, Rectangle.Round(r), i == sel ? Color.White : Theme.Fg,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            if (i == sel) Ui.Fill(g, SettingsHighContrast ? SystemColors.Highlight : Theme.Accent, r, Ui.S(6));
+            else if (i == hover && !SettingsHighContrast) Ui.Fill(g, Theme.Hover, r, Ui.S(6));
+            Color text = SettingsHighContrast ? (i == sel ? SystemColors.HighlightText : SystemColors.ControlText)
+                : (i == sel ? (SettingsKeyboard ? SettingsPalette.OnFill(Theme.Accent) : Color.White) : Theme.Fg);
+            TextRenderer.DrawText(g, opts[i], Font, Rectangle.Round(r), text,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
         }
+        DrawSettingsFocus(g);
     }
 }
 
@@ -144,6 +194,7 @@ class Slider : FlatControl
 
     public Slider(int min, int max, int step)
     {
+        AccessibleRole = AccessibleRole.Slider;
         Min = min; Max = max; Step = step;
         Size = new Size(Ui.S(170), Ui.S(26));
     }
@@ -154,7 +205,7 @@ class Slider : FlatControl
         set { val = Math.Max(Min, Math.Min(Max, value)); Invalidate(); }
     }
 
-    float Pad { get { return Ui.S(9); } }
+    float Pad { get { return Math.Min(Ui.S(9), Math.Max(0, (Width - 1) / 2f)); } }
 
     void SetFromX(int x)
     {
@@ -190,11 +241,16 @@ class Slider : FlatControl
         Invalidate();
     }
 
-    protected override void OnMouseWheel(MouseEventArgs e)
+    protected override void OnKeyDown(KeyEventArgs e)
     {
-        int v = Math.Max(Min, Math.Min(Max, val + Math.Sign(e.Delta) * Step));
-        if (v != val) { val = v; Invalidate(); if (Changed != null) Changed(this, EventArgs.Empty); }
-        base.OnMouseWheel(e);
+        int before = val;
+        if (e.KeyCode == Keys.Left) Value -= Step;
+        else if (e.KeyCode == Keys.Right) Value += Step;
+        else if (e.KeyCode == Keys.Home) Value = Min;
+        else if (e.KeyCode == Keys.End) Value = Max;
+        else { base.OnKeyDown(e); return; }
+        e.SuppressKeyPress = true;
+        if (before != val && Changed != null) Changed(this, EventArgs.Empty);
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -203,12 +259,15 @@ class Slider : FlatControl
         float cy = Height / 2f, th = Ui.S(4);
         float t = (val - Min) / (float)(Max - Min);
         float kx = Pad + t * (Width - Pad * 2);
-        Ui.Fill(g, Theme.Track, new RectangleF(Pad, cy - th / 2, Width - Pad * 2, th), th / 2);
-        Ui.Fill(g, Theme.Accent, new RectangleF(Pad, cy - th / 2, Math.Max(th, kx - Pad), th), th / 2);
+        Color track = SettingsHighContrast ? SystemColors.ControlText : Theme.Track;
+        Color accent = SettingsHighContrast ? SystemColors.Highlight : Theme.Accent;
+        Ui.Fill(g, track, new RectangleF(Pad, cy - th / 2, Width - Pad * 2, th), th / 2);
+        Ui.Fill(g, accent, new RectangleF(Pad, cy - th / 2, Math.Max(th, kx - Pad), th), th / 2);
         float kr = Ui.S(8);
-        using (SolidBrush b = new SolidBrush(Theme.Accent)) g.FillEllipse(b, kx - kr, cy - kr, kr * 2, kr * 2);
+        using (SolidBrush b = new SolidBrush(accent)) g.FillEllipse(b, kx - kr, cy - kr, kr * 2, kr * 2);
         float ir = drag ? Ui.S(3) : Ui.S(4);
-        using (SolidBrush b = new SolidBrush(Color.White)) g.FillEllipse(b, kx - ir, cy - ir, ir * 2, ir * 2);
+        using (SolidBrush b = new SolidBrush(SettingsHighContrast ? SystemColors.HighlightText : Color.White)) g.FillEllipse(b, kx - ir, cy - ir, ir * 2, ir * 2);
+        DrawSettingsFocus(g);
     }
 }
 
@@ -221,24 +280,34 @@ class Swatches : FlatControl
     };
     public Color Selected;
     public event EventHandler Changed;
-    int D { get { return Ui.S(22); } }
-    int Gap { get { return Ui.S(8); } }
+    int D { get { return Math.Min(Ui.S(22), Math.Max(1, (Width - Ui.S(6)) / Presets.Length - Gap)); } }
+    int Gap { get { return Math.Min(Ui.S(8), Math.Max(1, Width / (Presets.Length * 3))); } }
 
     public Swatches()
     {
-        Size = new Size(Presets.Length * (D + Gap) - Gap + Ui.S(6), D + Ui.S(6));
+        Size = new Size(Presets.Length * Ui.S(30) + Ui.S(6), Ui.S(28));
     }
 
     protected override void OnMouseDown(MouseEventArgs e)
     {
-        int i = (e.X - Ui.S(3)) / (D + Gap);
-        if (e.Button == MouseButtons.Left && i >= 0 && i < Presets.Length)
+        if (e.Button == MouseButtons.Left)
         {
-            Selected = Presets[i];
-            Invalidate();
-            if (Changed != null) Changed(this, EventArgs.Empty);
+            for (int i = 0; i < Presets.Length; i++)
+            {
+                Rectangle bounds = SwatchBounds(i);
+                float radius = bounds.Width / 2f;
+                float dx = e.X - bounds.X - radius, dy = e.Y - bounds.Y - radius;
+                if (dx * dx + dy * dy > radius * radius) continue;
+                SelectColor(i);
+                break;
+            }
         }
         base.OnMouseDown(e);
+    }
+
+    Rectangle SwatchBounds(int index)
+    {
+        return new Rectangle(Ui.S(3) + index * (D + Gap), (Height - D) / 2, D, D);
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -246,13 +315,39 @@ class Swatches : FlatControl
         Graphics g = Prep(e);
         for (int i = 0; i < Presets.Length; i++)
         {
-            float x = Ui.S(3) + i * (D + Gap), y = Ui.S(3);
-            using (SolidBrush b = new SolidBrush(Presets[i])) g.FillEllipse(b, x, y, D, D);
+            Rectangle bounds = SwatchBounds(i);
+            using (SolidBrush b = new SolidBrush(Presets[i])) g.FillEllipse(b, bounds);
             if (Presets[i].ToArgb() == Selected.ToArgb())
             {
-                using (Pen p = new Pen(Theme.Fg, Ui.S(2))) g.DrawEllipse(p, x - Ui.S(2), y - Ui.S(2), D + Ui.S(4), D + Ui.S(4));
-                using (SolidBrush w = new SolidBrush(Color.White)) g.FillEllipse(w, x + D / 2f - Ui.S(3), y + D / 2f - Ui.S(3), Ui.S(6), Ui.S(6));
+                using (Pen p = new Pen(SettingsHighContrast ? SystemColors.WindowText : Theme.Fg, Ui.S(2)))
+                    g.DrawEllipse(p, Rectangle.Inflate(bounds, Ui.S(2), Ui.S(2)));
+                float dot = Math.Min(D / 2f, Ui.S(6));
+                using (SolidBrush w = new SolidBrush(SettingsPalette.OnFill(Presets[i])))
+                    g.FillEllipse(w, bounds.X + (D - dot) / 2, bounds.Y + (D - dot) / 2, dot, dot);
             }
         }
+        DrawSettingsFocus(g);
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        int current = Array.FindIndex(Presets, color => color.ToArgb() == Selected.ToArgb());
+        int next;
+        if (e.KeyCode == Keys.Left) next = Math.Max(0, current - 1);
+        else if (e.KeyCode == Keys.Right) next = Math.Min(Presets.Length - 1, current + 1);
+        else if (e.KeyCode == Keys.Home) next = 0;
+        else if (e.KeyCode == Keys.End) next = Presets.Length - 1;
+        else { base.OnKeyDown(e); return; }
+        e.SuppressKeyPress = true;
+        SelectColor(next);
+    }
+
+    void SelectColor(int index)
+    {
+        Color color = Presets[index];
+        if (color.ToArgb() == Selected.ToArgb()) return;
+        Selected = color;
+        Invalidate();
+        if (Changed != null) Changed(this, EventArgs.Empty);
     }
 }

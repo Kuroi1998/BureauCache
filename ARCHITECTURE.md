@@ -29,7 +29,7 @@ BureauCache cache les icônes du bureau Windows et les réaffiche dans un pannea
 | `src/UI` | Thème et dessin, glyphes, dialogues, visite guidée | `Theme`, `Ui`, `Menus`, `Glyphs`, `ThemedDialog`, `WelcomeForm` | Core |
 | `src/UI/Controls` | Contrôles dessinés à la main | `Toggle`, `Segmented`, `Slider`, `Swatches`, `HotkeyBox`, `FlatButton`, `SideNav`… | UI |
 | `src/UI/Panel` | Panneau principal | `PanelForm` (partial : `.cs`, `.Window`, `.Data`, `.Actions`, `.Input`), `ItemsView` (partial : `.cs`, `.Input`), `PreviewForm`, `ToastControl` | Data, Search, Shell, UI |
-| `src/UI/Settings` | Fenêtre de paramètres | `SettingsForm` (partial : `.cs`, `.Pages`, `.Values`, `.Advanced`), `SettingsActions` | Core, UI |
+| `src/UI/Settings` | Fenêtre de paramètres et disposition des six rubriques | `SettingsForm` (partial : `.cs`, `.Pages`, `.Values`, `.Advanced`, `.Layout`), `SettingsNavigation`, `SettingsActions` | Core, UI |
 | `src/Properties` | Métadonnées et **seul emplacement du numéro de version** | `AppInfo.Version` | — |
 
 ## Conventions de code

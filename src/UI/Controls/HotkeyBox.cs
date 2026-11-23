@@ -61,7 +61,10 @@ class HotkeyBox : FlatControl
         return k.ToString();
     }
 
-    protected override bool IsInputKey(Keys keyData) { return true; }
+    protected override bool IsInputKey(Keys keyData)
+    {
+        return (keyData & (Keys.KeyCode | Keys.Control | Keys.Alt)) != Keys.Tab;
+    }
     protected override void OnGotFocus(EventArgs e) { capturing = true; Capturing = true; live = null; Invalidate(); base.OnGotFocus(e); }
     protected override void OnLostFocus(EventArgs e) { capturing = false; Capturing = false; Invalidate(); base.OnLostFocus(e); }
     protected override void OnMouseDown(MouseEventArgs e) { Focus(); base.OnMouseDown(e); }
@@ -82,7 +85,7 @@ class HotkeyBox : FlatControl
         e.SuppressKeyPress = true;
         Keys k = e.KeyCode;
         int m = CurrentMods(e);
-        if (k == Keys.Escape && m == 0) { Parent.Focus(); return; }
+        if (k == Keys.Escape && m == 0) { MoveFocus(); return; }
         if (k == Keys.ControlKey || k == Keys.ShiftKey || k == Keys.Menu || k == Keys.LWin || k == Keys.RWin)
         {
             live = m == 0 ? null : ModsOnly(m) + " + …";
@@ -95,7 +98,13 @@ class HotkeyBox : FlatControl
         Key = (int)k;
         live = null;
         if (Changed != null) Changed(this, EventArgs.Empty);
-        Parent.Focus();
+        MoveFocus();
+    }
+
+    void MoveFocus()
+    {
+        Form window = FindForm();
+        if (window != null) window.SelectNextControl(this, true, true, true, true);
     }
 
     protected override void WndProc(ref Message m)
@@ -108,12 +117,13 @@ class HotkeyBox : FlatControl
     {
         Graphics g = Prep(e);
         RectangleF r = new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f);
-        Ui.Fill(g, Theme.Surface, r, Ui.S(8));
-        if (capturing)
+        Ui.Fill(g, SettingsHighContrast ? SystemColors.Control : Theme.Surface, r, Ui.S(8));
+        if (capturing || SettingsHighContrast)
             using (GraphicsPath p = Ui.Round(r, Ui.S(8)))
-            using (Pen pen = new Pen(Theme.Accent, Ui.S(2))) g.DrawPath(pen, p);
+            using (Pen pen = new Pen(SettingsHighContrast ? SystemColors.ControlText : Theme.Accent, Ui.S(2))) g.DrawPath(pen, p);
         string txt = capturing ? (live ?? L.T("Appuie sur tes touches…", "Press your keys…")) : Format(Mods, Key);
-        TextRenderer.DrawText(g, txt, Font, ClientRectangle, capturing && live == null ? Theme.FgDim : Theme.Fg,
+        Color text = SettingsHighContrast ? SystemColors.ControlText : capturing && live == null ? Theme.FgDim : Theme.Fg;
+        TextRenderer.DrawText(g, txt, Font, ClientRectangle, text,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
     }
 }

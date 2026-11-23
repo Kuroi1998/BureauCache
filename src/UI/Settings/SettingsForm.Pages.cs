@@ -9,11 +9,10 @@ partial class SettingsForm
 {
     void BuildGeneral()
     {
-        NewPage(T("Général", "General"));
+        NewPage(T("Général", "General"), T("Bureau, démarrage et langue.", "Desktop, startup and language."));
         Section(T("BUREAU", "DESKTOP"));
         tHide = NewToggle(v => Settings.HideIcons = v);
         Row(T("Cacher les icônes du bureau", "Hide desktop icons"), T("Elles restent accessibles depuis le panneau.", "They stay available in the panel."), tHide, null);
-        EndSection();
 
         Section("WINDOWS");
         tStartup = new Toggle();
@@ -32,12 +31,10 @@ partial class SettingsForm
             else if (act.Install != null) act.Install();
         };
         lInstall = Row(T("Installation", "Installation"), "-", bInstall, null);
-        EndSection();
 
         Section(T("LANGUE", "LANGUAGE"));
         sLang = NewSeg(v => Settings.Language = v, T("Système", "System"), "Français", "English");
         Row(T("Langue", "Language"), null, sLang, null);
-        EndSection();
 
         Section(T("ICÔNE PRÈS DE L'HORLOGE", "ICON BY THE CLOCK"));
         lTray = Row(T("Toujours visible", "Always visible"), "-",
@@ -46,18 +43,16 @@ partial class SettingsForm
         Row(T("Démarrage discret", "Quiet start"), T("Pas de bulle d'information au lancement.", "No info bubble at startup."), tQuiet, null);
         Note(T("Clic sur l'icône : ouvrir la liste · double-clic : ces paramètres · clic droit : le menu. Réduire ou fermer cette fenêtre la range près de l'horloge, BureauCache continue de tourner.",
                "Click the icon: open the list · double-click: these settings · right-click: the menu. Minimizing or closing this window tucks it by the clock; BureauCache keeps running."));
-        EndSection();
 
         Section(T("AIDE", "HELP"));
         Row(T("Visite guidée", "Guided tour"), T("Les 4 écrans de bienvenue, pour redécouvrir l'essentiel.", "The 4 welcome screens, to go over the basics again."),
             Button(T("Revoir", "Show again"), false, S(130), () => { if (act.Welcome != null) act.Welcome(); }), null);
         Row(T("Raccourcis clavier", "Keyboard shortcuts"), T("Appuie sur F1 dans le panneau pour tous les voir.", "Press F1 in the panel to see them all."), null, null);
-        EndSection();
     }
 
     void BuildOpening()
     {
-        NewPage(T("Ouverture", "Opening"));
+        NewPage(T("Ouverture", "Opening"), T("Bord de l’écran et raccourci clavier.", "Screen edge and keyboard shortcut."));
         Section(T("SOURIS", "MOUSE"));
         sSide = NewSeg(v => Settings.RightSide = v == 1, T("Gauche", "Left"), T("Droite", "Right"));
         Row(T("Bord de l'écran", "Screen edge"), null, sSide, null);
@@ -77,7 +72,6 @@ partial class SettingsForm
         Row(T("Fermer quand la souris s'éloigne", "Close when the mouse leaves"), null, tAuto, null);
         tFull = NewToggle(v => Settings.NoFullscreen = v);
         Row(T("Désactiver en plein écran", "Disable in full screen"), T("Jeux, vidéos et présentations ne sont pas dérangés.", "Games, videos and slideshows are left alone."), tFull, null);
-        EndSection();
 
         Section(T("CLAVIER", "KEYBOARD"));
         tHot = NewToggle(v => Settings.HotkeyOn = v);
@@ -85,12 +79,11 @@ partial class SettingsForm
         hk = new HotkeyBox();
         hk.Changed += (s, e) => { Settings.HotMods = hk.Mods; Settings.HotKey = hk.Key; Settings.Notify(); };
         lHotStatus = Row(T("Combinaison", "Combination"), "-", hk, null);
-        EndSection();
     }
 
     void BuildLook()
     {
-        NewPage(T("Apparence", "Appearance"));
+        NewPage(T("Apparence", "Appearance"), T("Thème, disposition et widgets du panneau.", "Theme, layout and panel widgets."));
         Section(T("THÈME", "THEME"));
         sTheme = NewSeg(v => Settings.ThemeMode = v, T("Système", "System"), T("Sombre", "Dark"), T("Clair", "Light"));
         Row(T("Thème", "Theme"), T("« Système » suit Windows.", "\"System\" follows Windows."), sTheme, null);
@@ -103,7 +96,6 @@ partial class SettingsForm
         Row(T("Flou en direct", "Live blur"), T("Suit ce qui bouge derrière. Le panneau n'apparaît plus sur les captures.", "Follows what moves behind. The panel no longer shows on screenshots."), tLive, null);
         tAnim = NewToggle(v => Settings.Animations = v);
         Row(T("Animations", "Animations"), null, tAnim, null);
-        EndSection();
 
         Section(T("PANNEAU", "PANEL"));
         sView = NewSeg(v => Settings.GridView = v == 1, T("Liste", "List"), T("Grille", "Grid"));
@@ -124,12 +116,11 @@ partial class SettingsForm
         lWeatherPlace = Row(T("Lieu de la météo", "Weather location"), "-", Button(T("Choisir…", "Choose…"), false, S(120), () => { WeatherPlaceDialog.Run(); UpdateTexts(); }), null);
         tPreview = NewToggle(v => Settings.HoverPreview = v);
         Row(T("Aperçu au survol", "Preview on hover"), T("Miniature des images, PDF et vidéos.", "Thumbnail of images, PDFs and videos."), tPreview, null);
-        EndSection();
     }
 
     void BuildSearch()
     {
-        NewPage(T("Recherche", "Search"));
+        NewPage(T("Recherche", "Search"), T("Sources de recherche et moteur web.", "Search sources and web engine."));
         Section(T("CHERCHER AUSSI DANS", "ALSO SEARCH IN"));
         tSApps = NewToggle(v => Settings.SearchApps = v);
         Row(T("Applications", "Apps"), T("Menu Démarrer et Microsoft Store.", "Start menu and Microsoft Store."), tSApps, null);
@@ -139,12 +130,10 @@ partial class SettingsForm
         Row(T("Paramètres Windows", "Windows settings"), null, tSSettings, null);
         tSCmd = NewToggle(v => Settings.SearchCommands = v);
         Row(T("Commandes système", "System commands"), T("Verrouiller, veille, redémarrer…", "Lock, sleep, restart…"), tSCmd, null);
-        EndSection();
 
         Section("WEB");
         sEngine = NewSeg(v => Settings.WebEngine = v, "Google", "Bing", "DuckDuckGo", T("Aucun", "None"));
         Row(T("Moteur de recherche", "Search engine"), null, sEngine, null);
-        EndSection();
 
         Section(T("ASTUCES", "TIPS"));
         Note(T("Tape directement dans le panneau. Les fautes de frappe sont tolérées (« asasin » trouve « Assassin's Creed »).\n" +
@@ -155,12 +144,11 @@ partial class SettingsForm
                "=  12*7  calculates (Enter copies the result). Simple math works without \"=\" too.\n" +
                "?  weather  searches the web.\n" +
                ">  shows system commands."));
-        EndSection();
     }
 
     void BuildOrganize()
     {
-        NewPage(T("Organisation", "Organization"));
+        NewPage(T("Organisation", "Organization"), T("Catégories, favoris et rangement du bureau.", "Categories, favorites and desktop tidy-up."));
         Section(T("AFFICHAGE", "DISPLAY"));
         tGroups = NewToggle(v => Settings.GroupCats = v);
         Row(T("Grouper par catégories", "Group by category"), null, tGroups, null);
@@ -172,14 +160,12 @@ partial class SettingsForm
                "Dépose un fichier sur le panneau pour l'ajouter au bureau (Maj : déplacer, Alt : raccourci).",
                "Drag an item to reorder it, add it to favorites or change its category. Drag it out of the panel to drop it elsewhere. " +
                "Drop a file on the panel to add it to the desktop (Shift: move, Alt: shortcut)."));
-        EndSection();
 
         Section(T("NOUVEAUTÉS", "NEW ITEMS"));
         tNew = NewToggle(v => Settings.NewBadge = v);
         Row(T("Badge « Nouveau »", "\"New\" badge"), T("Sur les fichiers arrivés récemment et jamais ouverts.", "On recently added files you haven't opened."), tNew, null);
         sNewDays = NewSeg(v => Settings.NewDays = NewDaysOpts[v], T("1 jour", "1 day"), T("3 jours", "3 days"), T("7 jours", "7 days"));
         Row(T("Pendant", "For"), null, sNewDays, null);
-        EndSection();
 
         Section(T("RANGEMENT AUTOMATIQUE", "AUTOMATIC TIDY-UP"));
         tArchive = new Toggle();
@@ -218,13 +204,11 @@ partial class SettingsForm
             Settings.Fire();
         });
         Row(T("Annuler le dernier rangement", "Undo the last tidy-up"), T("Remet les éléments rangés à leur place sur le bureau.", "Puts the moved items back on the desktop."), bArchiveUndo, null);
-        EndSection();
 
         Section(T("RÉINITIALISER", "RESET"));
         Row(T("Favoris", "Favorites"), null, ResetButton(T("Tout retirer", "Remove all"), () => Settings.Favorites.Clear()), null);
         Row(T("Ordre et catégories", "Order and categories"), null, ResetButton(T("Réinitialiser", "Reset"), () => { Settings.Order.Clear(); Settings.CatOverride.Clear(); }), null);
         Row(T("Historique des récents", "Recent history"), null, ResetButton(T("Effacer", "Clear"), () => Settings.Usage.Clear()), null);
-        EndSection();
 
         Section(T("CATÉGORIES PERSONNALISÉES", "CUSTOM CATEGORIES"));
         customCard = cur;

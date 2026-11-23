@@ -15,12 +15,16 @@ partial class SettingsForm : Form
     readonly SettingsActions act;
     readonly Font fPage = Ui.Font("Segoe UI Semibold", 17f);
     readonly Font fSection = Ui.Font("Segoe UI Semibold", 8.75f);
-    readonly Font fRow = Ui.Font("Segoe UI", 10.5f);
-    readonly Font fDesc = Ui.Font("Segoe UI", 8.75f);
+    readonly Font fRow = Ui.Font("Segoe UI Semibold", 10f);
+    readonly Font fDesc = Ui.Font("Segoe UI", 9f);
     readonly HashSet<Label> dim = new HashSet<Label>();
     readonly List<Panel> pages = new List<Panel>();
-    readonly SideNav nav;
-    readonly int W, H, NavW;
+    readonly List<SettingsPage> pageLayouts = new List<SettingsPage>();
+    readonly Dictionary<Card, List<SettingsRow>> cardRows = new Dictionary<Card, List<SettingsRow>>();
+    readonly SettingsNavigation nav;
+    readonly Label pageTitle, pageSummary;
+    readonly Panel header;
+    readonly int NavW;
 
     Toggle tQuiet, tHide, tStartup, tAuto, tFull, tHot, tGlass, tLive, tAnim, tWidgets, tWeather, tPreview, tSystem, tRecents, tGroups,
         tSApps, tSRecent, tSSettings, tSCmd, tNew, tArchive, tAutoUpd;
@@ -36,8 +40,7 @@ partial class SettingsForm : Form
 
     Panel page;
     Card cur;
-    int y, rowY;
-    bool loading;
+    bool loading, arranging, layoutReady;
 
     static int S(int v) { return Ui.S(v); }
     static string T(string fr, string en) { return L.T(fr, en); }
@@ -49,32 +52,38 @@ partial class SettingsForm : Form
     public SettingsForm(SettingsActions act)
     {
         this.act = act;
-        W = S(820); H = S(700); NavW = S(220);
+        NavW = S(204);
         Text = "BureauCache – " + T("Paramètres", "Settings");
-        FormBorderStyle = FormBorderStyle.FixedSingle;
-        MaximizeBox = false;
+        FormBorderStyle = FormBorderStyle.Sizable;
         StartPosition = FormStartPosition.CenterScreen;
         AutoScaleMode = AutoScaleMode.None;
-        ClientSize = new Size(W, H);
-        Icon = Ui.MakeIcon(Settings.Accent);
+        Size work = Screen.FromPoint(Cursor.Position).WorkingArea.Size;
+        MinimumSize = new Size(Math.Min(S(650), work.Width), Math.Min(S(430), work.Height));
+        ClientSize = new Size(Math.Max(1, Math.Min(S(980), work.Width - S(26))),
+                              Math.Max(1, Math.Min(S(730), work.Height - S(56))));
         KeyPreview = true;
 
-        nav = new SideNav(new[] { T("Général", "General"), T("Ouverture", "Opening"), T("Apparence", "Appearance"),
+        nav = new SettingsNavigation(new[] { T("Général", "General"), T("Ouverture", "Opening"), T("Apparence", "Appearance"),
                                   T("Recherche", "Search"), T("Organisation", "Organization"), T("Avancé", "Advanced") },
                           new[] { Glyphs.Settings, Glyphs.Mouse, Glyphs.Palette, Glyphs.Search, Glyphs.Library, Glyphs.Info });
-        nav.Bounds = new Rectangle(0, 0, NavW, H);
-        nav.Cursor = Cursors.Default;
+        nav.Width = NavW;
+        nav.TabIndex = 0;
         nav.SelectedChanged += ShowPage;
         Controls.Add(nav);
 
         FlatButton bQuit = new FlatButton(T("Quitter BureauCache", "Quit BureauCache"), false, NavW - S(32));
-        bQuit.Location = new Point(S(16), H - S(16) - bQuit.Height);
+        nav.AddAction(bQuit, false);
         bQuit.Click += (s, e) => { if (act.Quit != null) act.Quit(); };
         FlatButton bPrev = new FlatButton(T("Aperçu du panneau", "Preview panel"), true, NavW - S(32));
-        bPrev.Location = new Point(S(16), bQuit.Top - S(8) - bPrev.Height);
+        nav.AddAction(bPrev, true);
         bPrev.Click += (s, e) => { if (act.Preview != null) act.Preview(); };
-        nav.Controls.Add(bQuit);
-        nav.Controls.Add(bPrev);
+        header = new Panel { TabStop = false };
+        pageTitle = new Label { Font = fPage, AutoEllipsis = true };
+        pageSummary = new Label { Font = fDesc, AutoEllipsis = true };
+        dim.Add(pageSummary);
+        header.Controls.Add(pageTitle);
+        header.Controls.Add(pageSummary);
+        Controls.Add(header);
 
         BuildGeneral();
         BuildOpening();
@@ -84,90 +93,97 @@ partial class SettingsForm : Form
         BuildAdvanced();
 
         LoadValues();
+        layoutReady = true;
         ShowPage(0);
         Restyle();
+        ClientSizeChanged += (s, e) => ArrangePages();
         Settings.Changed += OnSettingsChanged;
     }
 
     protected override void Dispose(bool disposing)
     {
-        Settings.Changed -= OnSettingsChanged;
+        Icon ownedIcon = null;
+        if (disposing)
+        {
+            Settings.Changed -= OnSettingsChanged;
+            ownedIcon = settingsIcon;
+            settingsIcon = null;
+        }
         base.Dispose(disposing);
+        if (ownedIcon != null) ownedIcon.Dispose();
     }
 
     // ---------- Construction ----------
-    void NewPage(string title)
+    void NewPage(string title, string summary)
     {
-        page = new BufferedPanel { Bounds = new Rectangle(NavW, 0, W - NavW, H), AutoScroll = true, Visible = false };
-        page.AutoScrollMargin = new Size(0, S(24));
-        page.Controls.Add(new Label { Text = title, Font = fPage, AutoSize = true, Location = new Point(S(28), S(24)) });
+        page = new BufferedPanel { AutoScroll = true, Visible = false, TabIndex = 1 };
+        pageLayouts.Add(new SettingsPage { Title = title, Summary = summary });
         pages.Add(page);
         Controls.Add(page);
-        y = S(80);
     }
 
     void Section(string title)
     {
-        Label l = new Label { Text = title, Font = fSection, AutoSize = true, Location = new Point(S(32), y) };
-        dim.Add(l);
-        page.Controls.Add(l);
-        y += S(24);
-        cur = new Card { Location = new Point(S(24), y), Width = page.Width - S(48) - S(14) };
+        Label label = new Label { Text = title, Font = fSection, AutoSize = true };
+        dim.Add(label);
+        page.Controls.Add(label);
+        cur = new Card { TabIndex = page.Controls.Count };
         page.Controls.Add(cur);
-        rowY = 0;
+        var section = new SettingsSection { Title = label, Card = cur };
+        pageLayouts[pageLayouts.Count - 1].Sections.Add(section);
+        cardRows.Add(cur, section.Rows);
     }
 
-    Label Row(string title, string desc, Control ctl, Label value, Control lead = null)
+    Label Row(string title, string desc, Control ctl, Label value, Control lead = null, Control secondary = null)
     {
-        if (rowY > 0) cur.Separators.Add(rowY);
-        int h = desc != null ? S(62) : S(52);
-        int th = TextRenderer.MeasureText("Ag", fRow).Height;
-        int tx = S(16);
-        if (lead != null)
-        {
-            lead.Location = new Point(S(16), rowY + (h - lead.Height) / 2);
-            cur.Controls.Add(lead);
-            tx = lead.Right + S(12);
-        }
-        Label t = new Label { Text = title, Font = fRow, AutoSize = true };
-        t.Location = new Point(tx, desc != null ? rowY + S(11) : rowY + (h - th) / 2);
-        cur.Controls.Add(t);
-        Label d = null;
+        var row = new SettingsRow { Title = new Label { Text = title, Font = fRow, AutoSize = true, UseMnemonic = false },
+            Action = ctl, ActionWidth = ctl == null ? 0 : ctl.Width, Secondary = secondary, Value = value, Lead = lead };
         if (desc != null)
         {
-            d = new Label { Text = desc, Font = fDesc, AutoSize = true, Location = new Point(tx, rowY + S(12) + th) };
-            dim.Add(d);
-            cur.Controls.Add(d);
+            row.Description = Description(desc);
+            Panel ownerPage = (Panel)cur.Parent;
+            row.Description.TextChanged += (s, e) =>
+            {
+                if (!loading && layoutReady && pages[nav.Selected] == ownerPage) ArrangePages();
+            };
         }
-        int right = cur.Width - S(16);
         if (ctl != null)
         {
-            ctl.Location = new Point(right - ctl.Width, rowY + (h - ctl.Height) / 2);
-            cur.Controls.Add(ctl);
-            right = ctl.Left - S(8);
+            ctl.AccessibleName = title;
+            InputBox input = ctl as InputBox;
+            if (input != null) input.Box.AccessibleName = title;
         }
-        if (value != null)
-        {
-            value.Location = new Point(right - value.Width, rowY + (h - value.Height) / 2);
-            cur.Controls.Add(value);
-        }
-        rowY += h;
-        cur.Height = rowY;
-        return d;
+        if (secondary != null) secondary.AccessibleName = secondary.Text + " · " + title;
+        if (ctl is FlatButton && lead != null) ctl.AccessibleName = ctl.Text + " · " + title;
+        AddRow(row, row.Title, row.Description, lead, secondary, ctl, value);
+        return row.Description;
     }
 
     void Note(string text)
     {
-        if (rowY > 0) cur.Separators.Add(rowY);
-        Label l = new Label { Text = text, Font = fDesc, AutoSize = true, MaximumSize = new Size(cur.Width - S(32), 0) };
-        l.Location = new Point(S(16), rowY + S(14));
-        dim.Add(l);
-        cur.Controls.Add(l);
-        rowY += l.Height + S(28);
-        cur.Height = rowY;
+        Label label = Description(text);
+        AddRow(new SettingsRow { Description = label }, label);
     }
 
-    void EndSection() { y += cur.Height + S(22); }
+    Label Description(string text)
+    {
+        Label label = new Label { Text = text, Font = fDesc, AutoSize = true, UseMnemonic = false };
+        dim.Add(label);
+        return label;
+    }
+
+    void AddRow(SettingsRow row, params Control[] controls)
+    {
+        foreach (Control control in controls)
+        {
+            if (control == null) continue;
+            control.TabIndex = cur.Controls.Count;
+            FlatControl flat = control as FlatControl;
+            if (flat != null && control != row.Lead) flat.EnableSettingsKeyboard();
+            cur.Controls.Add(control);
+        }
+        cardRows[cur].Add(row);
+    }
 
     Label ValueLabel()
     {

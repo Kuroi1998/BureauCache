@@ -6,6 +6,8 @@ using System.Windows.Forms;
 
 partial class SettingsForm
 {
+    Icon settingsIcon;
+    int iconAccent;
     // ---------- Valeurs ----------
     void LoadValues()
     {
@@ -63,7 +65,7 @@ partial class SettingsForm
         if (!Settings.HotkeyOn) { lHotStatus.Text = T("Raccourci désactivé.", "Shortcut turned off."); lHotStatus.Tag = null; }
         else if (ok) { lHotStatus.Text = T("Clique dans le champ puis appuie sur tes touches.", "Click the box, then press your keys."); lHotStatus.Tag = null; }
         else { lHotStatus.Text = T("Déjà utilisé par une autre application : choisis-en un autre.", "Already used by another app: pick another one."); lHotStatus.Tag = "err"; }
-        lHotStatus.ForeColor = lHotStatus.Tag != null ? Theme.Danger : Theme.FgDim;
+        lHotStatus.ForeColor = SystemInformation.HighContrast ? SystemColors.WindowText : lHotStatus.Tag != null ? Theme.Danger : Theme.FgDim;
         if (Installer.IsInstalled && Installer.RunningFromInstall)
         {
             lInstall.Text = T("Installé, présent dans le menu Démarrer et les applications.", "Installed, in the Start menu and installed apps.");
@@ -106,43 +108,66 @@ partial class SettingsForm
         if (IsDisposed) return;
         LoadValues();
         if (nav.Selected == 4) UpdateArchiveText();
+        ArrangePages();
         Restyle();
     }
 
     void ShowPage(int i)
     {
+        if (i < 0 || i >= pages.Count) return;
         for (int k = 0; k < pages.Count; k++) pages[k].Visible = k == i;
         nav.Selected = i;
+        pageTitle.Text = pageLayouts[i].Title;
+        pageSummary.Text = pageLayouts[i].Summary;
         if (i == 4) { RebuildCustoms(); UpdateArchiveText(); }
+        ArrangePages();
     }
 
     public void SelectPage(int i) { ShowPage(i); }
 
+    public void RestoreWindowState(SettingsForm previous)
+    {
+        FormWindowState state = previous.WindowState;
+        Rectangle bounds = state == FormWindowState.Normal ? previous.Bounds : previous.RestoreBounds;
+        StartPosition = FormStartPosition.Manual;
+        Bounds = bounds;
+        WindowState = state;
+        SelectPage(previous.CurrentPage);
+    }
+
     void Restyle()
     {
-        BackColor = Theme.Bg;
+        BackColor = SystemInformation.HighContrast ? SystemColors.Window : Theme.Bg;
+        nav.RefreshPalette();
         Style(this);
-        Icon old = Icon;
-        Icon = Ui.MakeIcon(Settings.Accent);
-        if (old != null) old.Dispose();
-        if (IsHandleCreated) Native.SetDarkTitleBar(Handle, Settings.Dark);
-        foreach (Panel p in pages) if (p.IsHandleCreated) Native.SetDarkScrollbars(p.Handle, Settings.Dark);
+        if (settingsIcon == null || iconAccent != Settings.Accent.ToArgb())
+        {
+            Icon old = settingsIcon;
+            settingsIcon = Ui.MakeIcon(Settings.Accent);
+            Icon = settingsIcon;
+            iconAccent = Settings.Accent.ToArgb();
+            if (old != null) old.Dispose();
+        }
+        if (IsHandleCreated) Native.SetDarkTitleBar(Handle, Settings.Dark && !SystemInformation.HighContrast);
+        foreach (Panel p in pages) if (p.IsHandleCreated) Native.SetDarkScrollbars(p.Handle, Settings.Dark && !SystemInformation.HighContrast);
         Invalidate(true);
     }
 
     void Style(Control c)
     {
+        bool contrast = SystemInformation.HighContrast;
         foreach (Control ch in c.Controls)
         {
-            Color pb = ch.Parent is Card ? Theme.Card : ch.Parent is SideNav ? Theme.Side : Theme.Bg;
+            Color pb = contrast ? (ch.Parent is SettingsNavigation ? SystemColors.Control : SystemColors.Window)
+                : ch.Parent is Card ? Theme.Card : ch.Parent is SettingsNavigation ? Theme.Side : Theme.Bg;
             if (ch is Label)
             {
                 ch.BackColor = pb;
-                ch.ForeColor = (ch.Tag as string) == "err" ? Theme.Danger : dim.Contains((Label)ch) ? Theme.FgDim : Theme.Fg;
+                ch.ForeColor = contrast ? SystemColors.WindowText : (ch.Tag as string) == "err" ? Theme.Danger : dim.Contains((Label)ch) ? Theme.FgDim : Theme.Fg;
             }
-            else if (ch is FlatControl) ch.BackColor = ch is SideNav ? Theme.Side : pb;
-            else if (ch is InputBox) { ch.BackColor = pb; ((InputBox)ch).ApplyTheme(); continue; }
-            else if (ch is Panel && !(ch is Card)) ch.BackColor = Theme.Bg;
+            else if (ch is FlatControl) ch.BackColor = pb;
+            else if (ch is InputBox) { ch.BackColor = pb; ((InputBox)ch).ApplyTheme(contrast); continue; }
+            else if (ch is Panel && !(ch is Card) && !(ch is SettingsNavigation) && !(c is SettingsNavigation)) ch.BackColor = BackColor;
             Style(ch);
             ch.Invalidate();
         }
@@ -151,7 +176,13 @@ partial class SettingsForm
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        Native.SetDarkTitleBar(Handle, Settings.Dark);
+        Native.SetDarkTitleBar(Handle, Settings.Dark && !SystemInformation.HighContrast);
+    }
+
+    protected override void OnSystemColorsChanged(EventArgs e)
+    {
+        base.OnSystemColorsChanged(e);
+        if (layoutReady && !Disposing) Restyle();
     }
 
     // On revient souvent ici après avoir changé le réglage de Windows : on met l'état de l'icône à jour
@@ -168,14 +199,16 @@ partial class SettingsForm
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
-        foreach (Panel p in pages) Native.SetDarkScrollbars(p.Handle, Settings.Dark);
+        foreach (Panel p in pages) Native.SetDarkScrollbars(p.Handle, Settings.Dark && !SystemInformation.HighContrast);
         UpdateTexts();
+        ArrangePages();
     }
 
-    protected override void OnKeyDown(KeyEventArgs e)
+    protected override bool ProcessDialogKey(Keys keyData)
     {
-        if (e.KeyCode == Keys.Escape && !HotkeyBox.Capturing) Hide();
-        base.OnKeyDown(e);
+        if (keyData != Keys.Escape || hk.Focused) return base.ProcessDialogKey(keyData);
+        HideToTray();
+        return true;
     }
 
     // La croix et le bouton « Réduire » rangent la fenêtre dans les icônes près de l'horloge

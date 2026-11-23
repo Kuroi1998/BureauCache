@@ -24,6 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="BureauCache">
       <HintPath>$(MSBuildThisFileDirectory)..\..\BureauCache.exe</HintPath>
       <Private>true</Private>

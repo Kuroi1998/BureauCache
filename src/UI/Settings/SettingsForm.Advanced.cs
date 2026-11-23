@@ -27,7 +27,6 @@ partial class SettingsForm
     void BuildCustomRows()
     {
         Card saved = cur;
-        int savedRow = rowY;
         cur = customCard;
         foreach (Control c in customCard.Controls.Cast<Control>().ToList())
         {
@@ -37,7 +36,7 @@ partial class SettingsForm
         }
         customCard.Separators.Clear();
         customCounts.Clear();
-        rowY = 0;
+        cardRows[customCard].Clear();
         foreach (CustomCat cc in Settings.CustomCats.ToList())
         {
             CustomCat c = cc;
@@ -48,28 +47,26 @@ partial class SettingsForm
                 Settings.DeleteCategory(c);
                 Settings.Notify();
             });
-            customCounts[c] = Row(c.Name, "", del, null, new GlyphTileControl(c.Glyph, c.Color));
             FlatButton edit = Button(T("Modifier", "Edit"), false, S(100), () => { if (CategoryDialog.Run(c) != null) Settings.Notify(); });
-            edit.Location = new Point(del.Left - S(8) - edit.Width, del.Top);
-            customCard.Controls.Add(edit);
+            del.Danger = true;
+            customCounts[c] = Row(c.Name, "", del, null, new GlyphTileControl(c.Glyph, c.Color), edit);
         }
         FlatButton add = Button(T("Nouvelle catégorie", "New category"), true, S(170), () => { if (CategoryDialog.Run(null) != null) Settings.Notify(); });
         Row(Settings.CustomCats.Count == 0 ? T("Aucune catégorie personnalisée", "No custom category") : T("Ajouter une catégorie", "Add a category"),
             T("Ex. : Travail, Cours, Mods… avec ton icône et ta couleur.", "E.g. Work, School, Mods… with your own icon and color."), add, null);
         Style(customCard);
         cur = saved;
-        rowY = savedRow;
+        ArrangePages();
     }
 
     void BuildAdvanced()
     {
-        NewPage(T("Avancé", "Advanced"));
+        NewPage(T("Avancé", "Advanced"), T("Sauvegardes et mises à jour.", "Backups and updates."));
         Section(T("SAUVEGARDE", "BACKUP"));
         Row(T("Exporter mes réglages", "Export my settings"), T("Réglages, favoris, catégories et ordre.", "Settings, favorites, categories and order."),
             Button(T("Exporter…", "Export…"), false, S(130), Export), null);
         Row(T("Importer des réglages", "Import settings"), T("Remplace les réglages actuels.", "Replaces the current settings."),
             Button(T("Importer…", "Import…"), false, S(130), Import), null);
-        EndSection();
 
         Section(T("MISES À JOUR", "UPDATES"));
         repo = new InputBox(S(230));
@@ -81,12 +78,10 @@ partial class SettingsForm
         Row(T("Vérifier chaque jour", "Check daily"), null, tAutoUpd, null);
         bCheck = Button(T("Vérifier", "Check"), true, S(170), CheckUpdate);
         lUpdate = Row(T("Version ", "Version ") + Installer.Version, "-", bCheck, null);
-        EndSection();
 
         Section(T("SÉCURITÉ", "SAFETY"));
         Note(T("Si BureauCache se ferme de façon inattendue, un petit processus de surveillance réaffiche automatiquement tes icônes du bureau.",
                "If BureauCache closes unexpectedly, a small watchdog process automatically brings your desktop icons back."));
-        EndSection();
     }
 
     void Export()

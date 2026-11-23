@@ -7,6 +7,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 
 | ID | Titre | Statut | Porteur | Branche | Lien |
 |---|---|---|---|---|---|
+| T-014 | Refonte de la fenêtre Paramètres | Revue (navigation, défilement, clavier, contraste et changement de langue couverts par des tests ciblés) | ChatGPT | — | `src/UI/Settings`, `SettingsUiTests.cs` |
 | T-001 | Mettre en place le projet de tests (`tests/`) | Fait (3.4) | Claude | PR #5 | D-002 |
 | T-002 | Tests de `Calc` (séparateurs FR/EN, exposants, limites) | Fait (3.4) | ChatGPT puis Claude | PR #5 | QA-03 |
 | T-007 | Calculatrice : séparateurs de milliers et virgule après le point | Fait (3.4) | Claude | PR #6 | QA-13 |

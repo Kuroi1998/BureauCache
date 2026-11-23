@@ -1,5 +1,9 @@
 # Nouveautés
 
+## Non publié
+
+- Fenêtre Paramètres redessinée et redimensionnable. Les six rubriques ont un en-tête fixe, les descriptions s’adaptent à la largeur et les réglages se parcourent au clavier.
+
 ## 3.6 — Météo et nettoyage rapide
 
 **Météo**
