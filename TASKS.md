@@ -16,7 +16,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-006 | Conserver l'ancienne version jusqu'à un démarrage réussi | Fait (3.4) | Claude | PR #8 | QA-19, QA-21 |
 | T-005 | Mises à jour signées par une clé hors de GitHub | Fait (3.4, publiée signée le 2026-11-23) | Gemini, Toi, Claude | PR #9 | QA-20, QA-21, D-004 |
 | T-009 | Observer la mise à jour 3.3 → 3.4 sur une vraie installation (démarrage, `.old` effacé après 10 s) | Fait (2026-11-23 : 3.4 installée à 20:04, `.old` effacé) | Toi | — | QA-19, QA-20 |
-| T-011 | Le bord n'ouvre plus la liste quand le bureau est au premier plan (après réduction près de l'horloge) | Revue (essai dans l'application à faire) | Toi puis Claude | `fix/bord-bureau-plein-ecran` | QA-22 |
+| T-011 | Le bord n'ouvre plus la liste quand le bureau est au premier plan (après réduction près de l'horloge) | Fait (3.5, vérifié dans l'application) | Toi puis Claude | PR #11 | QA-22 |
 | T-010 | Vérifier sur un dépôt de test qu'une installation 3.4 refuse une version non signée ou mal signée | À faire | Toi puis Claude | — | QA-20 |
 
 Les autres risques ouverts (R-05, R-06, R-08 à R-15, R-17, R-18, R-22 à R-25) restent dans [AUDIT_QA_BureauCache.md](AUDIT_QA_BureauCache.md) jusqu'à leur planification.
