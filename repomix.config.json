@@ -1,0 +1,22 @@
+{
+  "output": {
+    "filePath": ".ai/export-gemini.md",
+    "style": "markdown",
+    "headerText": "Projet BureauCache : application Windows WinForms, compilée par csc.exe du .NET Framework 4. Le code doit rester en C# 5 (pas de $\"\", ?., nameof, membres =>, tuples), sans espace de noms ni NuGet. Lire d'abord ARCHITECTURE.md, TASKS.md et DECISIONS.md. Textes affichés en français et en anglais via L.T(fr, en).",
+    "fileSummary": true,
+    "directoryStructure": true,
+    "showLineNumbers": true
+  },
+  "include": [
+    "src/**/*.cs",
+    "*.md",
+    "build.cmd",
+    "publier.ps1",
+    ".github/workflows/*.yml"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [".ai/**", "LICENSE"]
+  }
+}
