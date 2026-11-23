@@ -18,6 +18,8 @@ Aucun droit administrateur n'est nécessaire. Le programme se met ensuite à jou
   - `>` : commandes système (verrouiller, veille, redémarrer…)
 - **Organisation** : favoris, récents, catégories automatiques (Dossiers, Jeux, Applications, Fichiers) et personnalisées, glisser-déposer, badge « Nouveau », rangement automatique des fichiers inutilisés.
 - **Apparence** : thème clair/sombre/système, effet verre avec flou en direct, vue liste ou grille, aperçu au survol, widgets (heure, disque, corbeille).
+- **Météo** (à activer dans Paramètres) : le temps qu'il fait là où tu es, avec une icône, la température et les prévisions sur 3 jours. La ville se cherche par son nom ou se détecte avec la position Windows. Données [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0).
+- **Nettoyage rapide** (clic droit sur la tuile Disque) : fichiers temporaires et caches des navigateurs et applications, avec analyse puis confirmation. Windows, les programmes et tes documents ne sont jamais touchés.
 - **Icône près de l'horloge** : clic pour la liste, double-clic pour les paramètres, menu complet, point d'information (mise à jour, nouveaux fichiers) ; réduire la fenêtre la range près de l'horloge.
 - **Ergonomie** : visite guidée, annulation (Ctrl+Z), raccourcis clavier (F1 pour la liste), panneau redimensionnable et mode épinglé.
 - **Sécurité** : un processus de surveillance réaffiche les icônes du bureau si le programme plante.

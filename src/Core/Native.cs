@@ -178,6 +178,14 @@ static class Native
         try { SetWindowTheme(hwnd, dark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
     }
 
+    // Vide la corbeille de tous les disques sans fenêtre ni son. Seul S_OK est un succès (l'appelant ne l'appelle que si
+    // la corbeille contient quelque chose : E_UNEXPECTED n'est donc plus pris pour un succès, revue QA-23).
+    public static bool EmptyRecycleBinQuietly()
+    {
+        try { return SHEmptyRecycleBin(IntPtr.Zero, null, 0x1 | 0x2 | 0x4) == 0; }
+        catch { return false; }
+    }
+
     public static void RecycleBinInfo(out long count, out long size)
     {
         count = size = 0;

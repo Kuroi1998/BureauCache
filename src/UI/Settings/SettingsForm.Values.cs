@@ -33,6 +33,7 @@ partial class SettingsForm
         sView.Selected = Settings.GridView ? 1 : 0;
         slWidth.Value = Settings.PanelWidth;
         tWidgets.Checked = Settings.Widgets;
+        tWeather.Checked = Settings.WeatherOn;
         tPreview.Checked = Settings.HoverPreview;
         tSApps.Checked = Settings.SearchApps;
         tSRecent.Checked = Settings.SearchRecent;
@@ -57,6 +58,7 @@ partial class SettingsForm
     {
         lDelay.Text = Settings.Delay + " ms";
         lWidth.Text = Settings.PanelWidth + " px";
+        lWeatherPlace.Text = string.IsNullOrEmpty(Settings.WeatherPlace) ? T("Aucun lieu choisi.", "No place chosen.") : Settings.WeatherPlace;
         bool ok = act.HotkeyOk == null || act.HotkeyOk();
         if (!Settings.HotkeyOn) { lHotStatus.Text = T("Raccourci désactivé.", "Shortcut turned off."); lHotStatus.Tag = null; }
         else if (ok) { lHotStatus.Text = T("Clique dans le champ puis appuie sur tes touches.", "Click the box, then press your keys."); lHotStatus.Tag = null; }

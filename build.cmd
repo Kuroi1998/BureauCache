@@ -4,7 +4,7 @@ rem Tous les fichiers .cs du dossier src (et de ses sous-dossiers) sont inclus a
 cd /d "%~dp0"
 set CSC=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe
 if not exist "%CSC%" set CSC=%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe
-set REFS=-r:Microsoft.CSharp.dll -r:System.Core.dll -r:Microsoft.VisualBasic.dll
+set REFS=-r:Microsoft.CSharp.dll -r:System.Core.dll -r:Microsoft.VisualBasic.dll -r:System.Device.dll
 if exist BureauCache.ico goto compile
 "%CSC%" -nologo -target:winexe -optimize -warn:4 -out:BureauCache.exe %REFS% -recurse:src\*.cs
 if not "%ERRORLEVEL%"=="0" goto failed

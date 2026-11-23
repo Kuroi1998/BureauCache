@@ -171,6 +171,7 @@ partial class PanelForm : Form
             top = S(158);
         }
         else rcClock = rcDisk = rcBin = Rectangle.Empty;
+        top = LayoutWeather(x0, cw, top);
         View.Bounds = new Rectangle(x0, top, cw, Math.Max(0, Height - top));
     }
 
@@ -210,6 +211,7 @@ partial class PanelForm : Form
         Ui.Glyph(g, Glyphs.Search, 10f, Theme.FgDim, new Rectangle(rcSearch.X + S(6), rcSearch.Y, S(28), rcSearch.Height));
 
         if (Settings.Widgets) DrawWidgets(g);
+        if (Settings.WeatherOn) DrawWeather(g);
 
         int bw = hoverGrip || resizing ? S(4) : S(2);
         using (SolidBrush b = new SolidBrush(Theme.Accent))
@@ -265,6 +267,7 @@ partial class PanelForm : Form
         long size;
         Native.RecycleBinInfo(out binCount, out size);
         if (Visible) Invalidate(Rectangle.Union(rcDisk, rcBin));
+        RefreshWeatherIfDue();
     }
 
     int HitButton(Point p)
@@ -278,6 +281,7 @@ partial class PanelForm : Form
             if (rcDisk.Contains(p)) return 3;
             if (rcBin.Contains(p)) return 4;
         }
+        if (Settings.WeatherOn && rcWeather.Contains(p)) return 6;
         return -1;
     }
 

@@ -31,6 +31,10 @@ static class Settings
         HotMods = 3, HotKey = (int)Keys.B, WebEngine = 0, NewDays = 3, ArchiveDays = 60;
     public static long LastUpdateCheck, LastArchive;
     public static string ArchiveName = "Archive du bureau", UpdateRepo = "";
+    // Météo (D-005) : désactivée tant qu'aucun lieu n'est choisi
+    public static bool WeatherOn = false;
+    public static string WeatherPlace = "";
+    public static double WeatherLat = double.NaN, WeatherLon = double.NaN;
     public static Color Accent = Color.FromArgb(59, 130, 246);
     public static List<string> Favorites = new List<string>(), Order = new List<string>();
     public static HashSet<string> Collapsed = new HashSet<string>();
@@ -63,6 +67,11 @@ static class Settings
     }
 
     static List<string> SplitList(string v) { return v.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries).ToList(); }
+    static double Coord(string v, double limit)
+    {
+        double d;
+        return double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out d) && Math.Abs(d) <= limit ? d : double.NaN;
+    }
     static Color ParseColor(string v, Color def)
     {
         int n;
@@ -142,6 +151,10 @@ static class Settings
                     case "LastArchive": if (long.TryParse(v, out ln)) LastArchive = ln; break;
                     case "ArchiveName": if (FileOps.IsValidName(v)) ArchiveName = v; break;
                     case "UpdateRepo": UpdateRepo = v; break;
+                    case "WeatherOn": WeatherOn = b; break;
+                    case "WeatherPlace": WeatherPlace = v.Length > 200 ? v.Substring(0, 200) : v; break;
+                    case "WeatherLat": WeatherLat = Coord(v, 90); break;
+                    case "WeatherLon": WeatherLon = Coord(v, 180); break;
                     case "Accent": Accent = ParseColor(v, Accent); break;
                     case "Favorites": Favorites = SplitList(v); break;
                     case "Order": Order = SplitList(v); break;
@@ -267,6 +280,9 @@ static class Settings
                 "WebEngine=" + WebEngine, "NewDays=" + NewDays, "ArchiveDays=" + ArchiveDays,
                 "LastUpdateCheck=" + LastUpdateCheck, "LastArchive=" + LastArchive,
                 "ArchiveName=" + ArchiveName, "UpdateRepo=" + UpdateRepo,
+                "WeatherOn=" + B(WeatherOn), "WeatherPlace=" + WeatherPlace,
+                "WeatherLat=" + (double.IsNaN(WeatherLat) ? "" : WeatherLat.ToString("R", CultureInfo.InvariantCulture)),
+                "WeatherLon=" + (double.IsNaN(WeatherLon) ? "" : WeatherLon.ToString("R", CultureInfo.InvariantCulture)),
                 "Accent=" + Hex(Accent),
                 "Favorites=" + string.Join("|", Favorites),
                 "Order=" + string.Join("|", Order),

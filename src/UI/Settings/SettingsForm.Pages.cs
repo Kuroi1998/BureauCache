@@ -113,7 +113,15 @@ partial class SettingsForm
         slWidth.Changed += (s, e) => { if (loading) return; Settings.PanelWidth = slWidth.Value; UpdateTexts(); Settings.Notify(); };
         Row(T("Largeur du panneau", "Panel width"), null, slWidth, lWidth);
         tWidgets = NewToggle(v => Settings.Widgets = v);
-        Row(T("Widgets", "Widgets"), T("Heure, espace disque et corbeille en haut du panneau.", "Clock, disk space and Recycle Bin at the top."), tWidgets, null);
+        Row(T("Widgets", "Widgets"), T("Heure, espace disque et corbeille en haut du panneau. Clic droit sur le disque : nettoyage rapide.", "Clock, disk space and Recycle Bin at the top. Right-click the disk: quick clean-up."), tWidgets, null);
+        tWeather = NewToggle(v =>
+        {
+            Settings.WeatherOn = v;
+            if (!v) Weather.Reset();
+            if (v && !Weather.Configured) BeginInvoke(new Action(() => { WeatherPlaceDialog.Run(); UpdateTexts(); }));
+        });
+        Row(T("Météo", "Weather"), T("Temps et prévisions du lieu choisi (données Open-Meteo.com, CC BY 4.0).", "Weather and forecast for the chosen place (Open-Meteo.com data, CC BY 4.0)."), tWeather, null);
+        lWeatherPlace = Row(T("Lieu de la météo", "Weather location"), "-", Button(T("Choisir…", "Choose…"), false, S(120), () => { WeatherPlaceDialog.Run(); UpdateTexts(); }), null);
         tPreview = NewToggle(v => Settings.HoverPreview = v);
         Row(T("Aperçu au survol", "Preview on hover"), T("Miniature des images, PDF et vidéos.", "Thumbnail of images, PDFs and videos."), tPreview, null);
         EndSection();
