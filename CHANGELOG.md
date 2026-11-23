@@ -1,6 +1,6 @@
 # Nouveautés
 
-## Non publié
+## 3.6 — Météo et nettoyage rapide
 
 **Météo**
 - Nouvelle tuile météo dans le panneau : une icône dessinée (soleil, nuages, pluie, neige, orage…), la température, le lieu et les températures du jour. Un clic affiche le ressenti, le vent et les prévisions sur 3 jours.
