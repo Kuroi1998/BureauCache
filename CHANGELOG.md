@@ -1,8 +1,8 @@
 # Nouveautés
 
-## Non publié
+## 3.5 — Ouverture depuis le bureau
 
-- Correction : avec l'option « Pas en plein écran », le panneau ne s'ouvrait plus au bord de l'écran quand le bureau était au premier plan (par exemple après avoir réduit BureauCache près de l'horloge). Windows signale le bureau comme « occupé », et BureauCache le prenait pour un jeu en plein écran.
+- Le panneau s'ouvre de nouveau au bord de l'écran quand le bureau est au premier plan, par exemple après avoir réduit BureauCache près de l'horloge. Avec l'option « Pas en plein écran », Windows signalait le bureau comme « occupé » et BureauCache le prenait pour un jeu en plein écran. Les vrais jeux et les présentations restent détectés.
 
 ## 3.4 — Mises à jour signées et fiabilité
 
