@@ -1,6 +1,6 @@
-# Nouveautés
+﻿# Nouveautés
 
-## Non publié
+## 3.7 — Refonte des paramètres
 
 - Fenêtre Paramètres redessinée et redimensionnable. Les six rubriques ont un en-tête fixe, les descriptions s’adaptent à la largeur et les réglages se parcourent au clavier.
 
