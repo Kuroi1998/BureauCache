@@ -8,7 +8,6 @@ namespace BureauCache.Tests
     public class CalcEdgeCaseTests
     {
         // Le français groupe par espaces insécables et utilise la virgule décimale.
-        [Ignore("Défaut confirmé R-19 : les espaces insécables de groupement sont refusés.")]
         [TestMethod]
         [DataRow("1\u00A0234,5")]
         [DataRow("1\u202F234,5")]
@@ -27,7 +26,6 @@ namespace BureauCache.Tests
                 AssertValue("1,234.5", 1234.5);
         }
 
-        [Ignore("Décision en attente (R-16) : faut-il refuser un groupe de chiffres mal placé ?")]
         [TestMethod]
         public void Groupement_francais_incomplet_refuse()
         {
@@ -44,7 +42,6 @@ namespace BureauCache.Tests
                 AssertValue("1,234.5", 1234.5);
         }
 
-        [Ignore("Décision en attente (R-16) : faut-il refuser un groupe de chiffres mal placé ?")]
         [TestMethod]
         public void Groupement_anglais_incomplet_refuse()
         {
@@ -52,7 +49,6 @@ namespace BureauCache.Tests
                 AssertRejected("12,34.5");
         }
 
-        [Ignore("Défaut confirmé R-16 : 1.234,5 est évalué à 1,2345 sans message.")]
         [TestMethod]
         [DataRow(false)]
         [DataRow(true)]
@@ -79,11 +75,47 @@ namespace BureauCache.Tests
                 AssertRejected("1,2,3");
         }
 
+        // M\u00EAme tol\u00E9rance que \u00AB 1,234.5 \u00BB en fran\u00E7ais : un nombre au format fran\u00E7ais coll\u00E9 alors que
+        // l'interface est en anglais reste compris. Avec des espaces de groupement, la virgule est d\u00E9cimale.
         [TestMethod]
         [DataRow("1\u00A0234,5")]
         [DataRow("1\u202F234,5")]
-        public void Espaces_de_groupement_francais_refuses_en_anglais(string expression)
+        [DataRow("1 234,5")]
+        public void Format_francais_colle_en_anglais_accepte(string expression)
         {
+            using (LanguageScope.English())
+                AssertValue(expression, 1234.5);
+        }
+
+        // T-007 : r\u00E8gles de lecture des nombres
+        [TestMethod]
+        [DataRow("1,000", false, 1.0)]          // FR : virgule d\u00E9cimale
+        [DataRow("1,000", true, 1000.0)]        // EN : groupement
+        [DataRow("0,500", true, 0.5)]           // pas de groupe de t\u00EAte nul : d\u00E9cimale
+        [DataRow("1,5", true, 1.5)]             // EN tol\u00E8re la virgule d\u00E9cimale
+        [DataRow("1,5+1.5", false, 3.0)]        // chaque nombre est lu seul
+        [DataRow("12 345 678", false, 12345678.0)]
+        [DataRow("2 000*3", false, 6000.0)]
+        [DataRow("1 234.5", true, 1234.5)]      // espaces et point d\u00E9cimal
+        [DataRow("1,234,567.25", false, 1234567.25)]
+        public void Lecture_des_nombres(string expression, bool english, double expected)
+        {
+            using (english ? LanguageScope.English() : LanguageScope.French())
+                AssertValue(expression, expected);
+        }
+
+        [TestMethod]
+        [DataRow("1234 567")]                   // groupe de t\u00EAte de plus de trois chiffres
+        [DataRow("1 23")]                       // groupe de moins de trois chiffres
+        [DataRow("1 2345")]                     // groupe de plus de trois chiffres
+        [DataRow("1 234,567,8")]                // espaces puis plusieurs virgules
+        [DataRow("1 234,5.6")]                  // espaces, virgule et point
+        [DataRow("1.2.3")]
+        [DataRow("1,23,456")]
+        public void Nombres_mal_formes_refuses(string expression)
+        {
+            using (LanguageScope.French())
+                AssertRejected(expression);
             using (LanguageScope.English())
                 AssertRejected(expression);
         }
@@ -220,7 +252,6 @@ namespace BureauCache.Tests
                 AssertRoundTrip(-9876.125, "EN");
         }
 
-        [Ignore("Défaut confirmé R-19 : TryEval refuse l'espace de groupement produit par Format.")]
         [TestMethod]
         [DataRow(-9876.125)]
         [DataRow(1000.0)]
@@ -231,7 +262,6 @@ namespace BureauCache.Tests
                 AssertRoundTrip(value, "FR");
         }
 
-        [Ignore("Défaut confirmé R-19 : en anglais, 1,000 est relu comme 1 sans message.")]
         [TestMethod]
         public void Aller_retour_entier_a_un_groupement_en_anglais()
         {
@@ -239,7 +269,6 @@ namespace BureauCache.Tests
                 AssertRoundTrip(1000.0, "EN");
         }
 
-        [Ignore("Défaut confirmé R-19 : plusieurs virgules de groupement sans point sont refusées.")]
         [TestMethod]
         public void Aller_retour_entier_a_plusieurs_groupements_en_anglais()
         {

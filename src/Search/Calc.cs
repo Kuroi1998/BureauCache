@@ -2,6 +2,7 @@
 using System;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
 static class Calc
@@ -22,7 +23,8 @@ static class Calc
         {
             s = s.Trim().ToLowerInvariant();
             if (s.Length == 0 || s.Length > MaxLength) return false;
-            if (s.Contains(",") && !s.Contains(".")) s = s.Replace(',', '.'); else s = s.Replace(",", "");
+            s = NormalizeNumbers(s, L.En);
+            if (s == null) return false;
             s = s.Replace("×", "*").Replace("÷", "/").Replace("**", "^");
             Parser p = new Parser { S = s };
             v = p.Expr();
@@ -30,6 +32,76 @@ static class Calc
             return p.I == s.Length && !double.IsNaN(v) && !double.IsInfinity(v);
         }
         catch { return false; }
+    }
+
+    // Groupes de milliers par virgule : « 1,234 », « 12,345,678 » (pas de groupe de tête nul comme « 0,500 »)
+    static readonly Regex CommaGroups = new Regex(@"^[1-9]\d{0,2}(,\d{3})+$");
+
+    // Réécrit chaque nombre de l'expression en notation invariante (chiffres et point décimal).
+    // Accepte le groupement par espace (normale, insécable U+00A0 ou fine U+202F, comme le produit Format
+    // en français) et par virgule (anglais). Renvoie null si un nombre a des séparateurs incohérents.
+    // Ainsi un résultat copié avec Entrée se relit toujours, dans les deux langues.
+    internal static string NormalizeNumbers(string s, bool english)
+    {
+        StringBuilder sb = new StringBuilder(s.Length);
+        int i = 0;
+        while (i < s.Length)
+        {
+            char c = s[i];
+            bool starts = char.IsDigit(c) || ((c == '.' || c == ',') && i + 1 < s.Length && char.IsDigit(s[i + 1]));
+            if (!starts) { sb.Append(c); i++; continue; }
+            StringBuilder raw = new StringBuilder();
+            bool spaced = false, separator = false;
+            while (i < s.Length)
+            {
+                char d = s[i];
+                if (char.IsDigit(d)) raw.Append(d);
+                else if (d == '.' || d == ',') { raw.Append(d); separator = true; }
+                else if (IsGroupSpace(d) && !separator && GroupFollows(s, i + 1)) { raw.Append(' '); spaced = true; }
+                else break;
+                i++;
+            }
+            string number = Number(raw.ToString(), spaced, english);
+            if (number == null) return null;
+            sb.Append(number);
+        }
+        return sb.ToString();
+    }
+
+    static bool IsGroupSpace(char c) { return c == ' ' || c == ' ' || c == ' '; }
+
+    // Un espace ne groupe des milliers que s'il est suivi d'exactement trois chiffres
+    static bool GroupFollows(string s, int k)
+    {
+        if (k + 3 > s.Length) return false;
+        for (int j = k; j < k + 3; j++) if (!char.IsDigit(s[j])) return false;
+        return k + 3 == s.Length || !char.IsDigit(s[k + 3]);
+    }
+
+    static string Number(string raw, bool spaced, bool english)
+    {
+        if (spaced)
+        {
+            if (raw.IndexOf(' ') > 3) return null;          // « 1234 567 » : groupe de tête trop long
+            raw = raw.Replace(" ", "");
+        }
+        int dot = raw.IndexOf('.');
+        if (dot != raw.LastIndexOf('.')) return null;       // plusieurs points
+        int commas = raw.Count(ch => ch == ',');
+        if (commas == 0) return raw;
+        if (spaced && (commas > 1 || dot >= 0)) return null; // espaces de groupement : la virgule est décimale
+        if (dot >= 0)
+        {
+            // Le point est décimal : les virgules ne peuvent que grouper la partie entière (« 1,234.5 »).
+            // Refuse « 1.234,5 » (virgule après le point) et « 12,34.5 » (groupe mal placé).
+            string integer = raw.Substring(0, dot);
+            return CommaGroups.IsMatch(integer) ? integer.Replace(",", "") + raw.Substring(dot) : null;
+        }
+        if (commas > 1) return CommaGroups.IsMatch(raw) ? raw.Replace(",", "") : null;
+        // Une seule virgule : groupement en anglais si elle précède exactement trois chiffres (« 1,000 »),
+        // virgule décimale sinon (« 1,5 », et toujours en français, où Format groupe par espace).
+        if (english && !spaced && CommaGroups.IsMatch(raw)) return raw.Replace(",", "");
+        return raw.Replace(',', '.');
     }
 
     public static string Format(double v)

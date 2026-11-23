@@ -1,5 +1,10 @@
 # Nouveautés
 
+## Non publié
+
+- Calculatrice : un résultat copié avec Entrée se relit correctement, même avec des milliers (« 1 234,5 », « 1,000 »). En anglais, « 1,000 » ne donne plus 1.
+- Calculatrice : une saisie aux séparateurs incohérents (« 1.234,5 », « 12,34.5 ») est refusée au lieu de donner un résultat faux. Un nombre collé au format de l'autre langue reste compris.
+
 ## 3.3 — Icône de notification et réduction
 
 - Réduire (ou fermer) la fenêtre de paramètres la range près de l'horloge, au lieu de la barre des tâches. Une bulle explique la première fois où BureauCache continue de tourner.

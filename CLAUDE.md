@@ -22,7 +22,7 @@ Lire d'abord [ARCHITECTURE.md](ARCHITECTURE.md), [TASKS.md](TASKS.md) et [DECISI
 1. Chaque tâche a un ID T-xxx dans TASKS.md et une branche `feat/T-xxx-…` ou `fix/T-xxx-…`.
 2. Je conçois avant de coder quand plus de deux fichiers sont touchés, et une décision structurante va dans DECISIONS.md.
 3. Je mets à jour TASKS.md (journal) et ARCHITECTURE.md si un module ou un flux change.
-4. Un changement visible par l'utilisateur ajoute une puce dans CHANGELOG.md, sous la future section `## X.Y — Titre`. Les publications se font avec `publier.ps1 -Version X.Y` depuis `main` avec un dépôt propre (les fichiers de mémoire doivent donc être commités).
+4. Un changement visible par l'utilisateur ajoute une puce dans CHANGELOG.md, sous `## Non publié`. Au moment de publier, cette section est renommée `## X.Y — Titre`. Les publications se font avec `publier.ps1 -Version X.Y` depuis `main` avec un dépôt propre (les fichiers de mémoire doivent donc être commités).
 5. Je distingue toujours ce qui a été **compilé**, **testé** et seulement **relu**.
 
 ## Délégation (obligatoire)

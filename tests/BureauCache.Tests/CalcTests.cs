@@ -151,9 +151,7 @@ namespace BureauCache.Tests
             AssertRoundTrip(value, english);
         }
 
-        // R-19 : dès qu'un résultat a un séparateur de milliers, il n'est plus relu (FR)
-        // ou relu avec une valeur fausse (EN, « 1,234 » devient 1,234). Voir TASKS.md, T-007.
-        [Ignore("Défaut connu R-19 : retirer cet attribut avec la correction (T-007)")]
+        // R-19 (corrigé en T-007) : un résultat avec séparateur de milliers doit se relire à l'identique.
         [DataTestMethod]
         [DataRow(1234.5, false)]
         [DataRow(1234.0, false)]
