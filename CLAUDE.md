@@ -35,6 +35,7 @@ Lire d'abord [ARCHITECTURE.md](ARCHITECTURE.md), [TASKS.md](TASKS.md) et [DECISI
 
 ```powershell
 .\build.cmd
+dotnet test tests/BureauCache.Tests            # recompile l'exe puis lance les tests
 repomix                                        # écrit .ai/export-gemini.md (voir repomix.config.json)
 git diff main...HEAD > .ai/diff-chatgpt.patch
 ```

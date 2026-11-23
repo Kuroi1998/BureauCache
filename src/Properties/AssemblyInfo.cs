@@ -1,6 +1,7 @@
 ﻿// BureauCache — informations du programme
 // Le numéro de version n'est écrit qu'ici : publier.ps1 et GitHub Actions s'en servent.
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 [assembly: AssemblyTitle("BureauCache")]
 [assembly: AssemblyProduct("BureauCache")]
@@ -9,6 +10,8 @@ using System.Reflection;
 [assembly: AssemblyVersion(AppInfo.Version + ".0.0")]
 [assembly: AssemblyFileVersion(AppInfo.Version + ".0.0")]
 [assembly: AssemblyInformationalVersion(AppInfo.Version)]
+// Les classes de l'application sont internes : le projet tests/BureauCache.Tests y accède par ce biais
+[assembly: InternalsVisibleTo("BureauCache.Tests")]
 
 static class AppInfo
 {

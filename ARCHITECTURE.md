@@ -51,6 +51,10 @@ BureauCache cache les icônes du bureau Windows et les réaffiche dans un pannea
 5. **Mise à jour** : `Updater.Check` interroge l'API GitHub Releases, `Updater.Download` télécharge en HTTPS depuis GitHub et vérifie le SHA-256 et la version, puis l'application se remplace et se relance (`App.RelaunchPath`).
 6. **Publication** : `publier.ps1 -Version X.Y` (depuis `main` avec un dépôt propre), puis tag `vX.Y`, puis `.github/workflows/release.yml` compile, publie l'exe et le `.sha256`, avec les notes tirées de `CHANGELOG.md`.
 
+## Tests
+
+`tests/BureauCache.Tests` (MSTest, `net48`) référence le vrai `BureauCache.exe` grâce à `InternalsVisibleTo` (voir D-002). La commande `dotnet test tests/BureauCache.Tests` recompile l'exe puis lance les tests. La CI les exécute sur chaque pull request (`.github/workflows/tests.yml`). Un test qui modifie la langue passe par `LanguageScope`.
+
 ## Points sensibles connus
 
 Le registre à jour se trouve dans [AUDIT_QA_BureauCache.md](AUDIT_QA_BureauCache.md) (corrections QA-xx, risques ouverts R-xx). Les risques élevés concernent le rangement automatique (R-01, R-03) et la confiance des mises à jour (R-04).

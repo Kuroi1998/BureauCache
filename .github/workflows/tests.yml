@@ -1,0 +1,24 @@
+# Compile l'application (build.cmd) puis lance les tests à chaque push sur main et chaque pull request
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Compiler et tester
+        shell: pwsh
+        run: dotnet test tests/BureauCache.Tests --configuration Release --logger "console;verbosity=normal"
