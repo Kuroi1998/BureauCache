@@ -8,7 +8,9 @@ partial class App
 {
     // Le clic simple attend la durée d'un double-clic avant d'agir, pour ne pas ouvrir le panneau ET les paramètres
     readonly System.Windows.Forms.Timer clickTimer = new System.Windows.Forms.Timer();
-    bool updateAvailable;
+    bool updateAvailable { get { return Updater.AvailableRelease != null; } }
+    bool trayDoubleClick;
+    bool panelWasOpenAtTrayClick;
     string trayState;
 
     void SetupTray()
@@ -17,16 +19,20 @@ partial class App
         tray = new NotifyIcon();
         // Menu affiché par nous (et non automatiquement) : il passe au premier plan, se ferme quand on clique ailleurs
         // et s'ouvre au-dessus de la barre des tâches, même quand aucune fenêtre de BureauCache n'est visible.
-        tray.MouseUp += (s, e) => { if (e.Button == MouseButtons.Right) ShowTrayMenu(); };
-        tray.MouseClick += (s, e) =>
+        tray.MouseUp += (s, e) =>
         {
+            if (e.Button == MouseButtons.Right) ShowTrayMenu();
             if (e.Button != MouseButtons.Left) return;
+            if (trayDoubleClick) { trayDoubleClick = false; return; }
+            panelWasOpenAtTrayClick = panel.IsOpen ||
+                (DateTime.Now - panel.LastHidden).TotalMilliseconds < 200;
             clickTimer.Stop();
             clickTimer.Start();
         };
         tray.MouseDoubleClick += (s, e) =>
         {
             if (e.Button != MouseButtons.Left) return;
+            trayDoubleClick = true;
             clickTimer.Stop();
             ShowSettings();
         };
@@ -40,9 +46,8 @@ partial class App
     void TogglePanelFromTray()
     {
         // Cliquer sur l'icône fait perdre le focus au panneau, qui se ferme juste avant ce clic : on ne le rouvre pas
-        bool justClosed = (DateTime.Now - panel.LastHidden).TotalMilliseconds < 600;
-        if (panel.IsOpen && !Settings.Pinned) panel.HidePanel();
-        else if (!justClosed || Settings.Pinned) OpenManually(TargetScreen(Cursor.Position));
+        if (panelWasOpenAtTrayClick && !Settings.Pinned) panel.HidePanel();
+        else OpenManually(TargetScreen(Cursor.Position));
     }
 
     void ShowTrayMenu()
@@ -69,14 +74,14 @@ partial class App
 
     void BuildTrayMenu()
     {
-        trayMenu.Items.Clear();
+        Menus.Clear(trayMenu.Items);
         ToolStripMenuItem title = new ToolStripMenuItem("BureauCache " + AppInfo.Version +
             (updateAvailable ? L.T(" · mise à jour disponible", " · update available") : "")) { Enabled = false };
         trayMenu.Items.Add(title);
         trayMenu.Items.Add(new ToolStripSeparator());
 
         ToolStripMenuItem open = Menus.Item(L.T("Ouvrir la liste", "Open the list"), Glyphs.List, () => OpenManually(TargetScreen(Cursor.Position)));
-        open.Font = new Font(trayMenu.Font, FontStyle.Bold);
+        open.Font = Ui.Font(trayMenu.Font.Name, trayMenu.Font.Size, FontStyle.Bold);
         open.ShortcutKeyDisplayString = HotkeyBox.Format(Settings.HotMods, Settings.HotKey);
         trayMenu.Items.Add(open);
         trayMenu.Items.Add(Menus.Item(L.T("Paramètres…", "Settings…"), Glyphs.Settings, ShowSettings));
@@ -111,16 +116,16 @@ partial class App
     {
         Background.Run(() =>
         {
-            bool newer = Updater.Check();
+            Updater.Release release = Updater.Check();
             try
             {
                 panel.BeginInvoke(new Action(() =>
                 {
-                    updateAvailable = newer;
+                    if (!Updater.AcceptCheck(release)) return;
                     RefreshTray();
-                    if (newer) Balloon(L.T("La version " + Updater.Latest + " est disponible. Clique ici pour l'installer.",
+                    if (release.Available) Balloon(L.T("La version " + Updater.Latest + " est disponible. Clique ici pour l'installer.",
                                            "Version " + Updater.Latest + " is available. Click here to install it."), InstallUpdate);
-                    else if (Updater.Error != null) Balloon(L.T("Vérification impossible : ", "Couldn't check: ") + Updater.Error, null);
+                    else if (release.Error != null) Balloon(L.T("Vérification impossible : ", "Couldn't check: ") + release.Error, null);
                     else Balloon(L.T("Tu as la dernière version (" + AppInfo.Version + ").", "You're up to date (" + AppInfo.Version + ")."), null);
                 }));
             }

@@ -1,6 +1,7 @@
 ﻿// BureauCache — ItemsView
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -18,6 +19,7 @@ partial class ItemsView : Control
     int contentH;
     float scroll, scrollTarget;
     readonly System.Windows.Forms.Timer scrollAnim = new System.Windows.Forms.Timer();
+    readonly Stopwatch scrollClock = new Stopwatch();
     readonly System.Windows.Forms.Timer hoverTimer = new System.Windows.Forms.Timer();
     int hover = -1, sel = -1, downRow = -1;
     Point downPt;
@@ -55,17 +57,14 @@ partial class ItemsView : Control
         SetStyle(ControlStyles.Selectable, false);
         AllowDrop = true;
         scrollAnim.Interval = 10;
-        scrollAnim.Tick += (s, e) =>
-        {
-            scroll += (scrollTarget - scroll) * 0.35f;
-            if (Math.Abs(scrollTarget - scroll) < 0.5f) { scroll = scrollTarget; scrollAnim.Stop(); }
-            Invalidate();
-        };
+        scrollAnim.Tick += (s, e) => AdvanceScroll();
         hoverTimer.Interval = 450;
         hoverTimer.Tick += (s, e) =>
         {
             hoverTimer.Stop();
             if (dragging || hover < 0 || hover >= rows.Count || rows[hover].IsHeader || HoverItem == null) return;
+            Point pointer = PointToClient(Cursor.Position);
+            if (!ClientRectangle.Contains(pointer) || RowAt(pointer) != hover) return;
             HoverItem(rows[hover].Item, RectangleToScreen(Screenify(rows[hover].R)));
         };
     }
@@ -77,6 +76,7 @@ partial class ItemsView : Control
     int CellH { get { return S(100); } }
     int MinCellW { get { return S(88); } }
     float MaxScroll { get { return Math.Max(0, contentH - Height); } }
+    public bool IsScrolling { get { return scrollAnim.Enabled || scrollDragging || dragging; } }
 
     public DesktopItem Selected { get { return sel >= 0 && sel < rows.Count ? rows[sel].Item : null; } }
 
@@ -84,6 +84,14 @@ partial class ItemsView : Control
     {
         hoverTimer.Stop();
         if (HoverEnd != null) HoverEnd();
+    }
+
+    public void CancelHover()
+    {
+        EndHover();
+        if (hover < 0) return;
+        hover = -1;
+        Invalidate();
     }
 
     public void SetGroups(List<Group> g, bool keepScroll)
@@ -103,6 +111,7 @@ partial class ItemsView : Control
 
     void LayoutRows()
     {
+        downRow = -1;
         rows.Clear();
         int y = S(2);
         int w = Width - S(4);
@@ -140,14 +149,45 @@ partial class ItemsView : Control
     {
         scrollTarget = Math.Max(0, Math.Min(MaxScroll, scrollTarget));
         scroll = Math.Max(0, Math.Min(MaxScroll, scroll));
+        if (scroll == scrollTarget) scrollAnim.Stop();
     }
 
     void ScrollTo(float target, bool animate)
     {
-        scrollTarget = Math.Max(0, Math.Min(MaxScroll, target));
-        EndHover();
-        if (animate && Settings.Animations) scrollAnim.Start();
-        else { scroll = scrollTarget; Invalidate(); }
+        target = Math.Max(0, Math.Min(MaxScroll, target));
+        if (animate && Settings.Animations)
+        {
+            if (target == scrollTarget) return;
+            CancelHover();
+            scrollTarget = target;
+            if (!scrollAnim.Enabled) { scrollClock.Restart(); scrollAnim.Start(); }
+            return;
+        }
+        if (!dragging) CancelHover();
+        scroll = scrollTarget = target;
+        scrollAnim.Stop();
+        Invalidate();
+    }
+
+    void AdvanceScroll()
+    {
+        int previous = (int)scroll;
+        double elapsed = scrollClock.Elapsed.TotalMilliseconds;
+        scrollClock.Restart();
+        // Le rythme reste stable même si le fil d'interface retarde un tick.
+        scroll += (float)((scrollTarget - scroll) * (1 - Math.Exp(-elapsed / 42)));
+        if (!Settings.Animations || Math.Abs(scrollTarget - scroll) < 0.75f)
+        {
+            scroll = scrollTarget;
+            scrollAnim.Stop();
+        }
+        if ((int)scroll != previous) Invalidate();
+    }
+
+    public void StopScroll()
+    {
+        scrollTarget = scroll;
+        scrollAnim.Stop();
     }
 
     protected override void OnResize(EventArgs e)
@@ -161,25 +201,38 @@ partial class ItemsView : Control
     int RowAt(Point p)
     {
         Point c = new Point(p.X, p.Y + (int)scroll);
-        for (int i = 0; i < rows.Count; i++) if (rows[i].R.Contains(c)) return i;
+        for (int i = FirstRowBelow(c.Y); i < rows.Count && rows[i].R.Top <= c.Y; i++)
+            if (rows[i].R.Contains(c)) return i;
         return -1;
+    }
+
+    int FirstRowBelow(int y)
+    {
+        int lo = 0, hi = rows.Count;
+        while (lo < hi)
+        {
+            int mid = lo + (hi - lo) / 2;
+            if (rows[mid].R.Bottom <= y) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
     }
 
     Rectangle Screenify(Rectangle r) { r.Offset(0, -(int)scroll); return r; }
 
     // ---------- Dessin ----------
+    protected override void OnPaintBackground(PaintEventArgs e) { owner.PaintBg(e.Graphics, e.ClipRectangle, Location); }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         Graphics g = e.Graphics;
-        owner.PaintBg(g, ClientRectangle, Location);
         g.InterpolationMode = InterpolationMode.HighQualityBicubic;
         g.SmoothingMode = SmoothingMode.AntiAlias;
         if (Help != null) { DrawHelp(g); return; }
-        int top = (int)scroll, bottom = top + Height;
-        for (int i = 0; i < rows.Count; i++)
+        int top = (int)scroll + e.ClipRectangle.Top, bottom = (int)scroll + e.ClipRectangle.Bottom;
+        for (int i = FirstRowBelow(top); i < rows.Count && rows[i].R.Top < bottom; i++)
         {
             VRow row = rows[i];
-            if (row.R.Bottom < top || row.R.Top > bottom) continue;
             Rectangle r = Screenify(row.R);
             if (row.IsHeader) DrawHeader(g, row, r, i == hover);
             else if (Grid) DrawCell(g, row.Item, r, i == sel, i == hover, dragging && row == dragRow);
@@ -252,6 +305,7 @@ partial class ItemsView : Control
     // Tab / Maj+Tab : passe à la section suivante / précédente
     public void JumpGroup(int dir)
     {
+        if (Help != null) return;
         List<Group> withItems = groups.Where(g => g.Items.Count > 0 && !(g.Title != null && !g.IsSearch && Settings.Collapsed.Contains(g.Key))).ToList();
         if (withItems.Count == 0) return;
         Group cur = sel >= 0 && sel < rows.Count ? rows[sel].G : null;

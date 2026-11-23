@@ -16,8 +16,9 @@ partial class PanelForm
     {
         if (buf == null || buf.Width != w || buf.Height != h)
         {
+            Bitmap replacement = new Bitmap(w, h, fmt);
             if (buf != null) buf.Dispose();
-            buf = new Bitmap(w, h, fmt);
+            buf = replacement;
         }
         return buf;
     }
@@ -35,9 +36,7 @@ partial class PanelForm
                 g.InterpolationMode = InterpolationMode.HighQualityBilinear;
                 g.DrawImage(cap, new Rectangle(0, 0, sw2, sh2));
             }
-            Bitmap res = spareBuf != null && spareBuf.Width == area.Width && spareBuf.Height == area.Height
-                ? spareBuf : new Bitmap(area.Width, area.Height, PixelFormat.Format32bppRgb);
-            spareBuf = null;
+            Bitmap res = Reuse(ref spareBuf, area.Width, area.Height, PixelFormat.Format32bppRgb);
             using (Graphics g = Graphics.FromImage(res))
             using (ImageAttributes ia = new ImageAttributes())
             {
@@ -47,16 +46,19 @@ partial class PanelForm
                 g.DrawImage(small, new Rectangle(0, 0, area.Width, area.Height), 0, 0, sw2, sh2, GraphicsUnit.Pixel, ia);
                 using (SolidBrush b = new SolidBrush(Color.FromArgb(Settings.Dark ? 196 : 200, Theme.Bg))) g.FillRectangle(b, 0, 0, area.Width, area.Height);
             }
+            spareBuf = null;
             return res;
         }
         catch { return null; }
     }
 
     bool liveBlurActive;
+    int ClosedLeft { get { return openLeft + (Settings.RightSide ? S(40) : -S(40)); } }
 
     void RefreshGlass()
     {
         if (!Visible || !liveBlurActive) { blurTimer.Stop(); return; }
+        if (anim.Enabled || View.IsScrolling) return;
         Bitmap g = MakeGlass(new Rectangle(openLeft, Top, Width, Height));
         if (g == null) return;
         Bitmap old = glass;
@@ -77,17 +79,17 @@ partial class PanelForm
         Height = wa.Height;
         Top = wa.Top;
         openLeft = Settings.RightSide ? wa.Right - Width : wa.Left;
-        closedLeft = Settings.RightSide ? wa.Right - Width + S(40) : wa.Left - S(40);
         if (glass != null) { glass.Dispose(); glass = null; }
         liveBlurActive = Settings.Glass && Settings.LiveBlur;
         // Exclut le panneau des captures : permet de capturer ce qu'il y a derrière en continu
-        try { Native.SetWindowDisplayAffinity(Handle, liveBlurActive ? 0x11u : 0u); } catch { liveBlurActive = false; }
+        try { if (!Native.SetWindowDisplayAffinity(Handle, liveBlurActive ? 0x11u : 0u)) liveBlurActive = false; }
+        catch { liveBlurActive = false; }
         if (Settings.Glass) glass = MakeGlass(new Rectangle(openLeft, Top, Width, Height));
         if (Settings.Widgets) { RefreshWidgetData(); widgetTimer.Start(); }
         ApplyTheme();
         if (search.Text.Length > 0) search.Text = "";
         else Rebuild(true);
-        Left = Settings.Animations ? closedLeft : openLeft;
+        Left = Settings.Animations ? ClosedLeft : openLeft;
         Opacity = Settings.Animations ? 0 : 1;
         Show();
         Activate();
@@ -101,9 +103,10 @@ partial class PanelForm
 
     public void HidePanel()
     {
-        preview.HidePreview();
+        View.CancelHover();
         if (Settings.Pinned && appbar) return;
         if (!Visible || !opening) return;
+        View.StopScroll();
         LastHidden = DateTime.Now;
         StartAnim(false);
     }
@@ -112,10 +115,10 @@ partial class PanelForm
     {
         opening = open;
         fromLeft = Left;
-        toLeft = open ? openLeft : closedLeft;
+        toLeft = open ? openLeft : ClosedLeft;
         fromOp = Opacity;
         toOp = open ? 1 : 0;
-        if (!Settings.Animations) { Left = open ? openLeft : closedLeft; Opacity = 1; if (!open) Finish(); anim.Stop(); return; }
+        if (!Settings.Animations) { Left = toLeft; Opacity = 1; if (!open) Finish(); anim.Stop(); return; }
         sw.Restart();
         anim.Start();
     }
@@ -141,5 +144,5 @@ partial class PanelForm
         }
     }
 
-    public bool MenuOpen { get { return menu.Visible; } }
+    public bool MenuOpen { get { return showingPanelPopup || menu.Visible; } }
 }

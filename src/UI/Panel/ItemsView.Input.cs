@@ -11,7 +11,10 @@ partial class ItemsView
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
+        if (Help != null) return;
+        StopScroll();
         EndHover();
+        downRow = -1;
         if (e.Button == MouseButtons.Left && contentH > Height && e.X >= Width - S(14))
         {
             Rectangle t = Thumb();
@@ -27,6 +30,7 @@ partial class ItemsView
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        if (Help != null) { Cursor = Cursors.Default; return; }
         if (scrollDragging)
         {
             Rectangle t = Thumb();
@@ -53,6 +57,7 @@ partial class ItemsView
             Invalidate();
             return;
         }
+        if (scrollAnim.Enabled) return;
         int h = RowAt(e.Location);
         if (h != hover)
         {
@@ -67,13 +72,13 @@ partial class ItemsView
     protected override void OnMouseLeave(EventArgs e)
     {
         base.OnMouseLeave(e);
-        EndHover();
-        if (hover != -1 && !dragging) { hover = -1; Invalidate(); }
+        CancelHover();
     }
 
     protected override void OnMouseUp(MouseEventArgs e)
     {
         base.OnMouseUp(e);
+        if (Help != null) return;
         if (scrollDragging) { scrollDragging = false; Invalidate(); return; }
         if (dragging)
         {
@@ -107,13 +112,33 @@ partial class ItemsView
         else if (e.Button == MouseButtons.Right && ItemContext != null) ItemContext(row.Item, e.Location);
     }
 
+    protected override void OnMouseCaptureChanged(EventArgs e)
+    {
+        base.OnMouseCaptureChanged(e);
+        if (Capture) return;
+        downRow = -1;
+        if (!dragging && !scrollDragging) return;
+        if (dragging) owner.Busy = false;
+        dragging = scrollDragging = false;
+        dragRow = null;
+        dropGroup = null;
+        dropMark = Rectangle.Empty;
+        Invalidate();
+    }
+
     protected override void OnMouseWheel(MouseEventArgs e)
     {
         base.OnMouseWheel(e);
-        ScrollTo(scrollTarget - e.Delta / 120f * S(44) * 2.5f, true);
+        HandledMouseEventArgs handled = e as HandledMouseEventArgs;
+        if (handled != null) handled.Handled = true;
+        WheelFromParent(e.Delta);
     }
 
-    public void WheelFromParent(int delta) { ScrollTo(scrollTarget - delta / 120f * S(44) * 2.5f, true); }
+    public void WheelFromParent(int delta)
+    {
+        if (Help == null && !scrollDragging && !dragging)
+            ScrollTo(scrollTarget - delta / 120f * S(44) * 2.5f, true);
+    }
 
     void ComputeDrop(Point p)
     {
@@ -149,6 +174,8 @@ partial class ItemsView
     {
         DesktopItem it = dragRow.Item;
         dragging = false;
+        downRow = -1;
+        dragRow = null;
         dropGroup = null;
         Invalidate();
         selfDragOut = true;
@@ -164,20 +191,30 @@ partial class ItemsView
     {
         if ((e.KeyState & 32) != 0 && (e.AllowedEffect & DragDropEffects.Link) != 0) return DragDropEffects.Link;
         if ((e.KeyState & 4) != 0 && (e.AllowedEffect & DragDropEffects.Move) != 0) return DragDropEffects.Move;
-        return (e.AllowedEffect & DragDropEffects.Copy) != 0 ? DragDropEffects.Copy : DragDropEffects.Link;
+        if ((e.AllowedEffect & DragDropEffects.Copy) != 0) return DragDropEffects.Copy;
+        if ((e.AllowedEffect & DragDropEffects.Link) != 0) return DragDropEffects.Link;
+        return e.AllowedEffect & DragDropEffects.Move;
     }
 
     protected override void OnDragEnter(DragEventArgs e)
     {
         base.OnDragEnter(e);
-        if (!selfDragOut && e.Data.GetDataPresent(DataFormats.FileDrop)) { e.Effect = EffectFor(e); dropActive = true; Invalidate(); }
-        else e.Effect = DragDropEffects.None;
+        UpdateDragEffect(e);
     }
 
     protected override void OnDragOver(DragEventArgs e)
     {
         base.OnDragOver(e);
-        e.Effect = !selfDragOut && e.Data.GetDataPresent(DataFormats.FileDrop) ? EffectFor(e) : DragDropEffects.None;
+        UpdateDragEffect(e);
+    }
+
+    void UpdateDragEffect(DragEventArgs e)
+    {
+        e.Effect = !selfDragOut && e.Data != null && e.Data.GetDataPresent(DataFormats.FileDrop) ? EffectFor(e) : DragDropEffects.None;
+        bool active = e.Effect != DragDropEffects.None;
+        if (active == dropActive) return;
+        dropActive = active;
+        Invalidate();
     }
 
     protected override void OnDragLeave(EventArgs e) { base.OnDragLeave(e); dropActive = false; Invalidate(); }
@@ -185,10 +222,12 @@ partial class ItemsView
     protected override void OnDragDrop(DragEventArgs e)
     {
         base.OnDragDrop(e);
+        UpdateDragEffect(e);
         dropActive = false;
         Invalidate();
+        if (e.Effect == DragDropEffects.None) return;
         string[] files = e.Data.GetData(DataFormats.FileDrop) as string[];
-        DragDropEffects eff = EffectFor(e);
+        DragDropEffects eff = e.Effect;
         if (files != null && files.Length > 0 && FilesDropped != null)
             BeginInvoke(new Action(() => FilesDropped(files, eff)));
     }
@@ -196,6 +235,7 @@ partial class ItemsView
     // ---------- Clavier ----------
     public void MoveSelection(Keys k)
     {
+        if (Help != null) return;
         List<int> items = new List<int>();
         for (int i = 0; i < rows.Count; i++) if (!rows[i].IsHeader) items.Add(i);
         if (items.Count == 0) return;
@@ -225,6 +265,7 @@ partial class ItemsView
 
     public void SelectFirst()
     {
+        if (Help != null) return;
         sel = -1;
         for (int i = 0; i < rows.Count; i++) if (!rows[i].IsHeader) { sel = i; break; }
         Invalidate();

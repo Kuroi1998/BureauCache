@@ -84,7 +84,11 @@ partial class SettingsForm
                    : T("Si l'icône est dans la flèche ^, ouvre le réglage pour l'afficher.", "If the icon is in the ^ arrow, open the setting to show it.");
         bArchiveUndo.Enabled = Archiver.CanUndo;
         bArchiveUndo.Invalidate();
-        if (lUpdate.Text == "-" || lUpdate.Text.Length == 0)
+        var release = Updater.AvailableRelease;
+        bCheck.Text = release == null ? T("Vérifier", "Check") : T("Installer la ", "Install ") + release.Version;
+        if (release != null)
+            lUpdate.Text = T("Version ", "Version ") + release.Version + T(" disponible.", " available.");
+        else if (lUpdate.Text == "-" || lUpdate.Text.Length == 0)
             lUpdate.Text = Updater.RepoValid ? T("Clique pour vérifier.", "Click to check.") : T("Dépôt invalide.", "Invalid repository.");
     }
 
@@ -107,7 +111,7 @@ partial class SettingsForm
     {
         for (int k = 0; k < pages.Count; k++) pages[k].Visible = k == i;
         nav.Selected = i;
-        if (i == 4) UpdateArchiveText();
+        if (i == 4) { RebuildCustoms(); UpdateArchiveText(); }
     }
 
     public void SelectPage(int i) { ShowPage(i); }
@@ -152,7 +156,11 @@ partial class SettingsForm
     protected override void OnActivated(EventArgs e)
     {
         base.OnActivated(e);
-        if (!loading) UpdateTexts();
+        if (!loading)
+        {
+            if (nav.Selected == 4) RebuildCustoms();
+            UpdateTexts();
+        }
     }
 
     protected override void OnShown(EventArgs e)

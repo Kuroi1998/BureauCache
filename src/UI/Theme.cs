@@ -216,10 +216,26 @@ static class Menus
     public static ToolStripMenuItem Item(string text, string glyph, Action click)
     {
         ToolStripMenuItem it = new ToolStripMenuItem(text);
-        if (glyph != null) it.Image = Ui.GlyphImage(glyph, Theme.Fg);
+        if (glyph != null)
+        {
+            Bitmap icon = Ui.GlyphImage(glyph, Theme.Fg);
+            it.Image = icon;
+            it.Disposed += (s, e) => icon.Dispose();
+        }
         if (click != null) it.Click += (s, e) => click();
         it.Padding = new Padding(0, Ui.S(2), 0, Ui.S(2));
         return it;
+    }
+
+    public static void Clear(ToolStripItemCollection items)
+    {
+        while (items.Count > 0)
+        {
+            int last = items.Count - 1;
+            ToolStripItem item = items[last];
+            item.Dispose();
+            if (items.Count > last && items[last] == item) items.RemoveAt(last);
+        }
     }
 
     public static ToolStripMenuItem Sub(ContextMenuStrip owner, string text, string glyph)

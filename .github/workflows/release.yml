@@ -11,13 +11,16 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v5
 
       - name: Vérifier que le numéro de version du code correspond au tag
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}".TrimStart('v')
+          if ($env:RELEASE_TAG -cnotmatch '^v[0-9]+\.[0-9]+$') { throw "Tag de version invalide" }
+          $tag = $env:RELEASE_TAG.Substring(1)
           $code = (Select-String -Path src/Properties/AssemblyInfo.cs -Pattern 'public const string Version = "([^"]+)"').Matches[0].Groups[1].Value
           if ($code -ne $tag) { throw "Le tag v$tag ne correspond pas à AppInfo.Version ($code) dans src/Properties/AssemblyInfo.cs" }
 
@@ -29,7 +32,7 @@ jobs:
         shell: pwsh
         run: |
           $v = (Get-Item BureauCache.exe).VersionInfo.ProductVersion
-          if ($v -ne "${{ github.ref_name }}".TrimStart('v')) { throw "Version de l'exe inattendue : $v" }
+          if ($v -ne $env:RELEASE_TAG.Substring(1)) { throw "Version de l'exe inattendue : $v" }
 
       - name: Calculer l'empreinte SHA-256
         shell: pwsh
@@ -43,20 +46,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "${{ github.ref_name }}"
-          $ver = $tag.TrimStart('v')
+          $tag = $env:RELEASE_TAG
+          $ver = $tag.Substring(1)
           $title = "BureauCache $ver"
           $section = ""
           if (Test-Path CHANGELOG.md) {
-            $lines = Get-Content CHANGELOG.md -Encoding utf8
-            $start = [Array]::FindIndex($lines, [Predicate[string]]{ param($l) $l -match "^## $([regex]::Escape($ver))\b" })
+            [string[]]$lines = @(Get-Content CHANGELOG.md -Encoding utf8)
+            $heading = "^## $([regex]::Escape($ver))(?=\s|$)"
+            $start = [Array]::FindIndex($lines, [Predicate[string]]{ param($l) $l -match $heading })
             if ($start -ge 0) {
               # « ## 3.2 — Optimisation, sécurité et code » donne le titre « BureauCache 3.2 — Optimisation, sécurité et code »
-              $suffix = ($lines[$start] -replace "^## $([regex]::Escape($ver))", '').Trim()
+              $suffix = ($lines[$start] -replace $heading, '').Trim()
               if ($suffix) { $title = "$title $suffix" }
               $end = [Array]::FindIndex($lines, $start + 1, [Predicate[string]]{ param($l) $l -match '^## ' })
               if ($end -lt 0) { $end = $lines.Length }
-              $section = ($lines[($start + 1)..($end - 1)] -join "`n").Trim()
+              if ($end -gt $start + 1) {
+                $section = ($lines[($start + 1)..($end - 1)] -join "`n").Trim()
+              }
             }
           }
           if (-not $section) { $section = "Version $ver" }

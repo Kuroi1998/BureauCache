@@ -48,6 +48,7 @@ partial class App : ApplicationContext
     Action balloonAction;
     const int PollMs = 20;
     public static string RelaunchPath;
+    bool installingUpdate;
     Screen[] screens = Screen.AllScreens; // mis en cache : la détection du bord tourne 50 fois par seconde
 
     public App(EventWaitHandle showSignal, EventWaitHandle quitSignal)
@@ -215,42 +216,50 @@ partial class App : ApplicationContext
 
     void DoUninstall()
     {
-        if (!Dialogs.Ask(settingsForm, Installer.UninstallQuestion)) return;
+        if (installingUpdate || !Dialogs.Ask(settingsForm, Installer.UninstallQuestion)) return;
         Installer.Uninstall();
         ExitThread();
     }
 
     void InstallUpdate()
     {
-        string notes = Updater.ShortNotes;
-        if (!Dialogs.Ask(null, L.T("Installer BureauCache " + Updater.Latest + " ?\nLe programme va redémarrer.", "Install BureauCache " + Updater.Latest + "?\nThe program will restart.") +
+        if (installingUpdate) return;
+        Updater.Release release = Updater.AvailableRelease;
+        if (release == null) { CheckUpdateNow(); return; }
+        string notes = Updater.ShortNotes(release);
+        if (!Dialogs.Ask(null, L.T("Installer BureauCache " + release.Version + " ?\nLe programme va redémarrer.", "Install BureauCache " + release.Version + "?\nThe program will restart.") +
             (notes.Length > 0 ? "\n\n" + L.T("Nouveautés :", "What's new:") + "\n" + notes : ""))) return;
-        try
+        if (installingUpdate || Updater.AvailableRelease != release) return;
+        installingUpdate = true;
+        string exe = Application.ExecutablePath;
+        Background.Run(() =>
         {
-            Updater.Download();
-            ExitThread();
-        }
-        catch (Exception ex)
-        {
-            Dialogs.Warn(null, L.T("La mise à jour a échoué :\n", "Update failed:\n") + ex.Message);
-        }
+            string error = null;
+            try { Updater.Download(release, exe); }
+            catch (Exception ex) { error = ex.Message; }
+            panel.BeginInvoke(new Action(() =>
+            {
+                installingUpdate = false;
+                if (error == null) { RelaunchPath = exe; ExitThread(); }
+                else Dialogs.Warn(null, L.T("La mise à jour a échoué :\n", "Update failed:\n") + error);
+            }));
+        });
     }
 
     void CheckUpdateInBackground()
     {
-        if (!Settings.AutoUpdate || !Updater.RepoValid) return;
+        if (installingUpdate || !Settings.AutoUpdate || !Updater.RepoValid) return;
         if (DateTime.Now - new DateTime(Settings.LastUpdateCheck) < TimeSpan.FromHours(24)) return;
         Background.Run(() =>
         {
-            bool newer = Updater.Check();
-            if (newer)
-                try
-                {
-                    panel.BeginInvoke(new Action(() => { updateAvailable = true; RefreshTray(); }));
-                    panel.BeginInvoke(new Action(() => Balloon(L.T("BureauCache " + Updater.Latest + " est disponible. Clique pour l'installer.",
-                        "BureauCache " + Updater.Latest + " is available. Click to install."), InstallUpdate)));
-                }
-                catch { }
+            Updater.Release release = Updater.Check();
+            panel.BeginInvoke(new Action(() =>
+            {
+                if (!Updater.AcceptCheck(release)) return;
+                RefreshTray();
+                if (release.Available) Balloon(L.T("BureauCache " + release.Version + " est disponible. Clique pour l'installer.",
+                    "BureauCache " + release.Version + " is available. Click to install."), InstallUpdate);
+            }));
         });
     }
 
@@ -349,6 +358,8 @@ partial class App : ApplicationContext
 
     protected override void ExitThreadCore()
     {
+        if (installingUpdate) return;
+        clickTimer.Stop();
         poll.Stop();
         try { panel.FlushToast(); } catch { }
         Settings.Flush();

@@ -1,5 +1,6 @@
 ﻿// BureauCache — SettingsForm (partie 3)
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -7,22 +8,39 @@ using System.Windows.Forms;
 
 partial class SettingsForm
 {
+    readonly Dictionary<CustomCat, Label> customCounts = new Dictionary<CustomCat, Label>();
+
     void RebuildCustoms()
     {
         string sig = string.Join("|", Settings.CustomCats.Select(c => c.Name + c.Glyph + c.Color.ToArgb()));
-        if (sig == customSig) return;
-        customSig = sig;
+        if (sig != customSig || Settings.CustomCats.Any(c => !customCounts.ContainsKey(c)))
+        {
+            BuildCustomRows();
+            customSig = sig;
+        }
+        if (customCounts.Count == 0) return;
+        var counts = Settings.CatOverride.Values.ToLookup(name => name, StringComparer.OrdinalIgnoreCase);
+        foreach (var row in customCounts)
+            row.Value.Text = counts[row.Key.Name].Count() + T(" élément(s)", " item(s)");
+    }
+
+    void BuildCustomRows()
+    {
         Card saved = cur;
         int savedRow = rowY;
         cur = customCard;
-        foreach (Control c in customCard.Controls.Cast<Control>().ToList()) c.Dispose();
-        customCard.Controls.Clear();
+        foreach (Control c in customCard.Controls.Cast<Control>().ToList())
+        {
+            Label label = c as Label;
+            if (label != null) dim.Remove(label);
+            c.Dispose();
+        }
         customCard.Separators.Clear();
+        customCounts.Clear();
         rowY = 0;
         foreach (CustomCat cc in Settings.CustomCats.ToList())
         {
             CustomCat c = cc;
-            int count = Settings.CatOverride.Values.Count(v => string.Equals(v, c.Name, StringComparison.OrdinalIgnoreCase));
             FlatButton del = Button(T("Supprimer", "Delete"), false, S(100), () =>
             {
                 if (!Ask(T("Supprimer la catégorie « " + c.Name + " » ?\nSes éléments retournent dans leur catégorie automatique.",
@@ -30,7 +48,7 @@ partial class SettingsForm
                 Settings.DeleteCategory(c);
                 Settings.Notify();
             });
-            Row(c.Name, count + T(" élément(s)", " item(s)"), del, null, new GlyphTileControl(c.Glyph, c.Color));
+            customCounts[c] = Row(c.Name, "", del, null, new GlyphTileControl(c.Glyph, c.Color));
             FlatButton edit = Button(T("Modifier", "Edit"), false, S(100), () => { if (CategoryDialog.Run(c) != null) Settings.Notify(); });
             edit.Location = new Point(del.Left - S(8) - edit.Width, del.Top);
             customCard.Controls.Add(edit);
@@ -55,7 +73,7 @@ partial class SettingsForm
 
         Section(T("MISES À JOUR", "UPDATES"));
         repo = new InputBox(S(230));
-        repo.Box.Leave += (s, e) => { if (repo.Box.Text.Trim() != Settings.UpdateRepo) { Settings.UpdateRepo = repo.Box.Text.Trim(); Settings.Notify(); } };
+        repo.Box.Leave += (s, e) => { if (repo.Box.Text.Trim() != Settings.UpdateRepo) { Settings.UpdateRepo = repo.Box.Text.Trim(); ResetUpdateButton(); Settings.Notify(); } };
         repo.Box.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; ActiveControl = null; } };
         repo.Box.HandleCreated += (s, e) => Native.SendMessage(repo.Box.Handle, 0x1501, (IntPtr)1, Updater.DefaultRepo);
         Row(T("Dépôt GitHub", "GitHub repository"), T("Laisse vide pour le dépôt officiel.", "Leave empty for the official repository."), repo, null);
@@ -73,7 +91,11 @@ partial class SettingsForm
 
     void Export()
     {
-        Settings.Save();
+        if (!Settings.Save())
+        {
+            Dialogs.Warn(this, T("Impossible de sauvegarder les réglages.", "Could not save settings."));
+            return;
+        }
         using (SaveFileDialog d = new SaveFileDialog())
         {
             d.FileName = T("BureauCache-reglages", "BureauCache-settings") + ".ini";
@@ -92,10 +114,9 @@ partial class SettingsForm
             if (d.ShowDialog(this) != DialogResult.OK) return;
             try
             {
-                string txt = File.ReadAllText(d.FileName);
-                if (!txt.Contains("HideIcons=")) throw new Exception(T("Ce fichier n'est pas un fichier de réglages BureauCache.", "This is not a BureauCache settings file."));
                 if (!Ask(T("Remplacer tes réglages actuels par ceux de ce fichier ?", "Replace your current settings with this file?"))) return;
-                Settings.Load(d.FileName);
+                if (!Settings.Load(d.FileName))
+                    throw new IOException(T("Fichier de réglages invalide ou trop volumineux.", "Invalid or oversized settings file."));
                 L.Refresh();
                 Settings.Notify();
                 Dialogs.Info(this, T("Réglages importés.", "Settings imported."));
@@ -104,11 +125,19 @@ partial class SettingsForm
         }
     }
 
-    bool updateReady;
+    void ResetUpdateButton()
+    {
+        bCheck.Text = T("Vérifier", "Check");
+        lUpdate.Text = "-";
+    }
 
     void CheckUpdate()
     {
-        if (updateReady) { if (act.InstallUpdate != null) act.InstallUpdate(); return; }
+        if (Updater.AvailableRelease != null && string.Equals(repo.Box.Text.Trim(), Settings.UpdateRepo, StringComparison.Ordinal))
+        {
+            if (act.InstallUpdate != null) act.InstallUpdate();
+            return;
+        }
         Settings.UpdateRepo = repo.Box.Text.Trim();
         Settings.SaveQuiet();
         if (!Updater.RepoValid)
@@ -120,19 +149,20 @@ partial class SettingsForm
         lUpdate.Text = T("Vérification…", "Checking…");
         Background.Run(() =>
         {
-            bool newer = Updater.Check();
+            Updater.Release release = Updater.Check();
             try
             {
                 BeginInvoke(new Action(() =>
                 {
                     bCheck.Enabled = true;
-                    if (newer)
+                    ResetUpdateButton();
+                    if (!Updater.AcceptCheck(release)) { ResetUpdateButton(); UpdateTexts(); return; }
+                    if (release.Available)
                     {
-                        updateReady = true;
-                        lUpdate.Text = T("Version ", "Version ") + Updater.Latest + T(" disponible.", " is available.");
-                        bCheck.Text = T("Installer la ", "Install ") + Updater.Latest;
+                        lUpdate.Text = T("Version ", "Version ") + release.Version + T(" disponible.", " is available.");
+                        bCheck.Text = T("Installer la ", "Install ") + release.Version;
                     }
-                    else if (Updater.Error != null) lUpdate.Text = Updater.Error;
+                    else if (release.Error != null) lUpdate.Text = release.Error;
                     else lUpdate.Text = T("Tu as la dernière version.", "You're up to date.");
                 }));
             }

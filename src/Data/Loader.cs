@@ -9,14 +9,16 @@ using System.Windows.Forms;
 // Chargement en arrière-plan des éléments (bureau, applications, fichiers récents)
 static class Loader
 {
-    static readonly Dictionary<string, string> classCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    static readonly Dictionary<string, KeyValuePair<long, string>> classCache =
+        new Dictionary<string, KeyValuePair<long, string>>(StringComparer.OrdinalIgnoreCase);
 
     static string Classify(string path, DateTime modified)
     {
-        string key = path + "|" + modified.Ticks;
-        lock (classCache) { string c; if (classCache.TryGetValue(key, out c)) return c; }
+        KeyValuePair<long, string> cached;
+        lock (classCache)
+            if (classCache.TryGetValue(path, out cached) && cached.Key == modified.Ticks) return cached.Value;
         string r = Catalog.Classify(path, false);
-        lock (classCache) classCache[key] = r;
+        lock (classCache) classCache[path] = new KeyValuePair<long, string>(modified.Ticks, r);
         return r;
     }
 
@@ -56,13 +58,22 @@ static class Loader
                     if (fn.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase)) continue;
                     string ext = Path.GetExtension(f).ToLowerInvariant();
                     string n = (ext == ".lnk" || ext == ".url") ? Path.GetFileNameWithoutExtension(f) : fn;
-                    if (!seen.Add("f:" + n)) continue;
-                    FileInfo fi = new FileInfo(f);
-                    items.Add(new DesktopItem
+                    string nameKey = "f:" + n;
+                    if (seen.Contains(nameKey)) continue;
+                    try
                     {
-                        Key = f, Name = n, Target = f, AutoCategory = Classify(f, fi.LastWriteTime),
-                        Created = fi.CreationTime, Modified = fi.LastWriteTime, Size = fi.Length, Icon = IconCache.ForFile(f, px)
-                    });
+                        FileInfo fi = new FileInfo(f);
+                        long size = fi.Length;
+                        DateTime modified = fi.LastWriteTime;
+                        items.Add(new DesktopItem
+                        {
+                            Key = f, Name = n, Target = f, AutoCategory = Classify(f, modified),
+                            Created = fi.CreationTime, Modified = modified, Size = size, Icon = IconCache.ForFile(f, px)
+                        });
+                        seen.Add(nameKey);
+                    }
+                    catch (IOException) { }
+                    catch (UnauthorizedAccessException) { }
                 }
             }
             catch { }

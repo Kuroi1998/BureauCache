@@ -111,8 +111,11 @@ class Segmented : FlatControl
     protected override void OnMouseLeave(EventArgs e) { hover = -1; Invalidate(); base.OnMouseLeave(e); }
     protected override void OnMouseDown(MouseEventArgs e)
     {
-        int i = IndexAt(e.X);
-        if (i != sel) { sel = i; Invalidate(); if (Changed != null) Changed(this, EventArgs.Empty); }
+        if (e.Button == MouseButtons.Left)
+        {
+            int i = IndexAt(e.X);
+            if (i != sel) { sel = i; Invalidate(); if (Changed != null) Changed(this, EventArgs.Empty); }
+        }
         base.OnMouseDown(e);
     }
 
@@ -162,12 +165,34 @@ class Slider : FlatControl
         if (v != val) { val = v; Invalidate(); if (Changed != null) Changed(this, EventArgs.Empty); }
     }
 
-    protected override void OnMouseDown(MouseEventArgs e) { drag = true; SetFromX(e.X); base.OnMouseDown(e); }
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left) { drag = true; SetFromX(e.X); }
+        base.OnMouseDown(e);
+    }
     protected override void OnMouseMove(MouseEventArgs e) { if (drag) SetFromX(e.X); base.OnMouseMove(e); }
-    protected override void OnMouseUp(MouseEventArgs e) { drag = false; Invalidate(); base.OnMouseUp(e); }
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left) EndDrag();
+        base.OnMouseUp(e);
+    }
+
+    protected override void OnMouseCaptureChanged(EventArgs e)
+    {
+        base.OnMouseCaptureChanged(e);
+        if (!Capture) EndDrag();
+    }
+
+    void EndDrag()
+    {
+        if (!drag) return;
+        drag = false;
+        Invalidate();
+    }
+
     protected override void OnMouseWheel(MouseEventArgs e)
     {
-        int v = Math.Max(Min, Math.Min(Max, val + (e.Delta > 0 ? Step : -Step)));
+        int v = Math.Max(Min, Math.Min(Max, val + Math.Sign(e.Delta) * Step));
         if (v != val) { val = v; Invalidate(); if (Changed != null) Changed(this, EventArgs.Empty); }
         base.OnMouseWheel(e);
     }
@@ -207,7 +232,7 @@ class Swatches : FlatControl
     protected override void OnMouseDown(MouseEventArgs e)
     {
         int i = (e.X - Ui.S(3)) / (D + Gap);
-        if (i >= 0 && i < Presets.Length)
+        if (e.Button == MouseButtons.Left && i >= 0 && i < Presets.Length)
         {
             Selected = Presets[i];
             Invalidate();

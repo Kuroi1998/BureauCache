@@ -3,16 +3,21 @@ using System;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 
 // =====================================================================
 //  Recherche floue et calculatrice
 // =====================================================================
 static class Search
 {
+    static readonly Regex InvalidUnicode = new Regex(@"[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]|[\uFFFE\uFFFF]");
+
+    public static string ReplaceInvalidUnicode(string s) { return InvalidUnicode.Replace(s, "\uFFFD"); }
+
     public static string Norm(string s)
     {
         if (string.IsNullOrEmpty(s)) return "";
-        string d = s.Normalize(NormalizationForm.FormD);
+        string d = ReplaceInvalidUnicode(s).Normalize(NormalizationForm.FormD);
         StringBuilder sb = new StringBuilder(d.Length);
         bool space = false;
         foreach (char c in d)
@@ -84,8 +89,9 @@ static class Search
             foreach (string w in words.Concat(new[] { nc }))
                 for (int len = qc.Length - 1; len <= qc.Length + 1; len++)
                 {
-                    if (len <= 0) continue;
-                    int d = Osa(qc, w.Substring(0, Math.Min(len, w.Length)));
+                    int prefixLength = Math.Min(len, w.Length);
+                    if (Math.Abs(qc.Length - prefixLength) > tol) continue;
+                    int d = Osa(qc, w.Substring(0, prefixLength));
                     if (d < best) best = d;
                 }
             if (best <= tol) return 350 - best * 30;

@@ -78,12 +78,19 @@ static class Settings
     {
         RefreshSystemTheme();
         if (!File.Exists(path)) { FirstRun = true; return false; }
-        if (new FileInfo(path).Length > MaxFileSize) return false; // fichier anormal : on l'ignore
         bool hasThemeMode = false;
         string oldDark = null;
         try
         {
-            foreach (string line in File.ReadAllLines(path))
+            string[] lines;
+            using (var stream = File.OpenRead(path))
+            {
+                if (stream.Length > MaxFileSize) return false;
+                using (var reader = new StreamReader(stream))
+                    lines = reader.ReadToEnd().Split('\n');
+            }
+            if (!lines.Any(line => line.Trim() == "HideIcons=0" || line.Trim() == "HideIcons=1")) return false;
+            foreach (string line in lines)
             {
                 int i = line.IndexOf('=');
                 if (i <= 0) continue;
@@ -131,9 +138,9 @@ static class Settings
                     case "WebEngine": if (int.TryParse(v, out n)) WebEngine = n; break;
                     case "NewDays": if (int.TryParse(v, out n)) NewDays = n; break;
                     case "ArchiveDays": if (int.TryParse(v, out n)) ArchiveDays = n; break;
-                    case "LastUpdateCheck": if (long.TryParse(v, out ln)) LastUpdateCheck = ln; break;
+                    case "LastUpdateCheck": if (long.TryParse(v, out ln) && ln >= 0 && ln <= DateTime.Now.Ticks) LastUpdateCheck = ln; break;
                     case "LastArchive": if (long.TryParse(v, out ln)) LastArchive = ln; break;
-                    case "ArchiveName": if (v.Length > 0 && v.IndexOfAny(Path.GetInvalidFileNameChars()) < 0) ArchiveName = v; break;
+                    case "ArchiveName": if (FileOps.IsValidName(v)) ArchiveName = v; break;
                     case "UpdateRepo": UpdateRepo = v; break;
                     case "Accent": Accent = ParseColor(v, Accent); break;
                     case "Favorites": Favorites = SplitList(v); break;
@@ -181,7 +188,7 @@ static class Settings
         Language = Math.Max(0, Math.Min(2, Language));
         WebEngine = Math.Max(0, Math.Min(3, WebEngine));
         if (NewDays < 1) NewDays = 3;
-        if (ArchiveDays < 7) ArchiveDays = 60;
+        if (ArchiveDays < 7 || ArchiveDays > 36500) ArchiveDays = 60;
         return true;
     }
 
@@ -192,13 +199,18 @@ static class Settings
     // fichier temporaire puis remplacement, pour ne jamais laisser un fichier à moitié écrit.
     static System.Windows.Forms.Timer saveTimer;
     static SynchronizationContext ui;
+    static int uiThreadId;
 
-    public static void AttachToUi() { ui = SynchronizationContext.Current; }
+    public static void AttachToUi()
+    {
+        uiThreadId = Thread.CurrentThread.ManagedThreadId;
+        ui = SynchronizationContext.Current;
+    }
 
     public static void SaveSoon()
     {
         if (ui == null) { Save(); return; }
-        if (SynchronizationContext.Current != ui) { ui.Post(_ => SaveSoon(), null); return; }
+        if (Thread.CurrentThread.ManagedThreadId != uiThreadId) { ui.Post(_ => SaveSoon(), null); return; }
         if (saveTimer == null)
         {
             saveTimer = new System.Windows.Forms.Timer { Interval = 400 };
@@ -218,25 +230,24 @@ static class Settings
         if (saveTimer != null) saveTimer.Stop();
     }
 
-    public static void Save()
+    public static bool Save()
     {
+        string tmp = null;
         try
         {
             Directory.CreateDirectory(Dir);
-            string tmp = FilePath + ".tmp";
+            tmp = Path.Combine(Dir, Guid.NewGuid().ToString("N") + ".tmp");
             File.WriteAllLines(tmp, Serialize(), new UTF8Encoding(false));
-            try
-            {
-                if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
-                else File.Move(tmp, FilePath);
-            }
-            catch
-            {
-                File.Copy(tmp, FilePath, true);
-                File.Delete(tmp);
-            }
+            if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
+            else File.Move(tmp, FilePath);
+            return true;
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError("BureauCache settings: " + ex.Message);
+            return false;
+        }
+        finally { if (tmp != null) try { File.Delete(tmp); } catch { } }
     }
 
     static string[] Serialize()

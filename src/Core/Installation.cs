@@ -108,7 +108,10 @@ static class Installer
         try { Startup.Set(false); } catch { }
         try { File.Delete(StartMenuLnk); } catch { }
         try { Registry.CurrentUser.DeleteSubKeyTree(UninstKey, false); } catch { }
-        try { if (Directory.Exists(Settings.Dir)) Directory.Delete(Settings.Dir, true); } catch { }
+        PanelForm.RecycleLeftovers();
+        try { File.Delete(Settings.FilePath); } catch { }
+        try { Directory.Delete(PanelForm.StashRoot); } catch { }
+        try { Directory.Delete(Settings.Dir); } catch { }
         // Garde-fou : on ne supprime que le dossier d'installation attendu
         string expected = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "BureauCache");
         if (Directory.Exists(Dir) && string.Equals(Path.GetFullPath(Dir).TrimEnd('\\'), expected.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))

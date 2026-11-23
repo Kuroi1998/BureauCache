@@ -38,7 +38,7 @@ partial class PanelForm
         else if (h == 4 && e.Button == MouseButtons.Left) { HidePanel(); try { ShellUtil.Open("explorer.exe", "shell:RecycleBinFolder"); } catch { } }
         else if (h == 4 && e.Button == MouseButtons.Right)
         {
-            menu.Items.Clear();
+            Menus.Clear(menu.Items);
             menu.Items.Add(Menus.Item(L.T("Ouvrir la corbeille", "Open Recycle Bin"), Glyphs.Open, () => { HidePanel(); ShellUtil.Open("explorer.exe", "shell:RecycleBinFolder"); }));
             ToolStripMenuItem empty = Menus.Item(L.T("Vider la corbeille", "Empty Recycle Bin"), Glyphs.Delete, () =>
             {
@@ -50,7 +50,7 @@ partial class PanelForm
             });
             empty.Enabled = binCount > 0;
             menu.Items.Add(empty);
-            menu.Show(this, e.Location);
+            ShowPanelMenu(this, e.Location);
         }
         else if (rcSearch.Contains(e.Location)) search.Focus();
     }
@@ -79,12 +79,13 @@ partial class PanelForm
     {
         Keys k = keyData & Keys.KeyCode;
         bool ctrl = (keyData & Keys.Control) != 0, shift = (keyData & Keys.Shift) != 0, alt = (keyData & Keys.Alt) != 0;
-        DesktopItem sel = View.Selected;
+        DesktopItem sel = View.Help == null ? View.Selected : null;
         if (alt) return base.ProcessCmdKey(ref msg, keyData);
         if (k == Keys.Tab && !ctrl) { View.JumpGroup(shift ? -1 : 1); return true; }
         if (k == Keys.F1) { search.Text = search.Text == "?" ? "" : "?"; search.SelectionStart = search.Text.Length; return true; }
         if (ctrl && !shift && ((k >= Keys.D1 && k <= Keys.D9) || (k >= Keys.NumPad1 && k <= Keys.NumPad9)))
         {
+            if (View.Help != null) return true;
             int n = k >= Keys.NumPad1 ? k - Keys.NumPad1 : k - Keys.D1;
             List<DesktopItem> favs = Settings.Favorites.Select(f => All.FirstOrDefault(i => string.Equals(i.Key, f, StringComparison.OrdinalIgnoreCase)))
                                                        .Where(i => i != null).ToList();
@@ -143,7 +144,12 @@ partial class PanelForm
     {
         base.OnDeactivate(e);
         if (View.ShowNumbers) { View.ShowNumbers = false; View.Invalidate(); }
-        if (!Busy && !menu.Visible) HidePanel();
+        if (Busy || MenuOpen || !IsOpen || !IsHandleCreated) return;
+        BeginInvoke(new Action(() =>
+        {
+            if (IsOpen && !Busy && !MenuOpen && !ContainsFocus &&
+                !preview.ContainsFocus && !Bounds.Contains(Cursor.Position)) HidePanel();
+        }));
     }
 
     // ---------- Épinglage (barre d'application Windows qui réserve la place) ----------
