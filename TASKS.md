@@ -49,6 +49,8 @@ Les autres risques ouverts (R-05 à R-18) restent dans [AUDIT_QA_BureauCache.md]
 
 - 2026-11-23 · Toi · Clés créées avec `creer-cles.ps1` (2 × RSA-3072, `principale.cle` dans `%USERPROFILE%\BureauCache-cles`, `secours.cle` retirée du PC).
 - 2026-11-23 · Claude · Contrôle : 2 clés publiques distinctes de 3072 bits dans `UpdateKeys.cs`, aucune partie privée ; suite complète : 186 réussis.
+- 2026-11-23 · ChatGPT · Revue de sécurité de T-005 et T-006 : 13 remarques et 5 tests.
+- 2026-11-23 · Claude · Tri de la revue (QA-21). L'exe de la CI ne peut pas être comparé à une compilation locale (81 000 octets d'écart mesurés sur la 3.3). **6 défauts corrigés** : signature d'une compilation locale (choix du chef de projet), confirmation limitée au processus à l'essai, `.old` gardé lors d'une seconde mise à jour, essai sans marqueur, retour arrière interrompu, BOM. **Risques résiduels consignés** : R-24 (transition depuis la 3.3) et R-25 (scripts locaux, exe lancé à la main, dépôt personnalisé, écriture locale, blocage, mémoire). Suite : 192 réussis.
 
 **Reste pour T-005 :** publier une première version signée (3.4) avec `publier.ps1` puis `outils\signer-version.ps1`, et vérifier qu'une installation 3.4 refuse une version non signée (essai sur un dépôt de test).
 

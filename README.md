@@ -66,7 +66,7 @@ Le script met à jour le numéro de version dans `src/Properties/AssemblyInfo.cs
 .\outils\signer-version.ps1 -Version X.Y
 ```
 
-Le script télécharge l'exe du brouillon, contrôle sa version et son empreinte, le signe avec la clé privée (demande du mot de passe), ajoute `BureauCache.exe.sig` puis publie. Les installations existantes proposeront alors la version, et ne l'installeront que si la signature est valide. La clé privée ne passe jamais par GitHub : un compte GitHub piraté ne suffit donc pas à diffuser une fausse mise à jour. Les clés se créent une seule fois avec `outils\creer-cles.ps1`.
+Le script vérifie que le tag de GitHub est bien le tag local et affiche les changements depuis la version précédente, en signalant les fichiers sensibles. Il **recompile ensuite le tag sur ton PC**, sans exécuter aucun script du dépôt, remplace l'exe du brouillon par cette compilation, la signe avec la clé privée (demande du mot de passe), relit ce que GitHub sert réellement, puis publie. Les installations existantes proposeront alors la version, et ne l'installeront que si la signature est valide. La clé privée ne passe jamais par GitHub : un compte GitHub piraté ne suffit donc pas à diffuser une fausse mise à jour. Les clés se créent une seule fois avec `outils\creer-cles.ps1`.
 
 ## Licence
 

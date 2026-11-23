@@ -214,7 +214,8 @@ static class Updater
     {
         if (sha256 == null || sha256.Length != 32 || string.IsNullOrEmpty(signatureText)) return false;
         byte[] signature;
-        try { signature = Convert.FromBase64String(signatureText.Trim()); }
+        // Un BOM ajouté par un éditeur ne change pas la signature : il est ignoré (revue QA-21)
+        try { signature = Convert.FromBase64String(signatureText.Trim().Trim('﻿').Trim()); }
         catch (FormatException) { return false; }
         string oid = CryptoConfig.MapNameToOID("SHA256");
         foreach (string key in publicKeys)
@@ -279,7 +280,11 @@ static class Updater
 
     internal static void ReplaceExecutable(string staged, string exe)
     {
-        string backup = exe + ".old";
+        // Pendant un essai, « .old » est la dernière version sûre : la version à l'essai, remplacée à son tour,
+        // part en « .replaced » (effacée au démarrage suivant) au lieu d'écraser « .old » (revue QA-21)
+        bool trialRunning = File.Exists(exe + ".trial") && File.Exists(exe + ".old");
+        string backup = trialRunning ? exe + ".replaced" : exe + ".old";
+        TryDelete(exe + ".replaced");
         try { File.Replace(staged, exe, backup); }
         catch
         {
@@ -297,9 +302,13 @@ static class Updater
 
     internal enum StartState { Normal, Trial, RolledBack }
 
+    // Vrai si ce processus a commencé un essai : lui seul peut le confirmer (pas l'ancienne version encore en cours)
+    public static bool TrialStarted;
+
     internal static StartState BeginStart(string exe)
     {
         string old = exe + ".old", marker = exe + ".trial";
+        TryDelete(exe + ".replaced");
         if (!File.Exists(old))
         {
             TryDelete(marker);
@@ -311,28 +320,36 @@ static class Updater
             try { RollBack(exe); return StartState.RolledBack; }
             catch { return StartState.Trial; }   // retour impossible : on retente la nouvelle version
         }
-        try { File.WriteAllText(marker, DateTime.Now.ToString("o")); } catch { }
+        // Sans marqueur, un plantage ne serait pas détecté : pas d'essai, « .old » est simplement gardé (revue QA-21)
+        try { File.WriteAllText(marker, DateTime.Now.ToString("o")); }
+        catch { return StartState.Normal; }
         return StartState.Trial;
     }
 
-    // L'exe en cours d'exécution peut être renommé (pas supprimé) : la version fautive devient « .bad »
+    // L'exe en cours d'exécution peut être renommé (pas supprimé) : la version fautive devient « .bad ».
+    // Reprend aussi un retour interrompu entre les deux déplacements (exe déjà parti en « .bad »).
     internal static void RollBack(string exe)
     {
         string old = exe + ".old", bad = exe + ".bad";
-        TryDelete(bad);
-        File.Move(exe, bad);
+        if (File.Exists(exe))
+        {
+            TryDelete(bad);
+            File.Move(exe, bad);
+        }
         try { File.Move(old, exe); }
         catch
         {
-            File.Move(bad, exe);
+            if (!File.Exists(exe) && File.Exists(bad)) File.Move(bad, exe);
             throw;
         }
         TryDelete(exe + ".trial");
     }
 
-    // Démarrage réussi : l'ancienne version et le marqueur d'essai ne servent plus
+    // Démarrage réussi : l'ancienne version et le marqueur d'essai ne servent plus. Sans marqueur, il n'y a pas
+    // d'essai en cours (par exemple une mise à jour vient de remplacer l'exe) : on ne touche à rien.
     internal static void ConfirmStart(string exe)
     {
+        if (!File.Exists(exe + ".trial")) return;
         TryDelete(exe + ".old");
         TryDelete(exe + ".trial");
     }

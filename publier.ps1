@@ -3,8 +3,8 @@
 # 1. Ajoute d'abord une section « ## 3.3 — Titre » en haut de CHANGELOG.md
 # 2. Le script met la version dans src\Properties\AssemblyInfo.cs, compile, crée le commit et le tag, puis pousse.
 #    GitHub Actions compile ensuite le programme et crée la version en brouillon.
-# 3. Une fois la compilation terminée, lance .\outils\signer-version.ps1 -Version 3.3 : il signe l'exe avec ta clé
-#    et publie la version (les installations la proposeront alors automatiquement).
+# 3. Une fois la compilation terminée, lance .\outils\signer-version.ps1 -Version 3.3 : il recompile le tag sur ce PC,
+#    signe cette compilation avec ta clé et publie la version (les installations la proposeront alors automatiquement).
 param([Parameter(Mandatory = $true)][string]$Version)
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot

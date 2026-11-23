@@ -41,7 +41,9 @@ static class Program
             using (EventWaitHandle show = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEvent))
             using (EventWaitHandle quit = new EventWaitHandle(false, EventResetMode.AutoReset, QuitEvent))
             {
-                if (Updater.BeginStart(Application.ExecutablePath) == Updater.StartState.RolledBack)
+                Updater.StartState start = Updater.BeginStart(Application.ExecutablePath);
+                Updater.TrialStarted = start == Updater.StartState.Trial;
+                if (start == Updater.StartState.RolledBack)
                 {
                     // L'ancienne version est revenue à la place de l'exe : on la relance, une fois le mutex libéré
                     Dialogs.Warn(null, L.T("La nouvelle version de BureauCache n'a pas réussi à démarrer.\nLa version précédente a été restaurée.",
