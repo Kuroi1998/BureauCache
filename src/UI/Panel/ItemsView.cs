@@ -97,13 +97,21 @@ partial class ItemsView : Control
     public void SetGroups(List<Group> g, bool keepScroll)
     {
         string selKey = Selected != null ? Selected.Key : null;
+        string hoverKey = hover >= 0 && hover < rows.Count && !rows[hover].IsHeader ? rows[hover].Item.Key : null;
         groups = g;
         LayoutRows();
         if (!keepScroll) { scroll = scrollTarget = 0; }
         Clamp();
         sel = -1;
-        hover = -1;
-        EndHover();
+        // Un rechargement qui laisse le même élément sous le pointeur garde son survol et son aperçu (R-18)
+        int kept = -1;
+        if (keepScroll && hoverKey != null)
+        {
+            int r = RowAt(PointToClient(Cursor.Position));
+            if (r >= 0 && r < rows.Count && !rows[r].IsHeader && rows[r].Item.Key == hoverKey) kept = r;
+        }
+        hover = kept;
+        if (kept < 0) EndHover();
         if (keepScroll && selKey != null)
             for (int i = 0; i < rows.Count; i++) if (!rows[i].IsHeader && rows[i].Item.Key == selKey) { sel = i; break; }
         Invalidate();

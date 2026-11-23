@@ -134,7 +134,13 @@ static class Updater
             result.SigUrl = s.Success ? s.Groups[1].Value : null;
             result.Notes = b.Success ? Unescape(b.Groups[1].Value) : null;
             bool signed = result.SigUrl != null || !IsOfficial(result.Repository);
-            result.Available = IsNewer(result.Version, Installer.Version) && result.Url != null && result.ShaUrl != null && signed;
+            bool newer = IsNewer(result.Version, Installer.Version);
+            result.Available = newer && result.Url != null && result.ShaUrl != null && signed;
+            // Version plus récente publiée sans ses fichiers d'installation : ne pas annoncer « à jour » (R-06)
+            if (newer && !result.Available)
+                result.Error = L.T("la version " + result.Version + " est publiée, mais son installation n'est pas encore disponible.",
+                                   "version " + result.Version + " is published, but it can't be installed yet.",
+                                   "la versión " + result.Version + " está publicada, pero aún no se puede instalar.");
         }
         catch (Exception ex) { result.Error = ex.Message; }
         return result;

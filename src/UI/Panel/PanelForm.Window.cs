@@ -61,6 +61,7 @@ partial class PanelForm
         {
             uint affinity = Settings.HidePanelInCapture ? Native.WDA_EXCLUDEFROMCAPTURE : Native.WDA_NONE;
             bool applied = Native.SetWindowDisplayAffinity(Handle, affinity);
+            if (!applied) System.Diagnostics.Trace.TraceWarning("BureauCache: SetWindowDisplayAffinity refused, error " + System.Runtime.InteropServices.Marshal.GetLastWin32Error());
             excludedFromCapture = applied && Settings.HidePanelInCapture && Native.CaptureExclusionSupported;
         }
         liveBlurActive = excludedFromCapture && Settings.Glass && Settings.LiveBlur && !appbar;

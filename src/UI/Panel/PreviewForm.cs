@@ -13,7 +13,10 @@ class PreviewForm : Form
 {
     Bitmap img, placeholder;
     string title, line1, line2;
-    int token;
+    volatile int token;
+    // Miniatures du shell : au plus deux demandes à la fois, et une demande dépassée par un nouveau survol
+    // n'est pas lancée (R-13)
+    static readonly System.Threading.SemaphoreSlim thumbSlots = new System.Threading.SemaphoreSlim(2);
     readonly Font fTitle = Ui.Font("Segoe UI Semibold", 10.5f);
     readonly Font fLine = Ui.Font("Segoe UI", 9f);
 
@@ -111,9 +114,16 @@ class PreviewForm : Form
 
             bool thumbs = it.HasPath;
             string parsing = thumbs ? it.Target : it.Kind == ItemKind.App ? it.Args : null;
-            if (string.IsNullOrEmpty(parsing)) return;
-            Bitmap b = thumbs ? Icons.ShellImage(parsing, px, true) : null;
-            if (b == null) b = Icons.ShellImage(parsing, px, false);
+            if (string.IsNullOrEmpty(parsing) || my != token) return;
+            Bitmap b;
+            thumbSlots.Wait();
+            try
+            {
+                if (my != token) return;
+                b = thumbs ? Icons.ShellImage(parsing, px, true) : null;
+                if (b == null && my == token) b = Icons.ShellImage(parsing, px, false);
+            }
+            finally { thumbSlots.Release(); }
             try
             {
                 BeginInvoke(new Action(() =>

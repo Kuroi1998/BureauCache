@@ -7,6 +7,12 @@
 - Panneau épinglé : l'espace réservé à l'écran suit la largeur ajustée à la souris. Si Windows refuse l'épinglage, un message le dit.
 - L'effet verre s'applique tout de suite quand on l'active panneau ouvert.
 - La calculatrice reconnaît « 1 + ,5 ». Les erreurs de téléchargement s'affichent dans la langue choisie.
+- Les délais d'ouverture et de fermeture du panneau respectent la durée réglée, même quand Windows est chargé.
+- Quand une version plus récente est publiée mais pas encore installable, BureauCache le dit au lieu d'annoncer « Tu as la dernière version ».
+- La désinstallation indique ce qui n'a pas pu être supprimé.
+- L'écran choisi pour le bord est reconnu même après avoir débranché ou réordonné les écrans.
+- La visite guidée reste utilisable sur un petit écran avec un zoom élevé.
+- L'aperçu au survol ne disparaît plus pendant un rechargement, et la page Organisation ne fige plus la fenêtre pendant l'analyse du bureau.
 
 ## 3.7.1 — Espagnol et stabilisation du panneau
 

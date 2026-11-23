@@ -46,6 +46,10 @@ class WelcomeForm : Form
     {
         this.onFinish = onFinish;
         W = S(620); H = S(580); IllusH = S(220);
+        // Petite zone de travail (zoom de 150 % sur un écran de 768 px) : l'illustration rétrécit pour que les
+        // boutons du bas restent visibles (R-17)
+        int over = H + S(40) - Screen.FromPoint(Cursor.Position).WorkingArea.Height;
+        if (over > 0) { int cut = Math.Min(over, IllusH - S(80)); IllusH -= cut; H -= cut; }
         Text = "BureauCache";
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false; MinimizeBox = false;

@@ -1,5 +1,6 @@
 ﻿// BureauCache — SettingsForm (partie 4)
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -19,7 +20,7 @@ partial class SettingsForm
         sLang.Selected = Settings.Language;
         sSide.Selected = Settings.RightSide ? 1 : 0;
         sZone.Selected = Settings.EdgeZone;
-        sScreen.Selected = Settings.ScreenIdx + 1;
+        sScreen.Selected = Math.Max(0, Settings.ChosenScreen(Screen.AllScreens) + 1);
         slDelay.Value = Settings.Delay;
         tAuto.Checked = Settings.AutoClose;
         tFull.Checked = Settings.NoFullscreen;
@@ -99,11 +100,31 @@ partial class SettingsForm
             lUpdate.Text = Updater.RepoValid ? T("Clique pour vérifier.", "Click to check.", "Haz clic para comprobar.") : T("Dépôt invalide.", "Invalid repository.", "Repositorio no válido.");
     }
 
+    int archiveCount;
+
+    // Le parcours du bureau (jusqu'à 5 000 entrées par dossier, OneDrive à la demande) se fait sur un fil de
+    // fond, à partir d'une copie des favoris et de l'historique ; seul le dernier décompte demandé s'affiche (R-23)
     void UpdateArchiveText()
     {
-        int n = Archiver.Candidates().Count;
-        lArchive.Text = n == 0 ? T("Rien à ranger pour le moment.", "Nothing to tidy up right now.", "Por ahora no hay nada que archivar.")
-                               : n + T(" élément(s) inutilisé(s) depuis " + Settings.ArchiveDays + " jours.", " item(s) unused for " + Settings.ArchiveDays + " days.", " elemento(s) sin usar durante " + Settings.ArchiveDays + " días.");
+        int my = ++archiveCount;
+        int days = Settings.ArchiveDays;
+        var favorites = new HashSet<string>(Settings.Favorites, StringComparer.OrdinalIgnoreCase);
+        var usage = new Dictionary<string, long[]>(Settings.Usage, StringComparer.OrdinalIgnoreCase);
+        lArchive.Text = T("Analyse du bureau…", "Checking the desktop…", "Analizando el escritorio…");
+        Background.Run(() =>
+        {
+            int n = Archiver.CountCandidates(favorites, usage);
+            try
+            {
+                BeginInvoke(new Action(() =>
+                {
+                    if (my != archiveCount || IsDisposed) return;
+                    lArchive.Text = n == 0 ? T("Rien à ranger pour le moment.", "Nothing to tidy up right now.", "Por ahora no hay nada que archivar.")
+                        : n + T(" élément(s) inutilisé(s) depuis " + days + " jours.", " item(s) unused for " + days + " days.", " elemento(s) sin usar durante " + days + " días.");
+                }));
+            }
+            catch { }
+        });
     }
 
     void OnSettingsChanged()

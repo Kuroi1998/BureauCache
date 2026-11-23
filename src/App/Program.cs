@@ -35,7 +35,14 @@ static class Program
         {
             if (!created)
             {
-                try { using (EventWaitHandle show = EventWaitHandle.OpenExisting(ShowEvent)) show.Set(); } catch { }
+                // L'instance principale crée le signal juste après le mutex : on l'attend jusqu'à 5 s, sinon la
+                // demande d'affichage serait perdue lors de deux lancements presque simultanés (R-15)
+                for (int i = 0; i < 50; i++)
+                {
+                    try { using (EventWaitHandle show = EventWaitHandle.OpenExisting(ShowEvent)) show.Set(); return; }
+                    catch (WaitHandleCannotBeOpenedException) { Thread.Sleep(100); }
+                    catch { return; }
+                }
                 return;
             }
             using (EventWaitHandle show = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEvent))
@@ -101,7 +108,6 @@ static class Program
                                    "BureauCache is still running. Close it before trying to uninstall again.", "BureauCache sigue en ejecución. Ciérralo antes de volver a intentar desinstalarlo."));
             return;
         }
-        Installer.Uninstall();
-        Dialogs.Info(null, L.T("BureauCache a été désinstallé.", "BureauCache has been uninstalled.", "BureauCache se ha desinstalado."));
+        Installer.ReportUninstall(Installer.Uninstall());
     }
 }

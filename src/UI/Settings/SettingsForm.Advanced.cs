@@ -96,7 +96,7 @@ partial class SettingsForm
             d.FileName = T("BureauCache-reglages", "BureauCache-settings", "BureauCache-configuracion") + ".ini";
             d.Filter = T("Réglages BureauCache", "BureauCache settings", "Configuración de BureauCache") + " (*.ini)|*.ini";
             if (d.ShowDialog(this) != DialogResult.OK) return;
-            try { File.Copy(Settings.FilePath, d.FileName, true); Dialogs.Info(this, T("Réglages exportés.", "Settings exported.", "Configuración exportada.")); }
+            try { Settings.Flush(); FileOps.CopyFile(Settings.FilePath, d.FileName); Dialogs.Info(this, T("Réglages exportés.", "Settings exported.", "Configuración exportada.")); }
             catch (Exception ex) { Dialogs.Info(this, ex.Message); }
         }
     }

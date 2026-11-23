@@ -58,11 +58,12 @@ partial class SettingsForm
         Row(T("Bord de l'écran", "Screen edge", "Borde de la pantalla"), null, sSide, null);
         sZone = NewSeg(v => Settings.EdgeZone = v, T("Tout", "All", "Todo"), T("Haut", "Top", "Arriba"), T("Milieu", "Middle", "Centro"), T("Bas", "Bottom", "Abajo"));
         Row(T("Partie du bord", "Part of the edge", "Parte del borde"), T("Zone du bord qui ouvre la liste.", "Part of the edge that opens the list.", "Zona del borde que abre la lista."), sZone, null);
-        int n = Screen.AllScreens.Length;
+        Screen[] all = Screen.AllScreens;
+        int n = all.Length;
         string[] scr = new string[n + 1];
         scr[0] = T("Tous", "All", "Todas");
         for (int i = 0; i < n; i++) scr[i + 1] = (i + 1).ToString();
-        sScreen = NewSeg(v => Settings.ScreenIdx = v - 1, scr);
+        sScreen = NewSeg(v => { Settings.ScreenIdx = v - 1; Settings.ScreenName = v > 0 && v <= all.Length ? all[v - 1].DeviceName : ""; }, scr);
         Row(T("Écran", "Screen", "Pantalla"), n > 1 ? T("Écran sur lequel le bord est actif.", "Screen where the edge is active.", "Pantalla en la que está activo el borde.") : T("Un seul écran détecté.", "Only one screen detected.", "Se ha detectado una sola pantalla."), sScreen, null);
         slDelay = new Slider(0, 1000, 20);
         lDelay = ValueLabel();
@@ -97,7 +98,15 @@ partial class SettingsForm
             "Actualise le fond quand l'effet verre et le masquage en capture sont activés et que le panneau est détaché.",
             "Updates the background when glass and capture hiding are enabled and the panel is unpinned.",
             "Actualiza el fondo si el efecto de cristal y la ocultación en capturas están activados y el panel está desfijado."), tLive, null);
-        tCapture = NewToggle(v => Settings.HidePanelInCapture = v);
+        tCapture = NewToggle(v =>
+        {
+            Settings.HidePanelInCapture = v;
+            // Avant Windows 10 2004, Windows ne sait pas retirer une fenêtre des captures : il la remplace par du noir
+            if (v && !loading && !Native.CaptureExclusionSupported)
+                Dialogs.Info(this, T("Sur cette version de Windows, le panneau apparaîtra en noir dans les captures au lieu d'en être absent (Windows 10 version 2004 ou plus récente requise).",
+                                     "On this version of Windows, the panel will show as black in captures instead of being hidden (Windows 10 version 2004 or later is required).",
+                                     "En esta versión de Windows, el panel aparecerá en negro en las capturas en lugar de ocultarse (se requiere Windows 10 versión 2004 o posterior)."));
+        });
         Row(T("Masquer le panneau dans les captures", "Hide panel from capture", "Ocultar el panel en capturas"), T(
             "Désactive ce réglage pour montrer le panneau en partageant l'écran entier. Le flou prend alors une image du fond à l'ouverture.",
             "Turn this off to show the panel when sharing your entire screen. The blur then uses a snapshot taken when the panel opens.",

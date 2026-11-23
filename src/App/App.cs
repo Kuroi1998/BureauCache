@@ -43,7 +43,9 @@ partial class App : ApplicationContext
     readonly HotkeyWindow hotkey = new HotkeyWindow();
     ContextMenuStrip trayMenu;
     IntPtr listView = IntPtr.Zero;
-    int edgeTicks, outsideTicks, pollCount;
+    int pollCount;
+    readonly System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+    long edgeSince = -1, outsideSince = -1, nextArchive = 60000, nextUpdateCheck = 30000;
     bool requireLeave, wasOpen, hotkeyOk = true, autoCloseArmed;
     int lastLanguage;
     Action balloonAction;
@@ -193,7 +195,7 @@ partial class App : ApplicationContext
     void OpenManually(Screen scr)
     {
         autoCloseArmed = false;
-        outsideTicks = 0;
+        outsideSince = -1;
         panel.ShowPanel(scr);
     }
 
@@ -216,7 +218,8 @@ partial class App : ApplicationContext
     void DoUninstall()
     {
         if (installingUpdate || !Dialogs.Ask(settingsForm, Installer.UninstallQuestion)) return;
-        Installer.Uninstall();
+        List<string> left = Installer.Uninstall();
+        if (left.Count > 0) Installer.ReportUninstall(left);
         ExitThread();
     }
 
@@ -295,8 +298,8 @@ partial class App : ApplicationContext
     Screen TargetScreen(Point p)
     {
         Screen[] all = screens;
-        if (Settings.ScreenIdx >= 0 && Settings.ScreenIdx < all.Length) return all[Settings.ScreenIdx];
-        return Screen.FromPoint(p);
+        int i = Settings.ChosenScreen(all);
+        return i >= 0 ? all[i] : Screen.FromPoint(p);
     }
 
     void ApplyIconVisibility()
@@ -318,7 +321,8 @@ partial class App : ApplicationContext
     {
         scr = Screen.FromPoint(p);
         Screen[] all = screens;
-        if (Settings.ScreenIdx >= 0 && Settings.ScreenIdx < all.Length && !all[Settings.ScreenIdx].Bounds.Contains(p)) return false;
+        int chosen = Settings.ChosenScreen(all);
+        if (chosen >= 0 && !all[chosen].Bounds.Contains(p)) return false;
         Rectangle b = scr.Bounds;
         bool edge = Settings.RightSide
             ? p.X >= b.Right - 1 && !ScreenExistsAt(new Point(p.X + 1, p.Y))
@@ -334,13 +338,23 @@ partial class App : ApplicationContext
     void Poll(object sender, EventArgs e)
     {
         pollCount++;
-        if (pollCount >= 500) ConfirmTrial(); // 10 s de fonctionnement : mise à jour confirmée
+        // Les échéances se mesurent en temps écoulé, pas en ticks : le minuteur de Windows Forms tourne
+        // plus lentement que demandé (granularité de 15,6 ms, interface chargée) (R-11)
+        long now = clock.ElapsedMilliseconds;
+        if (now >= 10000) ConfirmTrial(); // 10 s de fonctionnement : mise à jour confirmée
         if (pollCount % 50 == 0) ApplyIconVisibility();
-        if (pollCount % 250 == 0) RefreshTray(); // toutes les 5 s : point « nouveaux fichiers » sur l'icône
+        if (pollCount % 250 == 0) RefreshTray(); // point « nouveaux fichiers » sur l'icône
         if (pollCount % 25 == 0 && panel.Dirty && !panel.Busy) panel.RequestLoad();
-        if (pollCount == 3000 || pollCount % 1080000 == 0 || (archiveDue && pollCount % 3000 == 0))
-            RunArchive();                                                             // 1 min après le démarrage, puis toutes les 6 h (reporté si besoin)
-        if (pollCount == 1500 || pollCount % 180000 == 0) CheckUpdateInBackground();  // 30 s après le démarrage, puis toutes les heures
+        if (now >= nextArchive)
+        {
+            RunArchive();                                   // 1 min après le démarrage, puis toutes les 6 h
+            nextArchive = now + (archiveDue ? 60000L : 6 * 3600000L);   // reporté : nouvel essai dans 1 min
+        }
+        if (now >= nextUpdateCheck)
+        {
+            nextUpdateCheck = now + 3600000L;               // 30 s après le démarrage, puis toutes les heures
+            CheckUpdateInBackground();
+        }
 
         Point p = Cursor.Position;
         bool open = panel.IsOpen;
@@ -352,14 +366,14 @@ partial class App : ApplicationContext
 
         if (!open)
         {
-            if (!atEdge || requireLeave) { edgeTicks = 0; return; }
-            edgeTicks++;
-            int needed = (Settings.Delay + (Control.MouseButtons != MouseButtons.None ? 350 : 0)) / PollMs + 1;
-            if (edgeTicks >= needed)
+            if (!atEdge || requireLeave) { edgeSince = -1; return; }
+            if (edgeSince < 0) edgeSince = now;
+            int needed = Settings.Delay + (Control.MouseButtons != MouseButtons.None ? 350 : 0);
+            if (now - edgeSince >= needed)
             {
-                edgeTicks = 0;
+                edgeSince = -1;
                 if (Settings.NoFullscreen && Native.ForegroundIsFullscreen()) { requireLeave = true; return; }
-                outsideTicks = 0;
+                outsideSince = -1;
                 autoCloseArmed = true;
                 panel.ShowPanel(scr);
             }
@@ -369,9 +383,9 @@ partial class App : ApplicationContext
             Rectangle r = panel.Bounds;
             r.Inflate(20, 0);
             if (r.Contains(p)) autoCloseArmed = true;
-            if (autoCloseArmed && !r.Contains(p) && !panel.MenuOpen && !panel.Busy) outsideTicks++;
-            else outsideTicks = 0;
-            if (outsideTicks >= 25) { outsideTicks = 0; panel.HidePanel(); }
+            if (autoCloseArmed && !r.Contains(p) && !panel.MenuOpen && !panel.Busy) { if (outsideSince < 0) outsideSince = now; }
+            else outsideSince = -1;
+            if (outsideSince >= 0 && now - outsideSince >= 500) { outsideSince = -1; panel.HidePanel(); }
         }
     }
 

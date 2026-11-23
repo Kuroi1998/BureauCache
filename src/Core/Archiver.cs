@@ -29,17 +29,45 @@ static class Archiver
         return res;
     }
 
+    // Décompte pour la page Organisation, sur un fil de fond (R-23) : favoris et historique sont copiés sur le
+    // fil d'interface avant l'appel, le parcours des dossiers ne lit plus rien des réglages.
+    public static int CountCandidates(HashSet<string> favorites, Dictionary<string, long[]> usage)
+    {
+        DateTime limit = Limit;
+        string[] entries;
+        try { entries = Directory.GetFileSystemEntries(Desk); } catch { return 0; }
+        int n = 0;
+        foreach (string p in entries)
+        {
+            try
+            {
+                if (favorites.Contains(p) || !PassesFilters(p)) continue;
+                long[] u;
+                if (usage.TryGetValue(p, out u) && new DateTime(u[1], DateTimeKind.Local).ToUniversalTime() >= limit) continue;
+                if (ActivityOf(p, limit, MaxScan) == Activity.Old) n++;
+            }
+            catch { }
+        }
+        return n;
+    }
+
+    // Filtres qui ne dépendent pas des réglages : dossier d'archive, éléments cachés ou système, raccourcis
+    static bool PassesFilters(string p)
+    {
+        string name = Path.GetFileName(p);
+        if (string.Equals(p, Folder, StringComparison.OrdinalIgnoreCase)) return false;
+        FileAttributes a = File.GetAttributes(p);
+        if ((a & (FileAttributes.Hidden | FileAttributes.System)) != 0) return false;
+        string ext = Path.GetExtension(p).ToLowerInvariant();
+        return !(ext == ".lnk" || ext == ".url" || name.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase));
+    }
+
     // Vrai si l'élément du bureau peut être rangé : ni exclu, ni utilisé depuis la limite, et ancienneté confirmée
     static bool IsCandidate(string p, DateTime limit)
     {
         try
         {
-            string name = Path.GetFileName(p);
-            if (string.Equals(p, Folder, StringComparison.OrdinalIgnoreCase)) return false;
-            FileAttributes a = File.GetAttributes(p);
-            if ((a & (FileAttributes.Hidden | FileAttributes.System)) != 0) return false;
-            string ext = Path.GetExtension(p).ToLowerInvariant();
-            if (ext == ".lnk" || ext == ".url" || name.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase)) return false;
+            if (!PassesFilters(p)) return false;
             if (Settings.FavIndex(p) >= 0) return false;
             long[] u;
             if (Settings.Usage.TryGetValue(p, out u) && new DateTime(u[1], DateTimeKind.Local).ToUniversalTime() >= limit) return false;
