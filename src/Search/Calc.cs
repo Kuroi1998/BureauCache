@@ -2,6 +2,7 @@
 using System;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
 static class Calc
@@ -22,7 +23,8 @@ static class Calc
         {
             s = s.Trim().ToLowerInvariant();
             if (s.Length == 0 || s.Length > MaxLength) return false;
-            if (s.Contains(",") && !s.Contains(".")) s = s.Replace(',', '.'); else s = s.Replace(",", "");
+            s = NormalizeNumbers(s, L.En);
+            if (s == null) return false;
             s = s.Replace("×", "*").Replace("÷", "/").Replace("**", "^");
             Parser p = new Parser { S = s };
             v = p.Expr();
@@ -32,10 +34,82 @@ static class Calc
         catch { return false; }
     }
 
+    // Groupes de milliers par virgule : « 1,234 », « 12,345,678 » (pas de groupe de tête nul comme « 0,500 »)
+    static readonly Regex CommaGroups = new Regex(@"^[1-9]\d{0,2}(,\d{3})+$");
+
+    // Réécrit chaque nombre de l'expression en notation invariante (chiffres et point décimal).
+    // Accepte le groupement par espace (normale, insécable U+00A0 ou fine U+202F, comme le produit Format
+    // en français) et par virgule (anglais). Renvoie null si un nombre a des séparateurs incohérents.
+    // Ainsi un résultat copié avec Entrée se relit toujours, dans les deux langues.
+    internal static string NormalizeNumbers(string s, bool english)
+    {
+        StringBuilder sb = new StringBuilder(s.Length);
+        int i = 0;
+        while (i < s.Length)
+        {
+            char c = s[i];
+            bool starts = char.IsDigit(c) || ((c == '.' || c == ',') && i + 1 < s.Length && char.IsDigit(s[i + 1]));
+            if (!starts) { sb.Append(c); i++; continue; }
+            StringBuilder raw = new StringBuilder();
+            bool spaced = false, separator = false;
+            while (i < s.Length)
+            {
+                char d = s[i];
+                if (char.IsDigit(d)) raw.Append(d);
+                else if (d == '.' || d == ',') { raw.Append(d); separator = true; }
+                else if (IsGroupSpace(d) && !separator && GroupFollows(s, i + 1)) { raw.Append(' '); spaced = true; }
+                else break;
+                i++;
+            }
+            string number = Number(raw.ToString(), spaced, english);
+            if (number == null) return null;
+            sb.Append(number);
+        }
+        return sb.ToString();
+    }
+
+    static bool IsGroupSpace(char c) { return c == ' ' || c == ' ' || c == ' '; }
+
+    // Un espace ne groupe des milliers que s'il est suivi d'exactement trois chiffres
+    static bool GroupFollows(string s, int k)
+    {
+        if (k + 3 > s.Length) return false;
+        for (int j = k; j < k + 3; j++) if (!char.IsDigit(s[j])) return false;
+        return k + 3 == s.Length || !char.IsDigit(s[k + 3]);
+    }
+
+    static string Number(string raw, bool spaced, bool english)
+    {
+        if (spaced)
+        {
+            if (raw.IndexOf(' ') > 3) return null;          // « 1234 567 » : groupe de tête trop long
+            raw = raw.Replace(" ", "");
+        }
+        int dot = raw.IndexOf('.');
+        if (dot != raw.LastIndexOf('.')) return null;       // plusieurs points
+        int commas = raw.Count(ch => ch == ',');
+        if (commas == 0) return raw;
+        if (spaced && (commas > 1 || dot >= 0)) return null; // espaces de groupement : la virgule est décimale
+        if (dot >= 0)
+        {
+            // Le point est décimal : les virgules ne peuvent que grouper la partie entière (« 1,234.5 »).
+            // Refuse « 1.234,5 » (virgule après le point) et « 12,34.5 » (groupe mal placé).
+            string integer = raw.Substring(0, dot);
+            return CommaGroups.IsMatch(integer) ? integer.Replace(",", "") + raw.Substring(dot) : null;
+        }
+        if (commas > 1) return CommaGroups.IsMatch(raw) ? raw.Replace(",", "") : null;
+        // Une seule virgule : groupement en anglais si elle précède exactement trois chiffres (« 1,000 »),
+        // virgule décimale sinon (« 1,5 », et toujours en français, où Format groupe par espace).
+        if (english && !spaced && CommaGroups.IsMatch(raw)) return raw.Replace(",", "");
+        return raw.Replace(',', '.');
+    }
+
     public static string Format(double v)
     {
         double magnitude = Math.Abs(v);
-        if (magnitude > 0 && magnitude < 1e-9)
+        // Sous 1e-4, les 10 décimales du format fixe ne garderaient que quelques chiffres significatifs
+        // (1,04e-9 s'affichait 0,000000001) : on passe en notation scientifique à 15 chiffres.
+        if (magnitude > 0 && magnitude < 1e-4)
             return v.ToString("G15", L.Culture);
         if (magnitude < 1e15 && Math.Abs(v - Math.Round(v)) < 1e-10) return Math.Round(v).ToString("#,0", L.Culture);
         return v.ToString("#,0.##########", L.Culture);
@@ -66,37 +140,36 @@ static class Calc
 
         double Term()
         {
-            double v = Factor();
+            double v = Unary();
             while (true)
             {
-                if (Eat('*') || Eat('x')) v *= Factor();
-                else if (Eat('/')) v /= Factor();
+                if (Eat('*') || Eat('x')) v *= Unary();
+                else if (Eat('/')) v /= Unary();
                 else return v;
             }
         }
 
-        double Factor()
-        {
-            Enter();
-            double b = Unary();
-            if (Eat('^')) b = Math.Pow(b, Factor());
-            depth--;
-            return b;
-        }
-
+        // Le signe s'applique après la puissance, comme en mathématiques : -2^2 = -(2^2) = -4 (D-003)
         double Unary()
         {
             Enter();
             double v;
             if (Eat('-')) v = -Unary();
             else if (Eat('+')) v = Unary();
-            else
-            {
-                v = Primary();
-                if (Eat('%')) v /= 100;
-            }
+            else v = Power();
             depth--;
             return v;
+        }
+
+        // Puissance associative à droite (2^3^2 = 2^9) ; l'exposant peut être signé (2^-1)
+        double Power()
+        {
+            Enter();
+            double b = Primary();
+            if (Eat('%')) b /= 100;
+            if (Eat('^')) b = Math.Pow(b, Unary());
+            depth--;
+            return b;
         }
 
         double Primary()

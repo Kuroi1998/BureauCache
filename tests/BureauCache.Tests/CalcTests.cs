@@ -30,6 +30,14 @@ namespace BureauCache.Tests
         [DataRow("(2+3)*4", 20.0)]
         [DataRow("10-4-3", 3.0)]
         [DataRow("2^3^2", 512.0)]          // puissance associative à droite
+        [DataRow("-2^2", -4.0)]            // le signe après la puissance (D-003)
+        [DataRow("(-2)^2", 4.0)]
+        [DataRow("-3^2+10", 1.0)]
+        [DataRow("2^-2", 0.25)]
+        [DataRow("-2^-2", -0.25)]
+        [DataRow("2*-3", -6.0)]
+        [DataRow("2^2^-1", 1.4142135623730951)]
+        [DataRow("10%^2", 0.01)]           // le pourcentage s'applique avant la puissance
         [DataRow("2**3", 8.0)]
         [DataRow("6×7", 42.0)]
         [DataRow("84÷2", 42.0)]
@@ -135,6 +143,32 @@ namespace BureauCache.Tests
             }
         }
 
+        // R-21 : sous 1e-4, notation scientifique pour garder les chiffres significatifs
+        [TestMethod]
+        public void Format_des_petits_nombres()
+        {
+            using (LanguageScope.French())
+            {
+                Assert.AreEqual("0,0001", Calc.Format(0.0001));          // seuil : encore en format fixe
+                Assert.AreEqual("0,3333333333", Calc.Format(1.0 / 3));    // 10 décimales au-dessus du seuil
+                Assert.AreEqual("5E-05", Calc.Format(0.00005));
+                Assert.AreEqual("1,04E-09", Calc.Format(1.04e-9));
+                Assert.AreEqual("1E-05", Calc.Format(0.1 * 0.0001));      // bruit flottant masqué
+            }
+            using (LanguageScope.English())
+                Assert.AreEqual("-1.23456789012E-07", Calc.Format(-1.23456789012e-7));
+        }
+
+        [DataTestMethod]
+        [DataRow(1.23456789012e-7)]
+        [DataRow(-9.87e-5)]
+        [DataRow(4.2e-12)]
+        public void Aller_retour_des_petits_nombres(double value)
+        {
+            AssertRoundTrip(value, false);
+            AssertRoundTrip(value, true);
+        }
+
         // QA-03 : la calculatrice doit relire ses propres résultats (copier-coller d'un résultat)
         [DataTestMethod]
         [DataRow(2.5, false)]
@@ -151,9 +185,7 @@ namespace BureauCache.Tests
             AssertRoundTrip(value, english);
         }
 
-        // R-19 : dès qu'un résultat a un séparateur de milliers, il n'est plus relu (FR)
-        // ou relu avec une valeur fausse (EN, « 1,234 » devient 1,234). Voir TASKS.md, T-007.
-        [Ignore("Défaut connu R-19 : retirer cet attribut avec la correction (T-007)")]
+        // R-19 (corrigé en T-007) : un résultat avec séparateur de milliers doit se relire à l'identique.
         [DataTestMethod]
         [DataRow(1234.5, false)]
         [DataRow(1234.0, false)]
