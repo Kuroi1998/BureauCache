@@ -16,6 +16,7 @@ Lire d'abord [ARCHITECTURE.md](ARCHITECTURE.md), [TASKS.md](TASKS.md) et [DECISI
 - Textes affichés via `L.T(fr, en)`. Win32 via `Native`. Fichiers via `FileOps`. Fond via `Background`.
 - Fichiers de 500 lignes au plus. On découpe en `partial class` par aspect.
 - Ne jamais modifier `AppInfo.Version` à la main : `publier.ps1` s'en charge.
+- Ne jamais manipuler les clés privées de signature ni leur mot de passe (`*.cle`, D-004) : seul le chef de projet lance `creer-cles.ps1` et `signer-version.ps1`. `src/Core/UpdateKeys.cs` ne contient que des clés publiques.
 
 ## Cycle de travail
 
@@ -37,6 +38,7 @@ Lire d'abord [ARCHITECTURE.md](ARCHITECTURE.md), [TASKS.md](TASKS.md) et [DECISI
 ```powershell
 .\build.cmd
 dotnet test tests/BureauCache.Tests            # recompile l'exe puis lance les tests
+.\outils\signer-version.ps1 -Version X.Y       # après publier.ps1 et la CI : signe et publie le brouillon (D-004)
 repomix                                        # écrit .ai/export-gemini.md (voir repomix.config.json)
 git diff main...HEAD > .ai/diff-chatgpt.patch
 ```

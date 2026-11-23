@@ -10,3 +10,6 @@ release-notes.md
 tests/**/bin/
 tests/**/obj/
 TestResults/
+
+# Clés privées de signature : jamais dans le dépôt (D-004)
+*.cle

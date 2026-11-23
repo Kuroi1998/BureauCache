@@ -17,7 +17,7 @@ static class Updater
     public const string DefaultRepo = AppInfo.Repo;
     public sealed class Release
     {
-        public string Version, Url, ShaUrl, Notes, Error;
+        public string Version, Url, ShaUrl, SigUrl, Notes, Error;
         public string Repository;
         public bool Available;
     }
@@ -125,13 +125,16 @@ static class Updater
             Match t = Regex.Match(json, "\"tag_name\"\\s*:\\s*\"([^\"]+)\"");
             Match a = Regex.Match(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+/BureauCache\\.exe)\"");
             Match h = Regex.Match(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+/BureauCache\\.exe\\.sha256)\"");
+            Match s = Regex.Match(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+/BureauCache\\.exe\\.sig)\"");
             Match b = Regex.Match(json, "\"body\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
             if (!t.Success) throw new IOException(L.T("Aucune version publiée.", "No release published."));
             result.Version = t.Groups[1].Value.TrimStart('v', 'V');
             result.Url = a.Success ? a.Groups[1].Value : null;
             result.ShaUrl = h.Success ? h.Groups[1].Value : null;
+            result.SigUrl = s.Success ? s.Groups[1].Value : null;
             result.Notes = b.Success ? Unescape(b.Groups[1].Value) : null;
-            result.Available = IsNewer(result.Version, Installer.Version) && result.Url != null && result.ShaUrl != null;
+            bool signed = result.SigUrl != null || !IsOfficial(result.Repository);
+            result.Available = IsNewer(result.Version, Installer.Version) && result.Url != null && result.ShaUrl != null && signed;
         }
         catch (Exception ex) { result.Error = ex.Message; }
         return result;
@@ -190,9 +193,45 @@ static class Updater
 
     public static string Sha256(string file)
     {
+        return BitConverter.ToString(HashBytes(file)).Replace("-", "").ToLowerInvariant();
+    }
+
+    static byte[] HashBytes(string file)
+    {
         using (SHA256 sha = SHA256.Create())
         using (FileStream fs = File.OpenRead(file))
-            return BitConverter.ToString(sha.ComputeHash(fs)).Replace("-", "").ToLowerInvariant();
+            return sha.ComputeHash(fs);
+    }
+
+    // Le dépôt officiel exige une signature ; un dépôt personnalisé (fork) n'a pas la clé de l'éditeur
+    public static bool IsOfficial(string repository)
+    {
+        return string.Equals(repository, DefaultRepo, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Signature RSA (PKCS#1 v1.5, SHA-256) de l'exe, encodée en Base64, vérifiée contre les clés publiques de confiance
+    internal static bool VerifySignature(byte[] sha256, string signatureText, string[] publicKeys)
+    {
+        if (sha256 == null || sha256.Length != 32 || string.IsNullOrEmpty(signatureText)) return false;
+        byte[] signature;
+        // Un BOM ajouté par un éditeur ne change pas la signature : il est ignoré (revue QA-21)
+        try { signature = Convert.FromBase64String(signatureText.Trim().Trim('﻿').Trim()); }
+        catch (FormatException) { return false; }
+        string oid = CryptoConfig.MapNameToOID("SHA256");
+        foreach (string key in publicKeys)
+        {
+            try
+            {
+                using (RSACryptoServiceProvider rsa = new RSACryptoServiceProvider(new CspParameters(24)))
+                {
+                    rsa.PersistKeyInCsp = false;   // ne rien laisser dans le magasin de clés de Windows
+                    rsa.FromXmlString(key);
+                    if (rsa.KeySize >= 3072 && rsa.VerifyHash(sha256, oid, signature)) return true;
+                }
+            }
+            catch (CryptographicException) { }
+        }
+        return false;
     }
 
     // Télécharge, vérifie l'empreinte SHA-256, puis remplace l'exe (l'ancien est gardé en .old)
@@ -217,6 +256,17 @@ static class Updater
                 throw new Exception(L.T("Le fichier téléchargé n'est pas un programme valide.", "The downloaded file is not a valid program."));
             if (!Regex.IsMatch(expected, "^[0-9a-f]{64}$") || Sha256(tmp) != expected)
                 throw new Exception(L.T("L'empreinte du fichier téléchargé ne correspond pas : mise à jour annulée.", "The downloaded file's checksum doesn't match: update cancelled."));
+            // Dépôt officiel : la signature, faite avec une clé privée qui ne passe jamais par GitHub, protège même
+            // contre un dépôt compromis qui remplacerait à la fois l'exe et son empreinte (R-04, D-004)
+            if (IsOfficial(release.Repository))
+            {
+                if (release.SigUrl == null)
+                    throw new Exception(L.T("Cette version n'est pas signée : mise à jour annulée.", "This version is not signed: update cancelled."));
+                RequireTrustedUrl(release.SigUrl);
+                string signature = FetchText(release.SigUrl, 4096);
+                if (!VerifySignature(HashBytes(tmp), signature, UpdateKeys.Trusted))
+                    throw new Exception(L.T("La signature du fichier téléchargé n'est pas valide : mise à jour annulée.", "The downloaded file's signature is not valid: update cancelled."));
+            }
             string fileVersion = FileVersionInfo.GetVersionInfo(tmp).ProductVersion ?? "";
             if (!string.Equals(fileVersion, release.Version, StringComparison.Ordinal))
                 throw new Exception(L.T("La version du fichier téléchargé ne correspond pas à la version annoncée.", "The downloaded file's version doesn't match the announced version."));
@@ -230,7 +280,11 @@ static class Updater
 
     internal static void ReplaceExecutable(string staged, string exe)
     {
-        string backup = exe + ".old";
+        // Pendant un essai, « .old » est la dernière version sûre : la version à l'essai, remplacée à son tour,
+        // part en « .replaced » (effacée au démarrage suivant) au lieu d'écraser « .old » (revue QA-21)
+        bool trialRunning = File.Exists(exe + ".trial") && File.Exists(exe + ".old");
+        string backup = trialRunning ? exe + ".replaced" : exe + ".old";
+        TryDelete(exe + ".replaced");
         try { File.Replace(staged, exe, backup); }
         catch
         {
@@ -248,9 +302,13 @@ static class Updater
 
     internal enum StartState { Normal, Trial, RolledBack }
 
+    // Vrai si ce processus a commencé un essai : lui seul peut le confirmer (pas l'ancienne version encore en cours)
+    public static bool TrialStarted;
+
     internal static StartState BeginStart(string exe)
     {
         string old = exe + ".old", marker = exe + ".trial";
+        TryDelete(exe + ".replaced");
         if (!File.Exists(old))
         {
             TryDelete(marker);
@@ -262,28 +320,36 @@ static class Updater
             try { RollBack(exe); return StartState.RolledBack; }
             catch { return StartState.Trial; }   // retour impossible : on retente la nouvelle version
         }
-        try { File.WriteAllText(marker, DateTime.Now.ToString("o")); } catch { }
+        // Sans marqueur, un plantage ne serait pas détecté : pas d'essai, « .old » est simplement gardé (revue QA-21)
+        try { File.WriteAllText(marker, DateTime.Now.ToString("o")); }
+        catch { return StartState.Normal; }
         return StartState.Trial;
     }
 
-    // L'exe en cours d'exécution peut être renommé (pas supprimé) : la version fautive devient « .bad »
+    // L'exe en cours d'exécution peut être renommé (pas supprimé) : la version fautive devient « .bad ».
+    // Reprend aussi un retour interrompu entre les deux déplacements (exe déjà parti en « .bad »).
     internal static void RollBack(string exe)
     {
         string old = exe + ".old", bad = exe + ".bad";
-        TryDelete(bad);
-        File.Move(exe, bad);
+        if (File.Exists(exe))
+        {
+            TryDelete(bad);
+            File.Move(exe, bad);
+        }
         try { File.Move(old, exe); }
         catch
         {
-            File.Move(bad, exe);
+            if (!File.Exists(exe) && File.Exists(bad)) File.Move(bad, exe);
             throw;
         }
         TryDelete(exe + ".trial");
     }
 
-    // Démarrage réussi : l'ancienne version et le marqueur d'essai ne servent plus
+    // Démarrage réussi : l'ancienne version et le marqueur d'essai ne servent plus. Sans marqueur, il n'y a pas
+    // d'essai en cours (par exemple une mise à jour vient de remplacer l'exe) : on ne touche à rien.
     internal static void ConfirmStart(string exe)
     {
+        if (!File.Exists(exe + ".trial")) return;
         TryDelete(exe + ".old");
         TryDelete(exe + ".trial");
     }

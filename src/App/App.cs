@@ -227,7 +227,10 @@ partial class App : ApplicationContext
         Updater.Release release = Updater.AvailableRelease;
         if (release == null) { CheckUpdateNow(); return; }
         string notes = Updater.ShortNotes(release);
-        if (!Dialogs.Ask(null, L.T("Installer BureauCache " + release.Version + " ?\nLe programme va redémarrer.", "Install BureauCache " + release.Version + "?\nThe program will restart.") +
+        string origin = Updater.IsOfficial(release.Repository) ? "" :
+            "\n\n" + L.T("Attention : cette version vient du dépôt « " + release.Repository + " », pas du dépôt officiel. Elle n'est pas signée par l'éditeur de BureauCache.",
+                         "Warning: this version comes from the \"" + release.Repository + "\" repository, not the official one. It is not signed by the BureauCache publisher.");
+        if (!Dialogs.Ask(null, L.T("Installer BureauCache " + release.Version + " ?\nLe programme va redémarrer.", "Install BureauCache " + release.Version + "?\nThe program will restart.") + origin +
             (notes.Length > 0 ? "\n\n" + L.T("Nouveautés :", "What's new:") + "\n" + notes : ""))) return;
         if (installingUpdate || Updater.AvailableRelease != release) return;
         installingUpdate = true;
@@ -332,7 +335,7 @@ partial class App : ApplicationContext
     void Poll(object sender, EventArgs e)
     {
         pollCount++;
-        if (pollCount == 500) Updater.ConfirmStart(Application.ExecutablePath); // 10 s de fonctionnement : mise à jour confirmée
+        if (pollCount == 500 && Updater.TrialStarted) Updater.ConfirmStart(Application.ExecutablePath); // 10 s de fonctionnement : mise à jour confirmée
         if (pollCount % 50 == 0) ApplyIconVisibility();
         if (pollCount % 250 == 0) RefreshTray(); // toutes les 5 s : point « nouveaux fichiers » sur l'icône
         if (pollCount % 25 == 0 && panel.Dirty && !panel.Busy) panel.RequestLoad();

@@ -58,7 +58,15 @@ Les grandes fenêtres sont découpées avec `partial class` : chaque fichier `Cl
 .\publier.ps1 -Version X.Y
 ```
 
-Le script met à jour le numéro de version dans `src/Properties/AssemblyInfo.cs`, compile, crée le commit et le tag `vX.Y`, puis pousse le tout. GitHub Actions compile alors le programme, calcule son empreinte SHA-256 et publie la version : les installations existantes la proposeront automatiquement.
+Le script met à jour le numéro de version dans `src/Properties/AssemblyInfo.cs`, compile, crée le commit et le tag `vX.Y`, puis pousse le tout. GitHub Actions compile alors le programme, calcule son empreinte SHA-256 et crée la version **en brouillon**.
+
+3. Une fois la compilation terminée, signe et publie :
+
+```powershell
+.\outils\signer-version.ps1 -Version X.Y
+```
+
+Le script vérifie que le tag de GitHub est bien le tag local et affiche les changements depuis la version précédente, en signalant les fichiers sensibles. Il **recompile ensuite le tag sur ton PC**, sans exécuter aucun script du dépôt, remplace l'exe du brouillon par cette compilation, la signe avec la clé privée (demande du mot de passe), relit ce que GitHub sert réellement, puis publie. Les installations existantes proposeront alors la version, et ne l'installeront que si la signature est valide. La clé privée ne passe jamais par GitHub : un compte GitHub piraté ne suffit donc pas à diffuser une fausse mise à jour. Les clés se créent une seule fois avec `outils\creer-cles.ps1`.
 
 ## Licence
 

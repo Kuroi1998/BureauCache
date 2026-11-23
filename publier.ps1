@@ -2,7 +2,9 @@
 # Usage : .\publier.ps1 -Version 3.3
 # 1. Ajoute d'abord une section « ## 3.3 — Titre » en haut de CHANGELOG.md
 # 2. Le script met la version dans src\Properties\AssemblyInfo.cs, compile, crée le commit et le tag, puis pousse.
-#    GitHub Actions compile ensuite le programme et publie la version (les installations la proposeront automatiquement).
+#    GitHub Actions compile ensuite le programme et crée la version en brouillon.
+# 3. Une fois la compilation terminée, lance .\outils\signer-version.ps1 -Version 3.3 : il recompile le tag sur ce PC,
+#    signe cette compilation avec ta clé et publie la version (les installations la proposeront alors automatiquement).
 param([Parameter(Mandatory = $true)][string]$Version)
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
@@ -41,4 +43,5 @@ git tag "v$Version"
 if ($LASTEXITCODE -ne 0) { throw "Échec de la création du tag" }
 git push --atomic origin HEAD "v$Version"
 if ($LASTEXITCODE -ne 0) { throw "Échec de l'envoi du commit et du tag" }
-"Version $Version envoyée : GitHub Actions va la compiler et la publier."
+"Version $Version envoyée : GitHub Actions va la compiler et créer un brouillon."
+"Quand la compilation est terminée, signe et publie avec : .\outils\signer-version.ps1 -Version $Version"
