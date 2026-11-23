@@ -35,6 +35,8 @@ partial class PanelForm : Form
     Screen pinScreen;
     readonly uint abMsg = Native.RegisterWindowMessage("BureauCacheAppBar");
     readonly ContextMenuStrip menu;
+    bool showingPanelPopup;
+    bool loadedSystem, loadedApps, loadedRecents;
     int loadedPx;
     bool loading, loadPending, loadedOnce;
 
@@ -48,7 +50,7 @@ partial class PanelForm : Form
     readonly System.Windows.Forms.Timer anim = new System.Windows.Forms.Timer();
     readonly Stopwatch sw = new Stopwatch();
     bool opening;
-    int fromLeft, toLeft, openLeft, closedLeft;
+    int fromLeft, toLeft, openLeft;
     double fromOp, toOp;
 
     static int S(int v) { return Ui.S(v); }
@@ -78,10 +80,12 @@ partial class PanelForm : Form
         View.FilesDropped += AddFilesToDesktop;
         View.HoverItem += (it, r) =>
         {
-            if (!Settings.HoverPreview || Busy || menu.Visible) return;
+            if (!IsOpen || !Settings.HoverPreview || Busy || MenuOpen) return;
             if (it.Kind == ItemKind.Desktop && it.IsSystem) return;
             if (it.Kind != ItemKind.Desktop && it.Kind != ItemKind.Recent && it.Kind != ItemKind.App) return;
-            preview.ShowFor(it, r, Settings.RightSide);
+            showingPanelPopup = true;
+            try { preview.ShowFor(this, it, r, Settings.RightSide); }
+            finally { showingPanelPopup = false; }
         };
         View.HoverEnd += () => preview.HidePreview();
 
@@ -91,7 +95,7 @@ partial class PanelForm : Form
         Controls.Add(search);
 
         menu = Menus.Create();
-        menu.Opening += (s, e) => preview.HidePreview();
+        menu.Opening += (s, e) => View.CancelHover();
 
         anim.Interval = 10;
         anim.Tick += AnimTick;
@@ -316,6 +320,17 @@ partial class PanelForm : Form
     protected override void OnMouseUp(MouseEventArgs e)
     {
         base.OnMouseUp(e);
+        FinishResize();
+    }
+
+    protected override void OnMouseCaptureChanged(EventArgs e)
+    {
+        base.OnMouseCaptureChanged(e);
+        if (!Capture) FinishResize();
+    }
+
+    void FinishResize()
+    {
         if (!resizing) return;
         resizing = false;
         Busy = false;

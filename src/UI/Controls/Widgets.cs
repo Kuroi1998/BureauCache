@@ -23,7 +23,7 @@ class GlyphPicker : FlatControl
     protected override void OnMouseDown(MouseEventArgs e)
     {
         int i = (e.Y / Cell) * Cols + e.X / Cell;
-        if (i >= 0 && i < glyphs.Length) { Selected = glyphs[i]; Invalidate(); }
+        if (e.Button == MouseButtons.Left && i >= 0 && i < glyphs.Length) { Selected = glyphs[i]; Invalidate(); }
         base.OnMouseDown(e);
     }
 
@@ -169,7 +169,7 @@ class SideNav : FlatControl
     protected override void OnMouseDown(MouseEventArgs e)
     {
         int h = HitTest(e.Location);
-        if (h >= 0 && h != sel) { sel = h; Invalidate(); if (SelectedChanged != null) SelectedChanged(h); }
+        if (e.Button == MouseButtons.Left && h >= 0 && h != sel) { sel = h; Invalidate(); if (SelectedChanged != null) SelectedChanged(h); }
         base.OnMouseDown(e);
     }
 

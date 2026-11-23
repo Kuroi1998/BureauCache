@@ -13,7 +13,9 @@ partial class PanelForm
         loading = true;
         Dirty = false;
         int px = IconPx, lpx = ListPx;
-        bool sys = Settings.ShowSystem, apps = Settings.SearchApps, rec = Settings.SearchRecent;
+        bool sys = loadedSystem = Settings.ShowSystem;
+        bool apps = loadedApps = Settings.SearchApps;
+        bool rec = loadedRecents = Settings.SearchRecent;
         Background.Run(() =>
         {
             List<DesktopItem> a = null, r = null;
@@ -32,7 +34,7 @@ partial class PanelForm
                     if (a != null) Apps = a;
                     if (r != null) Recent = r;
                     loading = false;
-                    if (search.Text.Trim().Length > 0) Rebuild(true);
+                    Rebuild(true);
                     if (loadPending) { loadPending = false; RequestLoad(); }
                 });
             }
@@ -52,7 +54,8 @@ partial class PanelForm
 
     public void OnSettingsChanged()
     {
-        if (IconPx != loadedPx) Dirty = true;
+        if (IconPx != loadedPx || loadedSystem != Settings.ShowSystem ||
+            loadedApps != Settings.SearchApps || loadedRecents != Settings.SearchRecent) Dirty = true;
         RefreshCatalog();
         ApplyTheme();
         if (Dirty) RequestLoad();
@@ -69,7 +72,11 @@ partial class PanelForm
         View.ForceList = q.Length > 0;
         View.EmptyText = q.Length > 0 ? L.T("Aucun résultat pour « ", "No results for \"") + q + L.T(" »", "\"")
                                       : loading && !loadedOnce ? L.T("Chargement…", "Loading…") : L.T("Ton bureau est vide", "Your desktop is empty");
-        View.SetGroups(q.Length > 0 ? SearchGroups(q) : BuildGroups(), keepScroll);
+        List<Group> groups = q.Length > 0 ? SearchGroups(q) : BuildGroups();
+        if (q.StartsWith("=") && groups.Count == 0)
+            View.EmptyText = q.Length == 1 ? L.T("Saisis un calcul après le signe =.", "Enter a calculation after the = sign.")
+                                          : L.T("Expression invalide.", "Invalid expression.");
+        View.SetGroups(groups, keepScroll);
         Invalidate();
     }
 
@@ -153,7 +160,7 @@ partial class PanelForm
         if (q.StartsWith("?"))
         {
             string w = q.Substring(1).Trim();
-            if (w.Length > 0) res.Add(WebGroup(w, px, true));
+            if (w.Length > 0) res.Add(WebGroup(w, px));
             return res;
         }
         if (q.StartsWith(">"))
@@ -164,9 +171,10 @@ partial class PanelForm
             if (g.Items.Count > 0) res.Add(g);
             return res;
         }
-        string expr = q.StartsWith("=") ? q.Substring(1) : q;
+        bool explicitCalc = q.StartsWith("=");
+        string expr = explicitCalc ? q.Substring(1) : q;
         double v;
-        if ((q.StartsWith("=") || Calc.LooksLikeMath(q)) && Calc.TryEval(expr, out v))
+        if ((explicitCalc || Calc.LooksLikeMath(q)) && Calc.TryEval(expr, out v))
         {
             string r = Calc.Format(v);
             res.Add(new Group
@@ -177,6 +185,7 @@ partial class PanelForm
                     Icon = IconCache.Tile("=", "Segoe UI", Color.FromArgb(22, 163, 74), px) } }
             });
         }
+        if (explicitCalc) return res;
         string nq = Search.Norm(q);
         if (nq.Length > 0)
         {
@@ -196,7 +205,7 @@ partial class PanelForm
             if (Settings.SearchCommands) addGroup("s:cmd", L.T("Commandes", "Commands"), Glyphs.Terminal, commands, 4);
             res.AddRange(found.OrderByDescending(k => k.Value).Select(k => k.Key));
         }
-        if (Settings.WebEngine != 3 && !res.Any(g => g.Key == "s:calc")) res.Add(WebGroup(q, px, false));
+        if (Settings.WebEngine != 3 && !res.Any(g => g.Key == "s:calc")) res.Add(WebGroup(q, px));
         return res;
     }
 
@@ -204,7 +213,7 @@ partial class PanelForm
 
     static string EngineUrl(string q)
     {
-        string e = Uri.EscapeDataString(q);
+        string e = Uri.EscapeDataString(Search.ReplaceInvalidUnicode(q));
         switch (Settings.WebEngine)
         {
             case 1: return "https://www.bing.com/search?q=" + e;
@@ -213,10 +222,10 @@ partial class PanelForm
         }
     }
 
-    Group WebGroup(string q, int px, bool forced)
+    Group WebGroup(string q, int px)
     {
         string engine = Settings.WebEngine == 3 ? "Google" : EngineName;
-        string url = forced && Settings.WebEngine == 3 ? "https://www.google.com/search?q=" + Uri.EscapeDataString(q) : EngineUrl(q);
+        string url = EngineUrl(q);
         return new Group
         {
             Key = "s:web", Title = "Web", Glyph = Glyphs.Globe,

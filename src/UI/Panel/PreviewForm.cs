@@ -22,7 +22,6 @@ class PreviewForm : Form
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.Manual;
-        TopMost = true;
         AutoScaleMode = AutoScaleMode.None;
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
         Size = new Size(Ui.S(280), Ui.S(290));
@@ -35,6 +34,7 @@ class PreviewForm : Form
         get
         {
             CreateParams cp = base.CreateParams;
+            // Form.TopMost active la fenêtre à la création du handle sur .NET Framework.
             cp.ExStyle |= 0x80 | 0x08000000 | 0x20 | 0x8; // TOOLWINDOW | NOACTIVATE | TRANSPARENT | TOPMOST
             cp.ClassStyle |= 0x20000;
             return cp;
@@ -75,25 +75,43 @@ class PreviewForm : Form
         catch { return ""; }
     }
 
-    public void ShowFor(DesktopItem it, Rectangle anchor, bool rightSide)
+    public void ShowFor(Form owner, DesktopItem it, Rectangle anchor, bool rightSide)
     {
+        Rectangle panel = owner.Bounds;
+        Rectangle wa = Screen.FromRectangle(panel).WorkingArea;
+        int gap = Ui.S(14);
+        int x = rightSide ? panel.Left - Width - gap : panel.Right + gap;
+        if (x < wa.Left || x + Width > wa.Right) return;
+
         int my = ++token;
         title = it.Name;
-        line1 = Describe(it, out line2);
+        line1 = line2 = null;
         placeholder = it.Icon;
         if (img != null) { img.Dispose(); img = null; }
-        Rectangle wa = Screen.FromRectangle(anchor).WorkingArea;
-        int x = rightSide ? anchor.Left - Width - Ui.S(14) : anchor.Right + Ui.S(14);
         int y = Math.Max(wa.Top + Ui.S(8), Math.Min(wa.Bottom - Height - Ui.S(8), anchor.Top + anchor.Height / 2 - Height / 2));
         Location = new Point(x, y);
-        if (!Visible) Show();
+        if (!Visible) Show(owner);
         Invalidate();
-        if (!it.HasPath && !(it.Kind == ItemKind.App && it.Args != null)) return;
-        string parsing = it.HasPath ? it.Target : it.Args;
-        bool thumbs = it.HasPath;
         int px = Ui.S(256);
         Background.Run(() =>
         {
+            string second;
+            string first = Describe(it, out second);
+            try
+            {
+                BeginInvoke(new Action(() =>
+                {
+                    if (my != token || !Visible) return;
+                    line1 = first;
+                    line2 = second;
+                    Invalidate();
+                }));
+            }
+            catch (InvalidOperationException) { return; }
+
+            bool thumbs = it.HasPath;
+            string parsing = thumbs ? it.Target : it.Kind == ItemKind.App ? it.Args : null;
+            if (string.IsNullOrEmpty(parsing)) return;
             Bitmap b = thumbs ? Icons.ShellImage(parsing, px, true) : null;
             if (b == null) b = Icons.ShellImage(parsing, px, false);
             try
@@ -104,14 +122,26 @@ class PreviewForm : Form
                     else if (b != null) b.Dispose();
                 }));
             }
-            catch { if (b != null) b.Dispose(); }
+            catch (InvalidOperationException) { if (b != null) b.Dispose(); }
         }, true);
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        if (m.Msg == 0x0021) // WM_MOUSEACTIVATE
+        {
+            m.Result = new IntPtr(4); // MA_NOACTIVATEANDEAT
+            return;
+        }
+        base.WndProc(ref m);
     }
 
     public void HidePreview()
     {
         token++;
         if (Visible) Hide();
+        placeholder = null;
+        if (img != null) { img.Dispose(); img = null; }
     }
 
     protected override void OnPaint(PaintEventArgs e)

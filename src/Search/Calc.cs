@@ -34,7 +34,10 @@ static class Calc
 
     public static string Format(double v)
     {
-        if (Math.Abs(v) < 1e15 && Math.Abs(v - Math.Round(v)) < 1e-10) return Math.Round(v).ToString("#,0", L.Culture);
+        double magnitude = Math.Abs(v);
+        if (magnitude > 0 && magnitude < 1e-9)
+            return v.ToString("G15", L.Culture);
+        if (magnitude < 1e15 && Math.Abs(v - Math.Round(v)) < 1e-10) return Math.Round(v).ToString("#,0", L.Culture);
         return v.ToString("#,0.##########", L.Culture);
     }
 
@@ -45,7 +48,7 @@ static class Calc
         int depth;
         const int MaxDepth = 64; // évite un débordement de pile avec "((((((…" ou "------…"
 
-        public void Skip() { while (I < S.Length && S[I] == ' ') I++; }
+        public void Skip() { while (I < S.Length && char.IsWhiteSpace(S[I])) I++; }
         bool Eat(char c) { Skip(); if (I < S.Length && S[I] == c) { I++; return true; } return false; }
         void Enter() { if (++depth > MaxDepth) throw new FormatException(); }
 
@@ -107,7 +110,18 @@ static class Calc
             }
             int st = I;
             while (I < S.Length && (char.IsDigit(S[I]) || S[I] == '.')) I++;
-            if (I > st) return double.Parse(S.Substring(st, I - st), CultureInfo.InvariantCulture);
+            if (I > st)
+            {
+                if (I < S.Length && S[I] == 'e')
+                {
+                    I++;
+                    if (I < S.Length && (S[I] == '+' || S[I] == '-')) I++;
+                    int exponentStart = I;
+                    while (I < S.Length && char.IsDigit(S[I])) I++;
+                    if (I == exponentStart) throw new FormatException();
+                }
+                return double.Parse(S.Substring(st, I - st), CultureInfo.InvariantCulture);
+            }
             while (I < S.Length && char.IsLetter(S[I]) && S[I] != 'x') I++;
             string f = S.Substring(st, I - st);
             if (f == "pi") return Math.PI;

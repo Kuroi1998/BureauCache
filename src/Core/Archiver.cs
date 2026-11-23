@@ -46,14 +46,21 @@ static class Archiver
     public static int Run(List<string> items)
     {
         if (items.Count == 0) return 0;
-        Directory.CreateDirectory(Folder);
+        string folder = Folder;
+        try
+        {
+            Directory.CreateDirectory(folder);
+            if ((File.GetAttributes(folder) & FileAttributes.ReparsePoint) != 0) return 0;
+        }
+        catch (IOException) { return 0; }
+        catch (UnauthorizedAccessException) { return 0; }
         int n = 0;
         List<string> log = new List<string>();
         foreach (string p in items)
         {
             try
             {
-                string dest = Unique(Path.Combine(Folder, Path.GetFileName(p)));
+                string dest = Unique(Path.Combine(folder, Path.GetFileName(p)));
                 if (Directory.Exists(p)) Directory.Move(p, dest); else File.Move(p, dest);
                 Settings.RenameKey(p, dest);
                 log.Add(p + ">" + dest);
@@ -72,25 +79,39 @@ static class Archiver
     // Remet sur le bureau les éléments du dernier rangement
     public static int Undo()
     {
+        int restored = RestoreArchived(Desk, Settings.ArchiveLog);
+        Settings.SaveQuiet();
+        return restored;
+    }
+
+    internal static int RestoreArchived(string desktop, List<string> journal)
+    {
         int n = 0;
-        foreach (string e in Settings.ArchiveLog)
+        List<string> pending = new List<string>();
+        foreach (string e in journal)
         {
             int i = e.IndexOf('>');
             if (i <= 0) continue;
             string src = e.Substring(0, i), dest = e.Substring(i + 1);
             try
             {
-                if (File.Exists(src) || Directory.Exists(src)) continue;
+                src = Path.GetFullPath(src);
+                dest = Path.GetFullPath(dest);
+                string parent = Path.GetDirectoryName(dest);
+                if (parent == null || !Paths.SameFolder(Path.GetDirectoryName(src), desktop) ||
+                    !Paths.SameFolder(Path.GetDirectoryName(parent), desktop)) continue;
+                if (!Directory.Exists(parent) || (File.GetAttributes(parent) & FileAttributes.ReparsePoint) != 0) continue;
+                if (File.Exists(src) || Directory.Exists(src)) { pending.Add(e); continue; }
                 if (Directory.Exists(dest)) Directory.Move(dest, src);
                 else if (File.Exists(dest)) File.Move(dest, src);
                 else continue;
                 Settings.RenameKey(dest, src);
                 n++;
             }
-            catch { }
+            catch { pending.Add(e); }
         }
-        Settings.ArchiveLog = new List<string>();
-        Settings.SaveQuiet();
+        journal.Clear();
+        journal.AddRange(pending);
         return n;
     }
 

@@ -45,24 +45,30 @@ static class Icons
         IntPtr himl;
         Guid g = IID_IImageList;
         if (Native.SHGetImageList(list, ref g, out himl) != 0 || himl == IntPtr.Zero) return null;
-        return FromHIcon(Native.ImageList_GetIcon(himl, idx, 1));
+        try { return FromHIcon(Native.ImageList_GetIcon(himl, idx, 1)); }
+        finally { Marshal.Release(himl); }
     }
 
     // Image (miniature ou icône) d'un élément du shell, avec transparence
     public static Bitmap ShellImage(string parsingName, int px, bool thumbnailOnly)
     {
+        Native.IShellItemImageFactory f = null;
         try
         {
-            Native.IShellItemImageFactory f;
             Native.SHCreateItemFromParsingName(parsingName, IntPtr.Zero, typeof(Native.IShellItemImageFactory).GUID, out f);
             IntPtr hb;
             Native.SIZE sz = new Native.SIZE { cx = px, cy = px };
             int hr = f.GetImage(sz, thumbnailOnly ? 0x8 : 0x0, out hb);
-            Marshal.ReleaseComObject(f);
-            if (hr != 0 || hb == IntPtr.Zero) return null;
+            if (hr != 0)
+            {
+                if (hb != IntPtr.Zero) Native.DeleteObject(hb);
+                return null;
+            }
+            if (hb == IntPtr.Zero) return null;
             return FromHBitmap(hb, PixelFormat.Format32bppPArgb);
         }
         catch { return null; }
+        finally { if (f != null) Marshal.ReleaseComObject(f); }
     }
 
     static Bitmap FromHBitmap(IntPtr hb, PixelFormat alphaFormat)

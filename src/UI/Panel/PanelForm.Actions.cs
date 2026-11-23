@@ -53,9 +53,9 @@ partial class PanelForm
 
     void ShowItemMenu(DesktopItem it, Point pt)
     {
-        menu.Items.Clear();
+        Menus.Clear(menu.Items);
         ToolStripMenuItem open = Menus.Item(it.Kind == ItemKind.Calc ? L.T("Copier le résultat", "Copy result") : L.T("Ouvrir", "Open"), Glyphs.Open, () => Launch(it, null));
-        open.Font = new Font(menu.Font, FontStyle.Bold);
+        open.Font = Ui.Font(menu.Font.Name, menu.Font.Size, FontStyle.Bold);
         menu.Items.Add(open);
         if (it.HasPath && Catalog.IsExecutable(it.Target))
             menu.Items.Add(Menus.Item(L.T("Exécuter en tant qu'administrateur", "Run as administrator"), Glyphs.Shield, () => Launch(it, "runas")));
@@ -108,7 +108,7 @@ partial class PanelForm
             more.DropDownItems.Add(new ToolStripMenuItem(L.T("Chargement…", "Loading…")) { Enabled = false });
             more.DropDownOpening += (s, e) =>
             {
-                more.DropDownItems.Clear();
+                Menus.Clear(more.DropDownItems);
                 foreach (KeyValuePair<string, object> v in ShellUtil.Verbs(it.Target))
                 {
                     object verb = v.Value;
@@ -118,7 +118,14 @@ partial class PanelForm
             };
             menu.Items.Add(more);
         }
-        menu.Show(View, pt);
+        ShowPanelMenu(View, pt);
+    }
+
+    void ShowPanelMenu(Control source, Point position)
+    {
+        showingPanelPopup = true;
+        try { menu.Show(source, position); }
+        finally { showingPanelPopup = false; }
     }
 
     void Rename(DesktopItem it)
@@ -162,7 +169,7 @@ partial class PanelForm
     static void Recycle(string stash)
     {
         foreach (string p in Directory.GetFileSystemEntries(stash)) FileOps.Recycle(p, false);
-        Directory.Delete(stash, true);
+        Directory.Delete(stash);
     }
 
     // Éléments laissés en attente après une fermeture brutale : on finit de les envoyer à la corbeille
@@ -223,37 +230,50 @@ partial class PanelForm
     void AddFilesToDesktop(string[] files, DragDropEffects eff)
     {
         string desk = Paths.Desktop;
+        if (string.IsNullOrEmpty(desk)) return;
         Busy = true;
         int added = 0;
-        foreach (string f0 in files)
+        try
         {
-            string f = f0.TrimEnd('\\');
-            string dir = Path.GetDirectoryName(f);
-            if (Paths.SameFolder(dir, desk)) continue;
-            string name = Path.GetFileName(f);
-            if (string.IsNullOrEmpty(name)) name = f.Replace(":", "");
-            string dest = Path.Combine(desk, name);
-            try
+            foreach (string f0 in files)
             {
-                if (eff == DragDropEffects.Link)
+                if (string.IsNullOrWhiteSpace(f0)) continue;
+                string name = f0;
+                try
                 {
-                    string lnk = Path.Combine(desk, name + ".lnk");
-                    for (int i = 2; File.Exists(lnk); i++) lnk = Path.Combine(desk, name + " (" + i + ").lnk");
-                    ShellUtil.CreateShortcut(lnk, f, null);
+                    string f = Path.GetFullPath(f0);
+                    if (Paths.SameFolder(Path.GetDirectoryName(f), desk)) continue;
+                    bool root = Paths.SameFolder(f, Path.GetPathRoot(f));
+                    if (root && eff != DragDropEffects.Link) continue;
+                    name = Path.GetFileName(f.TrimEnd('\\')).TrimEnd(':');
+                    if (string.IsNullOrEmpty(name)) continue;
+                    string dest = Path.Combine(desk, name);
+                    if (eff == DragDropEffects.Link)
+                    {
+                        string lnk = Path.Combine(desk, name + ".lnk");
+                        for (int i = 2; File.Exists(lnk) || Directory.Exists(lnk); i++)
+                            lnk = Path.Combine(desk, name + " (" + i + ").lnk");
+                        ShellUtil.CreateShortcut(lnk, f, null);
+                    }
+                    else FileOps.CopyOrMove(f, dest, eff == DragDropEffects.Move);
+                    added++;
                 }
-                else FileOps.CopyOrMove(f, dest, eff == DragDropEffects.Move);
-                added++;
+                catch (OperationCanceledException) { }
+                catch (Exception ex) { ShowError(L.T("Impossible d'ajouter « ", "Can't add \"") + name + L.T(" » :\n", "\":\n") + ex.Message); }
             }
-            catch (OperationCanceledException) { }
-            catch (Exception ex) { ShowError(L.T("Impossible d'ajouter « ", "Can't add \"") + name + L.T(" » :\n", "\":\n") + ex.Message); }
         }
-        Busy = false;
+        finally { Busy = false; }
         ReloadNow();
         if (added > 0) Toast(added + L.T(added > 1 ? " éléments ajoutés au bureau" : " élément ajouté au bureau", added > 1 ? " items added to the desktop" : " item added to the desktop"), null, null);
     }
 
     void SearchKeyDown(object sender, KeyEventArgs e)
     {
+        if (View.Help != null && e.KeyCode == Keys.Enter)
+        {
+            e.SuppressKeyPress = true;
+            return;
+        }
         bool emptyText = search.Text.Length == 0;
         if (e.KeyCode == Keys.Down || e.KeyCode == Keys.Up || (Settings.GridView && emptyText && (e.KeyCode == Keys.Left || e.KeyCode == Keys.Right)))
         {

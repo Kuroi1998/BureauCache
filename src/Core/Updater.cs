@@ -15,7 +15,23 @@ using System.Windows.Forms;
 static class Updater
 {
     public const string DefaultRepo = AppInfo.Repo;
-    public static string Latest, Url, ShaUrl, Notes, PageUrl, Error;
+    public sealed class Release
+    {
+        public string Version, Url, ShaUrl, Notes, Error;
+        public string Repository;
+        public bool Available;
+    }
+
+    static Release current = new Release();
+    public static string Latest { get { return current.Available ? current.Version : null; } }
+    public static Release AvailableRelease
+    {
+        get
+        {
+            Release release = current;
+            return release.Available && release.Repository == RepoName ? release : null;
+        }
+    }
 
     public static string RepoName
     {
@@ -33,13 +49,56 @@ static class Updater
     const long MaxDownload = 50L * 1024 * 1024;
     static readonly string[] AllowedHosts = { "api.github.com", "github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com" };
 
-    static WebClient Client()
+    static void Fetch(string url, Stream output, long maximum)
     {
-        ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072; // TLS 1.2 (et plus récent si Windows le propose)
-        WebClient wc = new WebClient();
-        wc.Headers[HttpRequestHeader.UserAgent] = "BureauCache-Updater";
-        wc.Encoding = Encoding.UTF8;
-        return wc;
+        ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072;
+        for (int redirect = 0; redirect <= 5; redirect++)
+        {
+            RequireTrustedUrl(url);
+            var request = (HttpWebRequest)WebRequest.Create(url);
+            request.AllowAutoRedirect = false;
+            request.UserAgent = "BureauCache-Updater";
+            request.Timeout = 15000;
+            request.ReadWriteTimeout = 15000;
+            using (var response = (HttpWebResponse)request.GetResponse())
+            {
+                int status = (int)response.StatusCode;
+                if (status >= 300 && status < 400)
+                {
+                    string location = response.Headers[HttpResponseHeader.Location];
+                    if (string.IsNullOrEmpty(location)) throw new IOException("Missing redirect location.");
+                    url = new Uri(request.RequestUri, location).AbsoluteUri;
+                    continue;
+                }
+                if (status != 200 || response.ContentLength > maximum)
+                    throw new IOException("Unexpected download response or file size.");
+                using (Stream input = response.GetResponseStream()) CopyLimited(input, output, maximum);
+                return;
+            }
+        }
+        throw new IOException("Too many download redirects.");
+    }
+
+    internal static void CopyLimited(Stream input, Stream output, long maximum)
+    {
+        byte[] buffer = new byte[32768];
+        long total = 0;
+        int read;
+        while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            total += read;
+            if (total > maximum) throw new IOException("Download size limit exceeded.");
+            output.Write(buffer, 0, read);
+        }
+    }
+
+    static string FetchText(string url, long maximum)
+    {
+        using (var output = new MemoryStream())
+        {
+            Fetch(url, output, maximum);
+            return Encoding.UTF8.GetString(output.ToArray());
+        }
     }
 
     // Seules les adresses HTTPS de GitHub sont acceptées pour les téléchargements
@@ -52,30 +111,42 @@ static class Updater
     }
 
     // Vrai si une version plus récente avec un BureauCache.exe est disponible
-    public static bool Check()
+    public static Release Check()
     {
-        Latest = Url = ShaUrl = Notes = PageUrl = Error = null;
-        if (!RepoValid) { Error = L.T("Dépôt invalide (format : utilisateur/projet).", "Invalid repository (format: owner/name)."); return false; }
+        var result = new Release { Repository = RepoName };
+        if (!Regex.IsMatch(result.Repository, @"^[\w.-]+/[\w.-]+$"))
+        {
+            result.Error = L.T("Dépôt invalide.", "Invalid repository.");
+            return result;
+        }
         try
         {
-            string json;
-            using (WebClient wc = Client()) json = wc.DownloadString("https://api.github.com/repos/" + RepoName + "/releases/latest");
+            string json = FetchText("https://api.github.com/repos/" + result.Repository + "/releases/latest", 2 * 1024 * 1024);
             Match t = Regex.Match(json, "\"tag_name\"\\s*:\\s*\"([^\"]+)\"");
             Match a = Regex.Match(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+/BureauCache\\.exe)\"");
             Match h = Regex.Match(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+/BureauCache\\.exe\\.sha256)\"");
             Match b = Regex.Match(json, "\"body\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
-            Match p = Regex.Match(json, "\"html_url\"\\s*:\\s*\"([^\"]+/releases/tag/[^\"]+)\"");
-            if (!t.Success) { Error = L.T("Aucune version publiée.", "No release published."); return false; }
-            Latest = t.Groups[1].Value.TrimStart('v', 'V');
-            Url = a.Success ? a.Groups[1].Value : null;
-            ShaUrl = h.Success ? h.Groups[1].Value : null;
-            Notes = b.Success ? Unescape(b.Groups[1].Value) : null;
-            PageUrl = p.Success ? p.Groups[1].Value : "https://github.com/" + RepoName + "/releases";
+            if (!t.Success) throw new IOException(L.T("Aucune version publiée.", "No release published."));
+            result.Version = t.Groups[1].Value.TrimStart('v', 'V');
+            result.Url = a.Success ? a.Groups[1].Value : null;
+            result.ShaUrl = h.Success ? h.Groups[1].Value : null;
+            result.Notes = b.Success ? Unescape(b.Groups[1].Value) : null;
+            result.Available = IsNewer(result.Version, Installer.Version) && result.Url != null && result.ShaUrl != null;
+        }
+        catch (Exception ex) { result.Error = ex.Message; }
+        return result;
+    }
+
+    public static bool AcceptCheck(Release result)
+    {
+        if (result.Repository != RepoName) return false;
+        current = result;
+        if (result.Error == null)
+        {
             Settings.LastUpdateCheck = DateTime.Now.Ticks;
             Settings.SaveQuiet();
-            return IsNewer(Latest, Installer.Version) && Url != null && ShaUrl != null;
         }
-        catch (Exception ex) { Error = ex.Message; return false; }
+        return true;
     }
 
     static string Unescape(string s)
@@ -100,14 +171,11 @@ static class Updater
     }
 
     // Notes de version raccourcies pour une boîte de dialogue
-    public static string ShortNotes
+    public static string ShortNotes(Release release)
     {
-        get
-        {
-            if (string.IsNullOrEmpty(Notes)) return "";
-            string n = Regex.Replace(Notes, @"[#*`]", "").Trim();
-            return n.Length > 700 ? n.Substring(0, 700) + "…" : n;
-        }
+        if (string.IsNullOrEmpty(release.Notes)) return "";
+        string n = Regex.Replace(release.Notes, @"[#*`]", "").Trim();
+        return n.Length > 700 ? n.Substring(0, 700) + "…" : n;
     }
 
     static bool IsNewer(string a, string b)
@@ -119,7 +187,6 @@ static class Updater
     }
 
     // Télécharge la nouvelle version et la met à la place de l'exe actuel (appliquée au redémarrage)
-    public static void Download() { Download(Application.ExecutablePath); App.RelaunchPath = Application.ExecutablePath; }
 
     public static string Sha256(string file)
     {
@@ -129,19 +196,19 @@ static class Updater
     }
 
     // Télécharge, vérifie l'empreinte SHA-256, puis remplace l'exe (l'ancien est gardé en .old)
-    public static void Download(string exe)
+    public static void Download(Release release, string exe)
     {
-        RequireTrustedUrl(Url);
-        RequireTrustedUrl(ShaUrl);
+        RequireTrustedUrl(release.Url);
+        RequireTrustedUrl(release.ShaUrl);
         // Nom aléatoire : un autre programme ne peut pas préparer un faux fichier à cet emplacement
-        string tmp = Path.Combine(Path.GetTempPath(), "BureauCache-" + Guid.NewGuid().ToString("N") + ".exe");
+        string tmp = Path.Combine(Path.GetDirectoryName(exe), "BureauCache-" + Guid.NewGuid().ToString("N") + ".tmp");
         try
         {
-            string expected;
-            using (WebClient wc = Client())
+            string expected = FetchText(release.ShaUrl, 4096).Trim().Split(' ', '\t', '\r', '\n')[0].ToLowerInvariant();
+            using (var output = new FileStream(tmp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
-                expected = wc.DownloadString(ShaUrl).Trim().Split(' ', '\t', '\r', '\n')[0].ToLowerInvariant();
-                wc.DownloadFile(Url, tmp);
+                Fetch(release.Url, output, MaxDownload);
+                output.Flush(true);
             }
             long size = new FileInfo(tmp).Length;
             byte[] head = new byte[2];
@@ -151,16 +218,24 @@ static class Updater
             if (!Regex.IsMatch(expected, "^[0-9a-f]{64}$") || Sha256(tmp) != expected)
                 throw new Exception(L.T("L'empreinte du fichier téléchargé ne correspond pas : mise à jour annulée.", "The downloaded file's checksum doesn't match: update cancelled."));
             string fileVersion = FileVersionInfo.GetVersionInfo(tmp).ProductVersion ?? "";
-            if (!fileVersion.StartsWith(Latest))
+            if (!string.Equals(fileVersion, release.Version, StringComparison.Ordinal))
                 throw new Exception(L.T("La version du fichier téléchargé ne correspond pas à la version annoncée.", "The downloaded file's version doesn't match the announced version."));
-            string old = exe + ".old";
-            if (File.Exists(old)) File.Delete(old);
-            File.Move(exe, old);
-            File.Copy(tmp, exe, true);
+            ReplaceExecutable(tmp, exe);
         }
         finally
         {
             try { if (File.Exists(tmp)) File.Delete(tmp); } catch { }
+        }
+    }
+
+    internal static void ReplaceExecutable(string staged, string exe)
+    {
+        string backup = exe + ".old";
+        try { File.Replace(staged, exe, backup); }
+        catch
+        {
+            if (!File.Exists(exe) && File.Exists(backup)) File.Move(backup, exe);
+            throw;
         }
     }
 

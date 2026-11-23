@@ -1,0 +1,83 @@
+# Audit QA de BureauCache
+
+**23 novembre 2026 · BureauCache 3.3 · Windows et .NET Framework**
+
+La revue porte sur les 38 fichiers C# de `src/` (7 263 lignes après correction), le script de compilation, le script de publication et le workflow GitHub Actions. Les constats ci-dessous proviennent de la lecture du code et des essais locaux précisés dans le tableau. La couverture d’exécution dépend de la configuration Windows, des fichiers disponibles et des opérations réellement déclenchées.
+
+## Corrections apportées
+
+| ID | Priorité | Défaut et correction | Vérification |
+| --- | --- | --- | --- |
+| QA-01 | Moyenne | Un clic droit changeait la valeur d’un curseur. Le même comportement était présent sur les sélecteurs de réglages, de couleur et de glyphe ainsi que dans la navigation. Le changement exige désormais un clic gauche. [Contrôles](src/UI/Controls/Inputs.cs) · [Navigation et glyphes](src/UI/Controls/Widgets.cs) | Curseur reproduit avant correction. Clics droit et gauche vérifiés sur les cinq contrôles. |
+| QA-02 | Moyenne | Un curseur restait en glissement après la perte de capture souris. Son état est maintenant libéré. Un événement de molette de delta nul conserve également sa valeur. [Curseur](src/UI/Controls/Inputs.cs) | Perte de capture, déplacement suivant et deltas de molette testés. |
+| QA-03 | Moyenne | La calculatrice refusait de relire ses propres résultats scientifiques et n’acceptait que les espaces simples autour des opérateurs. Elle relit les exposants avec leur signe ainsi que les expressions collées contenant des tabulations. [Calculatrice](src/Search/Calc.cs) | Aller-retour formatage et calcul en français et en anglais. Exposants incomplets, dépassement numérique et division par zéro rejetés. |
+| QA-04 | Moyenne | Une demande de sauvegarde depuis le bon fil Windows était différée si l’instance de contexte WinForms avait changé. Le contrôle utilise maintenant l’identifiant du fil. [Réglages](src/Core/Settings.cs) | Deux contextes WinForms successifs sur le même fil. Le minuteur démarre et peut être annulé. |
+| QA-05 | Basse | Le panneau droit pouvait se fermer vers une position périmée après un redimensionnement. La destination dépend maintenant de la position ouverte courante. [Animation](src/UI/Panel/PanelForm.Window.cs) · [Redimensionnement](src/UI/Panel/PanelForm.Input.cs) | Position finale vérifiée sur les bords gauche et droit après un changement de 340 à 520 pixels logiques. |
+| QA-06 | Moyenne | La liste d’images du shell obtenue pour chaque icône n’était pas libérée explicitement. La fabrique de miniatures est également libérée dans le chemin d’erreur. [Icônes](src/Shell/Icons.cs) | 135 chargements natifs réussis à partir de l’exécutable, du README et du dossier source, sur trois tailles. Image de l’exécutable vérifiée. |
+| QA-07 | Moyenne | Une entrée introuvable ou inaccessible pouvait interrompre le reste de l’énumération du dossier. L’erreur est traitée par fichier. Le cache de classement conserve une version par chemin. [Chargement](src/Data/Loader.cs) | Lecture du bureau et réutilisation d’une entrée de cache avec deux dates testées. La disparition d’un fichier au moment exact de la lecture reste à simuler avec un dossier autorisé. |
+| QA-08 | Haute | La désinstallation en ligne de commande continuait après expiration du délai même si l’application était encore active. Elle s’arrête maintenant avec un message. Les handles des signaux sont libérés après envoi. [Démarrage et arrêt](src/App/Program.cs) | Correction revue dans le code. Un arrêt normal et deux arrêts forcés ont vérifié la sortie du processus de surveillance. |
+| QA-09 | Haute | Le nom du tag était injecté dans le texte PowerShell interprété par le workflow. Il passe maintenant par l’environnement et doit respecter le format `vX.Y`. La sélection des notes de version distingue aussi `3.3` de `3.3.1`. [Workflow](.github/workflows/release.yml) | Quatre blocs PowerShell analysés localement. Validation de `v3.3` et lecture du journal réel exécutées localement. |
+| QA-10 | Moyenne | Le script de compilation pouvait annoncer un succès après un échec dans la branche de régénération de l’icône. Il vérifie désormais les codes de sortie et attend la fin de la génération. [Compilation](build.cmd) | Compilation avec l’icône suivie dans le dépôt réussie. La branche sans icône reste à valider sur un environnement dédié. |
+| QA-11 | Moyenne | Un échec de compilation lors de la préparation d’une version pouvait laisser le fichier de version modifié. Le script restaure maintenant ses octets d’origine dans ce cas. [Publication locale](publier.ps1) | Analyse syntaxique PowerShell réussie. La chaîne de publication réelle reste à vérifier. |
+| QA-12 | Haute | Si une annulation échouait, par exemple parce que le chemin d’origine était occupé, la notification perdait à la fois la possibilité de réessayer et l’action de mise en corbeille prévue. Les deux restent disponibles après l’échec. [`ToastControl.Undo`](src/UI/Panel/ToastControl.cs) | Échec, nouvelle tentative réussie et validation finale après échec vérifiés en mémoire. Le déplacement effectif d’un fichier en conflit reste à vérifier. |
+
+## Risques et défauts encore ouverts
+
+La priorité reflète l’impact potentiel si le scénario se produit. Une observation directe du code suffit à établir les comportements décrits comme tels. La fréquence et les effets dépendant de Windows restent à vérifier sur les configurations concernées.
+
+| ID | Priorité | Zone et scénario | Vérification à effectuer ou comportement attendu |
+| --- | --- | --- | --- |
+| R-01 | Haute | Le rangement automatique estime l’activité d’un dossier à partir de ses métadonnées et d’au plus 300 entrées immédiates. Une modification récente dans un sous-dossier ou après la limite peut échapper au contrôle. [`Archiver.Candidates`](src/Core/Archiver.cs) | Prendre en compte l’activité pertinente ou écarter les dossiers dont l’ancienneté ne peut pas être confirmée. Tester sur des données dont le déplacement est autorisé. |
+| R-03 | Haute | Le rangement automatique est lancé par le minuteur de l’application. Les parcours de renommage et de gestion de fichiers peuvent ouvrir des dialogues qui continuent à traiter les événements. [`App.Poll`](src/App/App.cs) · [Actions du panneau](src/UI/Panel/PanelForm.Actions.cs) | Vérifier l’échéance de rangement pendant une opération sur le même élément. Les opérations concurrentes doivent attendre ou revalider la source. |
+| R-04 | Haute | La mise à jour vérifie le SHA-256 publié par le même dépôt que l’exécutable. Cette vérification repose sur la confiance dans le dépôt sélectionné et ne fournit pas une preuve indépendante de l’éditeur. [`Updater.Download`](src/Core/Updater.cs) | Définir la politique de confiance pour le dépôt officiel et les dépôts personnalisés. Évaluer une vérification de signature indépendante pour une installation distribuée. |
+| R-05 | Moyenne | Plusieurs erreurs de désinstallation sont absorbées et le nettoyage du répertoire s’exécute séparément. Le message de fin peut précéder une suppression bloquée par un verrou ou des droits insuffisants. [`Installer.Uninstall`](src/Core/Installation.cs) | Vérifier le résultat de chaque étape sur une installation autorisée dont un fichier est verrouillé. |
+| R-06 | Moyenne | La vérification peut annoncer que la version est à jour lorsqu’une version plus récente existe sans les deux fichiers de distribution requis. [`Updater.Check`](src/Core/Updater.cs) · [Paramètres avancés](src/UI/Settings/SettingsForm.Advanced.cs) | Utiliser un scénario de publication sans exécutable ou sans empreinte. Afficher que la version existe et que son installation est indisponible. |
+| R-07 | Moyenne | L’ancienne version est effacée dès le démarrage de la nouvelle, avant l’initialisation du panneau. [`Program.Main`](src/App/Program.cs) · [`Updater.CleanupOld`](src/Core/Updater.cs) | Conserver le retour arrière jusqu’à confirmation d’un démarrage réussi. Vérifier aussi les interruptions de téléchargement et de remplacement dans un environnement de mise à jour dédié. |
+| R-08 | Moyenne | La largeur et le côté du panneau sont recalculés principalement lors de l’ouverture. Un changement de réglage ou un import pendant que le panneau est affiché peut laisser la fenêtre sur ses anciennes coordonnées. [`PanelForm.OnSettingsChanged`](src/UI/Panel/PanelForm.Data.cs) · [`ShowPanel`](src/UI/Panel/PanelForm.Window.cs) | Vérifier largeur, côté, widgets, flou et épinglage après le changement de réglage, panneau ouvert puis fermé. |
+| R-09 | Moyenne | L’épinglage marque la barre d’application comme enregistrée sans vérifier le retour de l’enregistrement Win32. [`AppBarRegister`](src/UI/Panel/PanelForm.Input.cs) | Tester un refus d’enregistrement ainsi que le redémarrage d’Explorer. L’état visuel doit suivre la réservation effective de l’espace. |
+| R-10 | Moyenne | Le réglage d’écran utilise un indice, la liste du formulaire est construite une fois et l’échelle graphique est lue au démarrage. [`TargetScreen`](src/App/App.cs) · [`BuildOpening`](src/UI/Settings/SettingsForm.Pages.cs) · [`Program.Main`](src/App/Program.cs) | Débrancher et réordonner des écrans de DPI différents, tester une barre des tâches latérale et vérifier le panneau épinglé. |
+| R-11 | Moyenne | Les délais d’ouverture et de fermeture par la souris sont calculés à partir d’un nombre de ticks Windows Forms. [`App.Poll`](src/App/App.cs) | Mesurer le délai avec une interface chargée, un bord d’écran contigu et une saisie souris rapide. Vérifier le délai réglé en millisecondes. |
+| R-12 | Moyenne | « Plus d’options » interroge le shell sur le fil d’interface. Un fichier réseau, indisponible ou pris en charge par une extension lente peut retarder le menu. [Menu contextuel](src/UI/Panel/PanelForm.Actions.cs) · [`ShellUtil.Verbs`](src/Shell/ShellUtil.cs) | Mesurer l’ouverture sur un élément local puis sur un chemin lent autorisé. Vérifier que le panneau reste utilisable pendant l’attente. |
+| R-13 | Moyenne | Un survol annulé ignore les résultats anciens, mais la demande de miniature déjà lancée peut se poursuivre. [`PreviewForm.ShowFor`](src/UI/Panel/PreviewForm.cs) | Mesurer threads et ressources graphiques après des survols rapides de fichiers lents ou hébergés à distance. |
+| R-14 | Moyenne | L’application limite à 2 Mio les réglages chargés. La sérialisation conserve un historique d’usage et des chemins dont la taille cumulée n’est pas bornée au même seuil. [`Settings.Load`, `Serialize` et `RecordUse`](src/Core/Settings.cs) | Vérifier qu’un réglage sauvegardé reste relisible après un grand nombre d’éléments uniques. Préserver favoris et catégories lors d’un éventuel nettoyage de l’historique. |
+| R-15 | Moyenne | Si une deuxième instance démarre entre la création du mutex et celle du signal d’affichage, sa demande de paramètres peut être perdue. [`Program.Main`](src/App/Program.cs) | Vérifier deux lancements presque simultanés au démarrage à froid et pendant une relance après mise à jour. |
+| R-16 | Basse | Lorsqu’une expression contient simultanément un point et une virgule, le parseur supprime les virgules sans valider leur emplacement. Une entrée ambiguë peut donner une valeur inattendue. [`Calc.TryEval`](src/Search/Calc.cs) | Définir et tester les formats groupés acceptés en français et en anglais. Rejeter les séparateurs incohérents. |
+| R-17 | Basse | La fenêtre des paramètres et la visite guidée ont une taille fixe multipliée par le DPI. Les actions en bas peuvent devenir difficiles à atteindre sur une petite zone de travail. [Paramètres](src/UI/Settings/SettingsForm.cs) · [Visite guidée](src/UI/WelcomeForm.cs) | Vérifier une petite résolution et un zoom Windows de 150 % ou plus, à la souris et au clavier. |
+| R-18 | Basse | Le chargement du bureau et celui de la recherche déclenchent chacun une reconstruction. Une reconstruction efface le survol courant et peut faire disparaître un aperçu. [`PanelForm.RequestLoad`](src/UI/Panel/PanelForm.Data.cs) · [`ItemsView.SetGroups`](src/UI/Panel/ItemsView.cs) | Survoler une entrée pendant un chargement lent. Vérifier la continuité de l’aperçu lorsque l’élément reste présent et que ses données sont identiques. |
+
+## Couverture de la revue
+
+| Zone | Fichiers examinés |
+| --- | --- |
+| Démarrage, notification et cycle de vie | `App/Program.cs`, `App/App.cs`, `App/App.Tray.cs` |
+| Réglages, fichiers et intégration Windows | `Core/Archiver.cs`, `Core/Helpers.cs`, `Core/Installation.cs`, `Core/Localization.cs`, `Core/Native.cs`, `Core/Settings.cs`, `Core/Updater.cs` |
+| Catalogue et collecte | `Data/Items.cs`, `Data/Loader.cs`, `Data/SystemCatalog.cs` |
+| Recherche et calcul | `Search/Calc.cs`, `Search/Search.cs` |
+| Shell et ressources graphiques | `Shell/Icons.cs`, `Shell/ShellUtil.cs`, `UI/Glyphs.cs`, `UI/Theme.cs` |
+| Contrôles, dialogues et visite guidée | `UI/Controls/HotkeyBox.cs`, `UI/Controls/Inputs.cs`, `UI/Controls/Widgets.cs`, `UI/Dialogs.cs`, `UI/WelcomeForm.cs` |
+| Panneau, aperçu et annulation | `UI/Panel/ItemsView.cs`, `UI/Panel/ItemsView.Input.cs`, `UI/Panel/PanelForm.cs`, `UI/Panel/PanelForm.Actions.cs`, `UI/Panel/PanelForm.Data.cs`, `UI/Panel/PanelForm.Input.cs`, `UI/Panel/PanelForm.Window.cs`, `UI/Panel/PreviewForm.cs`, `UI/Panel/ToastControl.cs` |
+| Fenêtre de paramètres | `UI/Settings/SettingsForm.cs`, `UI/Settings/SettingsForm.Advanced.cs`, `UI/Settings/SettingsForm.Pages.cs`, `UI/Settings/SettingsForm.Values.cs` |
+| Version, compilation et publication | `Properties/AssemblyInfo.cs`, `build.cmd`, `publier.ps1`, `.github/workflows/release.yml` |
+
+Les chemins C# de ce tableau sont relatifs à `src/`.
+
+## Résultats des essais locaux
+
+| Essai | Résultat |
+| --- | --- |
+| Compilation du projet original et contrôle du diff Git | `build.cmd` réussi avec le compilateur Windows et `git diff --check` sans erreur. |
+| Nouveaux correctifs et garde-fous | 37 contrôles réussis sur le binaire recompilé, avec 135 appels réussis au chargement d’icônes natives. |
+| Aperçus et focus | 232 contrôles réussis, dont 24 avec un handle Windows de premier plan. Un premier passage avec chargement asynchrone concurrent a perdu un aperçu. Le passage isolé a réussi et le scénario concurrent reste consigné en R-18. |
+| Molette, animation, aide F1 et géométrie de la liste | 185 contrôles réussis. Un cran vaut 110 pixels dans l’essai. Après un blocage de 120 ms, la première reprise atteint environ 105 pixels sur 110. |
+| Catégories, calculatrice, notification et menus | 34 contrôles réussis, dont cinq sur l’échec et la nouvelle tentative d’annulation. |
+| Arrêt et surveillance | Deux arrêts forcés et un arrêt normal ont libéré les processus d’application et de surveillance dans la session de test. Le rendu des icônes du bureau après les arrêts forcés n’a pas été observé visuellement lors de ces essais. |
+| Scripts | Syntaxe de `publier.ps1` et des quatre blocs PowerShell du workflow validée. Contrôle local du tag et sélection des notes réelles exécutés. |
+
+Les essais WinForms appellent les contrôles et les méthodes du binaire du projet. Les parcours de déplacement réel de fichiers personnels, de désinstallation effective, de mise à jour complète et de publication distante restent à valider en conditions dédiées.
+
+## Références
+
+- Microsoft, [Limites du minuteur Windows Forms](https://learn.microsoft.com/en-us/dotnet/desktop/winforms/controls/limitations-of-the-timer-component-interval-property).
+- Microsoft, [Capture de la souris dans Windows Forms](https://learn.microsoft.com/en-us/dotnet/desktop/winforms/mouse-capture-in-windows-forms).
+- Microsoft, [SHGetImageList](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetimagelist) et [Marshal.Release](https://learn.microsoft.com/en-us/dotnet/api/system.runtime.interopservices.marshal.release).
+- GitHub Docs, [Injections dans les scripts GitHub Actions](https://docs.github.com/en/actions/concepts/security/script-injections) et [utilisation d’une variable d’environnement intermédiaire](https://docs.github.com/en/actions/reference/security/secure-use#use-an-intermediate-environment-variable).

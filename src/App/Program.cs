@@ -35,7 +35,7 @@ static class Program
         {
             if (!created)
             {
-                try { EventWaitHandle.OpenExisting(ShowEvent).Set(); } catch { }
+                try { using (EventWaitHandle show = EventWaitHandle.OpenExisting(ShowEvent)) show.Set(); } catch { }
                 return;
             }
             using (EventWaitHandle show = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEvent))
@@ -69,23 +69,26 @@ static class Program
         if (!int.TryParse(pidText, out pid)) return;
         try { Process.GetProcessById(pid).WaitForExit(); } catch { }
         Thread.Sleep(1500);
-        bool running;
-        try { using (Mutex.OpenExisting(MutexName)) running = true; }
-        catch { running = false; }
-        if (!running) Native.RestoreDesktopIcons();
+        if (!InstanceExists()) Native.RestoreDesktopIcons();
+    }
+
+    static bool InstanceExists()
+    {
+        try { using (Mutex.OpenExisting(MutexName)) return true; }
+        catch (WaitHandleCannotBeOpenedException) { return false; }
+        catch (UnauthorizedAccessException) { return true; }
     }
 
     static void UninstallFromCommandLine()
     {
         if (!Dialogs.Ask(null, Installer.UninstallQuestion)) return;
-        try { EventWaitHandle.OpenExisting(QuitEvent).Set(); } catch { }
-        for (int i = 0; i < 50; i++)
+        try { using (EventWaitHandle quit = EventWaitHandle.OpenExisting(QuitEvent)) quit.Set(); } catch { }
+        for (int i = 0; i < 50 && InstanceExists(); i++) Thread.Sleep(100);
+        if (InstanceExists())
         {
-            bool running;
-            try { using (Mutex.OpenExisting(MutexName)) running = true; }
-            catch { running = false; }
-            if (!running) break;
-            Thread.Sleep(100);
+            Dialogs.Warn(null, L.T("BureauCache est encore ouvert. Ferme-le avant de relancer la désinstallation.",
+                                   "BureauCache is still running. Close it before trying to uninstall again."));
+            return;
         }
         Installer.Uninstall();
         Dialogs.Info(null, L.T("BureauCache a été désinstallé.", "BureauCache has been uninstalled."));

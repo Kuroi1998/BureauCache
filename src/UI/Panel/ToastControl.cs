@@ -57,13 +57,25 @@ class ToastControl : FlatControl
 
     public void Undo()
     {
+        Exception error = TryUndo();
+        if (error == null) return;
+        Dialogs.Info(owner.Visible ? owner : null, error.Message);
         if (undo == null) return;
-        Action u = undo;
-        undo = null;
-        commit = null;
+        start = DateTime.Now;
+        until = start.AddSeconds(7);
+        timer.Start();
+        Invalidate();
+    }
+
+    Exception TryUndo()
+    {
+        if (undo == null) return null;
         timer.Stop();
-        Visible = false;
-        try { u(); } catch (Exception ex) { Dialogs.Info(null, ex.Message); }
+        try { undo(); }
+        catch (Exception ex) { return ex; }
+        commit = null;
+        Flush();
+        return null;
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
@@ -77,7 +89,8 @@ class ToastControl : FlatControl
     protected override void OnMouseClick(MouseEventArgs e)
     {
         base.OnMouseClick(e);
-        if (rcUndo.Contains(e.Location)) Undo();
+        if (e.Button != MouseButtons.Left) return;
+        if (undo != null && rcUndo.Contains(e.Location)) Undo();
         else Flush();
     }
 
