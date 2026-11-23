@@ -2,6 +2,7 @@
 
 ## Non publié
 
+- Mises à jour plus sûres : si une nouvelle version n'arrive pas à démarrer, BureauCache revient automatiquement à la version précédente au lancement suivant.
 - Rangement automatique plus prudent : un dossier n'est rangé que si **tout** son contenu, sous-dossiers compris, est inutilisé. Un dossier trop volumineux pour être vérifié reste sur le bureau.
 - Rangement automatique : il attend la fin d'un renommage, d'une copie ou d'une suppression en cours (et de son délai d'annulation), ainsi que la fermeture des fenêtres de confirmation, avant de se lancer.
 - Rangement automatique : un dossier qui contient une jonction ou un lien symbolique n'est plus rangé, et le rangement fonctionne avec un dossier d'archive OneDrive.

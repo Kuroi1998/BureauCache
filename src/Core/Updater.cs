@@ -237,10 +237,59 @@ static class Updater
             if (!File.Exists(exe) && File.Exists(backup)) File.Move(backup, exe);
             throw;
         }
+        TryDelete(exe + ".trial");   // la nouvelle version commence son essai à zéro
     }
 
-    public static void CleanupOld()
+    // ---------- Retour arrière après une mise à jour (R-07) ----------
+    // Après un remplacement, l'ancienne version reste à côté en « .old » et la nouvelle est à l'essai. Chaque
+    // démarrage à l'essai pose un marqueur « .trial », effacé avec « .old » une fois le démarrage confirmé.
+    // Un marqueur encore présent au démarrage suivant signifie que l'essai précédent n'a pas abouti (plantage) :
+    // l'ancienne version est remise en place. La version fautive est gardée en « .bad ».
+
+    internal enum StartState { Normal, Trial, RolledBack }
+
+    internal static StartState BeginStart(string exe)
     {
-        try { string old = Application.ExecutablePath + ".old"; if (File.Exists(old)) File.Delete(old); } catch { }
+        string old = exe + ".old", marker = exe + ".trial";
+        if (!File.Exists(old))
+        {
+            TryDelete(marker);
+            TryDelete(exe + ".bad");
+            return StartState.Normal;
+        }
+        if (File.Exists(marker))
+        {
+            try { RollBack(exe); return StartState.RolledBack; }
+            catch { return StartState.Trial; }   // retour impossible : on retente la nouvelle version
+        }
+        try { File.WriteAllText(marker, DateTime.Now.ToString("o")); } catch { }
+        return StartState.Trial;
+    }
+
+    // L'exe en cours d'exécution peut être renommé (pas supprimé) : la version fautive devient « .bad »
+    internal static void RollBack(string exe)
+    {
+        string old = exe + ".old", bad = exe + ".bad";
+        TryDelete(bad);
+        File.Move(exe, bad);
+        try { File.Move(old, exe); }
+        catch
+        {
+            File.Move(bad, exe);
+            throw;
+        }
+        TryDelete(exe + ".trial");
+    }
+
+    // Démarrage réussi : l'ancienne version et le marqueur d'essai ne servent plus
+    internal static void ConfirmStart(string exe)
+    {
+        TryDelete(exe + ".old");
+        TryDelete(exe + ".trial");
+    }
+
+    static void TryDelete(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); } catch { }
     }
 }
