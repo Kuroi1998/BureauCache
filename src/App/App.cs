@@ -271,7 +271,8 @@ partial class App : ApplicationContext
         if (!Settings.ArchiveOn) return;
         // Une opération sur les fichiers est en cours dans le panneau (renommage, copie, corbeille : ses dialogues
         // laissent tourner ce minuteur) ou peut encore être annulée : on réessaie chaque minute (R-03)
-        if (panel.Busy || panel.UndoPending) { archiveDue = true; return; }
+        // Idem pendant une fenêtre modale de l'application (confirmation, export des réglages…)
+        if (panel.Busy || panel.UndoPending || ModalOpen()) { archiveDue = true; return; }
         int n = Archiver.RunNow();
         if (n > 0)
         {
@@ -279,6 +280,14 @@ partial class App : ApplicationContext
             Balloon(n + L.T(" élément(s) inutilisé(s) rangé(s) dans « " + Settings.ArchiveName + " ».", " unused item(s) moved into \"" + Settings.ArchiveName + "\"."),
                 () => { try { ShellUtil.Open(Archiver.Folder, null); } catch { } });
         }
+    }
+
+    // Une fenêtre modale (dialogue, message, enregistrement de fichier) désactive ses fenêtres propriétaires
+    static bool ModalOpen()
+    {
+        foreach (Form f in Application.OpenForms)
+            if (f.IsHandleCreated && f.Visible && !Native.IsWindowEnabled(f.Handle)) return true;
+        return false;
     }
 
     Screen TargetScreen(Point p)
