@@ -31,7 +31,7 @@ class ThemedDialog : Form
     protected void AddButtons(Action ok, string okText)
     {
         FlatButton bOk = new FlatButton(okText, true, Ui.S(120));
-        FlatButton bCancel = new FlatButton(L.T("Annuler", "Cancel"), false, Ui.S(100));
+        FlatButton bCancel = new FlatButton(L.T("Annuler", "Cancel", "Cancelar"), false, Ui.S(100));
         bOk.BackColor = bCancel.BackColor = Theme.Bg;
         bCancel.Location = new Point(ClientSize.Width - Ui.S(20) - bCancel.Width, ClientSize.Height - Ui.S(18) - bCancel.Height);
         bOk.Location = new Point(bCancel.Left - Ui.S(8) - bOk.Width, bCancel.Top);
@@ -59,14 +59,14 @@ class RenameDialog : ThemedDialog
     readonly InputBox input;
     public string Value;
 
-    public RenameDialog(string current, bool selectWithoutExt) : base(L.T("Renommer", "Rename"), Ui.S(420), Ui.S(156))
+    public RenameDialog(string current, bool selectWithoutExt) : base(L.T("Renommer", "Rename", "Cambiar nombre"), Ui.S(420), Ui.S(156))
     {
-        AddLabel(L.T("Nouveau nom", "New name"), Ui.S(20), Ui.S(16));
+        AddLabel(L.T("Nouveau nom", "New name", "Nuevo nombre"), Ui.S(20), Ui.S(16));
         input = new InputBox(Ui.S(380)) { Location = new Point(Ui.S(20), Ui.S(42)), BackColor = Theme.Bg };
         input.Box.Text = current;
         input.Box.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; Accept(); } };
         Controls.Add(input);
-        AddButtons(Accept, L.T("Renommer", "Rename"));
+        AddButtons(Accept, L.T("Renommer", "Rename", "Cambiar nombre"));
         Shown += (s, e) =>
         {
             input.Box.Focus();
@@ -80,7 +80,7 @@ class RenameDialog : ThemedDialog
         string v = input.Box.Text.Trim();
         if (!FileOps.IsValidName(v))
         {
-            Dialogs.Warn(this, L.T("Ce nom n'est pas valide.", "This name is not valid."));
+            Dialogs.Warn(this, L.T("Ce nom n'est pas valide.", "This name is not valid.", "Este nombre no es válido."));
             return;
         }
         Value = v;
@@ -99,17 +99,17 @@ class CategoryDialog : ThemedDialog
     public Color CatColor;
 
     public CategoryDialog(CustomCat existing)
-        : base(existing == null ? L.T("Nouvelle catégorie", "New category") : L.T("Modifier la catégorie", "Edit category"), Ui.S(420), Ui.S(330))
+        : base(existing == null ? L.T("Nouvelle catégorie", "New category", "Nueva categoría") : L.T("Modifier la catégorie", "Edit category", "Editar categoría"), Ui.S(420), Ui.S(330))
     {
         editing = existing;
-        AddLabel(L.T("Nom", "Name"), Ui.S(20), Ui.S(14));
+        AddLabel(L.T("Nom", "Name", "Nombre"), Ui.S(20), Ui.S(14));
         input = new InputBox(Ui.S(380)) { Location = new Point(Ui.S(20), Ui.S(38)), BackColor = Theme.Bg };
         input.Box.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; Accept(); } };
         Controls.Add(input);
-        AddLabel(L.T("Icône", "Icon"), Ui.S(20), Ui.S(84));
+        AddLabel(L.T("Icône", "Icon", "Icono"), Ui.S(20), Ui.S(84));
         picker = new GlyphPicker(Catalog.PickerGlyphs) { Location = new Point(Ui.S(20), Ui.S(108)), BackColor = Theme.Bg };
         Controls.Add(picker);
-        AddLabel(L.T("Couleur", "Color"), Ui.S(20), Ui.S(186));
+        AddLabel(L.T("Couleur", "Color", "Color"), Ui.S(20), Ui.S(186));
         colors = new Swatches { Location = new Point(Ui.S(17), Ui.S(208)), BackColor = Theme.Bg };
         colors.Selected = Swatches.Presets[CustomCountColor()];
         Controls.Add(colors);
@@ -119,7 +119,7 @@ class CategoryDialog : ThemedDialog
             picker.Selected = existing.Glyph;
             colors.Selected = existing.Color;
         }
-        AddButtons(Accept, existing == null ? L.T("Créer", "Create") : L.T("Enregistrer", "Save"));
+        AddButtons(Accept, existing == null ? L.T("Créer", "Create", "Crear") : L.T("Enregistrer", "Save", "Guardar"));
         Shown += (s, e) => { input.Box.Focus(); input.Box.SelectAll(); };
     }
 
@@ -129,14 +129,14 @@ class CategoryDialog : ThemedDialog
     {
         string v = input.Box.Text.Trim();
         string err = null;
-        if (v.Length == 0) err = L.T("Donne un nom à la catégorie.", "Give the category a name.");
-        else if (v.IndexOfAny(new[] { '|', '>', '=' }) >= 0) err = L.T("Le nom ne peut pas contenir | > ou =.", "The name can't contain | > or =.");
+        if (v.Length == 0) err = L.T("Donne un nom à la catégorie.", "Give the category a name.", "Dale un nombre a la categoría.");
+        else if (v.IndexOfAny(new[] { '|', '>', '=' }) >= 0) err = L.T("Le nom ne peut pas contenir | > ou =.", "The name can't contain | > or =.", "El nombre no puede contener | > ni =.");
         else if (Catalog.BuiltIn.Any(b => string.Equals(b, v, StringComparison.OrdinalIgnoreCase) || string.Equals(L.Cat(b), v, StringComparison.OrdinalIgnoreCase)))
-            err = L.T("Ce nom est déjà utilisé par une catégorie automatique.", "This name is used by a built-in category.");
+            err = L.T("Ce nom est déjà utilisé par une catégorie automatique.", "This name is used by a built-in category.", "Este nombre pertenece a una categoría integrada.");
         else
         {
             CustomCat other = Settings.FindCat(v);
-            if (other != null && other != editing) err = L.T("Une catégorie porte déjà ce nom.", "A category already has this name.");
+            if (other != null && other != editing) err = L.T("Une catégorie porte déjà ce nom.", "A category already has this name.", "Ya existe una categoría con ese nombre.");
         }
         if (err != null) { Dialogs.Warn(this, err); return; }
         CatName = v;

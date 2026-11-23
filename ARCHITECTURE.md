@@ -54,6 +54,12 @@ BureauCache cache les icônes du bureau Windows et les réaffiche dans un pannea
 7. **Météo** (D-005) : quand le panneau s'affiche, `RefreshWidgetData` appelle `RefreshWeatherIfDue`. Si la dernière météo date de plus de 30 min, `Weather.RefreshAsync` interroge Open-Meteo en arrière-plan (`Http.FetchText`, hôtes autorisés). La tuile (`PanelForm.Weather.cs`) dessine l'icône (`WeatherIcons`) ; un clic ouvre `WeatherDetailDialog`, un clic droit propose « Changer de lieu… » (`WeatherPlaceDialog` : recherche Open-Meteo ou `Weather.Locate`, c'est-à-dire la position Windows nommée par BigDataCloud).
 8. **Nettoyage** (D-005) : clic droit sur la tuile Disque, puis `CleanupDialog`. `Cleaner.Categories` construit les cibles, `Cleaner.Measure` les analyse en arrière-plan et `Cleaner.Clean` supprime fichier par fichier. Les règles de sécurité sont dans `IsAllowed` et `Files` : racines autorisées, zones interdites, jonctions, fichiers en ligne uniquement, âge minimal et applications ouvertes.
 
+## Langue et capture du panneau
+
+La classe `L` résout le choix Système, français, anglais ou espagnol. Elle garde une culture explicite pour le formatage et utilise l’anglais si un texte espagnol manque. `App.OnSettingsChanged` compare les identifiants de langue pour recharger le panneau et recréer les Paramètres en préservant la page active.
+
+`PanelForm` applique l’affinité Win32 correspondant au seul réglage `HidePanelInCapture`. Le flou continu exige une exclusion effective et un panneau détaché. Avec le panneau visible en capture, l’effet verre utilise une image du fond prise avant l’ouverture.
+
 ## Tests
 
 `tests/BureauCache.Tests` (MSTest, `net48`) référence le vrai `BureauCache.exe` grâce à `InternalsVisibleTo` (voir D-002). La commande `dotnet test tests/BureauCache.Tests` recompile l'exe puis lance les tests. La CI les exécute sur chaque pull request (`.github/workflows/tests.yml`). Un test qui modifie la langue passe par `LanguageScope`.

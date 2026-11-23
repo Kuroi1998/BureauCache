@@ -107,7 +107,7 @@ class ToastControl : FlatControl
         rcUndo = Rectangle.Empty;
         if (undo != null)
         {
-            string u = L.T("Annuler", "Undo");
+            string u = L.T("Annuler", "Undo", "Deshacer");
             int w = TextRenderer.MeasureText(u, fBtn).Width + Ui.S(16);
             rcUndo = new Rectangle(right - w, (Height - Ui.S(30)) / 2, w, Ui.S(30));
             if (hoverUndo) Ui.Fill(g, Theme.HoverOverlay, rcUndo, Ui.S(6));

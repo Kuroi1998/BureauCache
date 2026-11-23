@@ -48,29 +48,29 @@ class PreviewForm : Form
         second = null;
         try
         {
-            if (it.Kind == ItemKind.App && it.Args != null) return L.T("Application du Microsoft Store", "Microsoft Store app");
+            if (it.Kind == ItemKind.App && it.Args != null) return L.T("Application du Microsoft Store", "Microsoft Store app", "Aplicación de Microsoft Store");
             string p = it.Target;
             string ext = Path.GetExtension(p).ToLowerInvariant();
             if (Directory.Exists(p))
             {
                 int n = 0;
                 try { n = Directory.EnumerateFileSystemEntries(p).Take(1000).Count(); } catch { }
-                second = L.T("Modifié le ", "Modified ") + Directory.GetLastWriteTime(p).ToString("g", L.Culture);
-                return L.T("Dossier · ", "Folder · ") + (n >= 1000 ? "999+" : n.ToString()) + (n > 1 ? L.T(" éléments", " items") : L.T(" élément", " item"));
+                second = L.T("Modifié le ", "Modified ", "Modificado el ") + Directory.GetLastWriteTime(p).ToString("g", L.Culture);
+                return L.T("Dossier · ", "Folder · ", "Carpeta · ") + (n >= 1000 ? "999+" : n.ToString()) + (n > 1 ? L.T(" éléments", " items", " elementos") : L.T(" élément", " item", " elemento"));
             }
             FileInfo fi = new FileInfo(p);
-            second = L.T("Modifié le ", "Modified ") + fi.LastWriteTime.ToString("g", L.Culture);
+            second = L.T("Modifié le ", "Modified ", "Modificado el ") + fi.LastWriteTime.ToString("g", L.Culture);
             if (ext == ".lnk")
             {
                 string t = ShellUtil.ResolveLnk(p);
-                return string.IsNullOrEmpty(t) ? L.T("Raccourci", "Shortcut") : L.T("Raccourci vers ", "Shortcut to ") + t;
+                return string.IsNullOrEmpty(t) ? L.T("Raccourci", "Shortcut", "Acceso directo") : L.T("Raccourci vers ", "Shortcut to ", "Acceso directo a ") + t;
             }
             if (ext == ".url")
             {
                 string u = ShellUtil.ReadUrl(p);
-                return u ?? L.T("Lien", "Link");
+                return u ?? L.T("Lien", "Link", "Enlace");
             }
-            return L.Size(fi.Length) + " · " + (ext.Length > 1 ? ext.Substring(1).ToUpperInvariant() : L.T("Fichier", "File"));
+            return L.Size(fi.Length) + " · " + (ext.Length > 1 ? ext.Substring(1).ToUpperInvariant() : L.T("Fichier", "File", "Archivo"));
         }
         catch { return ""; }
     }

@@ -7,6 +7,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 
 | ID | Titre | Statut | Porteur | Branche | Lien |
 |---|---|---|---|---|---|
+| T-015 | Espagnol et visibilité du panneau en partage d’écran | Revue (310 tests réussis, 6 tests de jonctions ignorés, bascule contrôlée dans une capture Windows) | ChatGPT | - | D-006, tests de localisation et de capture |
 | T-014 | Refonte de la fenêtre Paramètres | Revue (navigation, défilement, clavier, contraste et changement de langue couverts par des tests ciblés) | ChatGPT | — | `src/UI/Settings`, `SettingsUiTests.cs` |
 | T-001 | Mettre en place le projet de tests (`tests/`) | Fait (3.4) | Claude | PR #5 | D-002 |
 | T-002 | Tests de `Calc` (séparateurs FR/EN, exposants, limites) | Fait (3.4) | ChatGPT puis Claude | PR #5 | QA-03 |

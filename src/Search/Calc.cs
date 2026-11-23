@@ -23,7 +23,7 @@ static class Calc
         {
             s = s.Trim().ToLowerInvariant();
             if (s.Length == 0 || s.Length > MaxLength) return false;
-            s = NormalizeNumbers(s, L.En);
+            s = NormalizeNumbers(s, L.CurrentLanguage);
             if (s == null) return false;
             s = s.Replace("×", "*").Replace("÷", "/").Replace("**", "^");
             Parser p = new Parser { S = s };
@@ -36,12 +36,13 @@ static class Calc
 
     // Groupes de milliers par virgule : « 1,234 », « 12,345,678 » (pas de groupe de tête nul comme « 0,500 »)
     static readonly Regex CommaGroups = new Regex(@"^[1-9]\d{0,2}(,\d{3})+$");
+    static readonly Regex DotGroups = new Regex(@"^[1-9]\d{0,2}(\.\d{3})+$");
 
     // Réécrit chaque nombre de l'expression en notation invariante (chiffres et point décimal).
     // Accepte le groupement par espace (normale, insécable U+00A0 ou fine U+202F, comme le produit Format
     // en français) et par virgule (anglais). Renvoie null si un nombre a des séparateurs incohérents.
-    // Ainsi un résultat copié avec Entrée se relit toujours, dans les deux langues.
-    internal static string NormalizeNumbers(string s, bool english)
+    // En espagnol, accepte aussi les points de groupement quand la notation est sans ambiguïté.
+    internal static string NormalizeNumbers(string s, int language)
     {
         StringBuilder sb = new StringBuilder(s.Length);
         int i = 0;
@@ -61,7 +62,7 @@ static class Calc
                 else break;
                 i++;
             }
-            string number = Number(raw.ToString(), spaced, english);
+            string number = Number(raw.ToString(), spaced, language);
             if (number == null) return null;
             sb.Append(number);
         }
@@ -78,7 +79,7 @@ static class Calc
         return k + 3 == s.Length || !char.IsDigit(s[k + 3]);
     }
 
-    static string Number(string raw, bool spaced, bool english)
+    static string Number(string raw, bool spaced, int language)
     {
         if (spaced)
         {
@@ -86,33 +87,53 @@ static class Calc
             raw = raw.Replace(" ", "");
         }
         int dot = raw.IndexOf('.');
-        if (dot != raw.LastIndexOf('.')) return null;       // plusieurs points
+        int lastDot = raw.LastIndexOf('.');
         int commas = raw.Count(ch => ch == ',');
+        if (language == L.Spanish && !spaced && dot >= 0)
+        {
+            int comma = raw.IndexOf(',');
+            if (commas == 1 && comma > lastDot)
+            {
+                string integer = raw.Substring(0, comma);
+                return comma < raw.Length - 1 && DotGroups.IsMatch(integer)
+                    ? integer.Replace(".", "") + "." + raw.Substring(comma + 1)
+                    : null;
+            }
+            if (commas == 0 && dot != lastDot && DotGroups.IsMatch(raw)) return raw.Replace(".", "");
+        }
+        if (dot != lastDot) return null;
         if (commas == 0) return raw;
         if (spaced && (commas > 1 || dot >= 0)) return null; // espaces de groupement : la virgule est décimale
         if (dot >= 0)
         {
             // Le point est décimal : les virgules ne peuvent que grouper la partie entière (« 1,234.5 »).
-            // Refuse « 1.234,5 » (virgule après le point) et « 12,34.5 » (groupe mal placé).
+            // Hors notation espagnole, la virgule ne peut précéder le point que pour grouper les milliers.
             string integer = raw.Substring(0, dot);
             return CommaGroups.IsMatch(integer) ? integer.Replace(",", "") + raw.Substring(dot) : null;
         }
         if (commas > 1) return CommaGroups.IsMatch(raw) ? raw.Replace(",", "") : null;
         // Une seule virgule : groupement en anglais si elle précède exactement trois chiffres (« 1,000 »),
         // virgule décimale sinon (« 1,5 », et toujours en français, où Format groupe par espace).
-        if (english && !spaced && CommaGroups.IsMatch(raw)) return raw.Replace(",", "");
+        if (language == L.English && !spaced && CommaGroups.IsMatch(raw)) return raw.Replace(",", "");
         return raw.Replace(',', '.');
     }
 
     public static string Format(double v)
     {
         double magnitude = Math.Abs(v);
+        CultureInfo culture = L.Culture;
+        if (L.CurrentLanguage == L.Spanish)
+        {
+            // Le point reste un séparateur décimal admis à la saisie.
+            culture = (CultureInfo)culture.Clone();
+            culture.NumberFormat.NumberGroupSeparator = "\u00A0";
+        }
         // Sous 1e-4, les 10 décimales du format fixe ne garderaient que quelques chiffres significatifs
         // (1,04e-9 s'affichait 0,000000001) : on passe en notation scientifique à 15 chiffres.
         if (magnitude > 0 && magnitude < 1e-4)
-            return v.ToString("G15", L.Culture);
-        if (magnitude < 1e15 && Math.Abs(v - Math.Round(v)) < 1e-10) return Math.Round(v).ToString("#,0", L.Culture);
-        return v.ToString("#,0.##########", L.Culture);
+            return v.ToString("G15", culture);
+        if (magnitude < 1e15 && Math.Abs(v - Math.Round(v)) < 1e-10) return Math.Round(v).ToString("#,0", culture);
+        return v.ToString("#,0.##########", culture);
     }
 
     class Parser

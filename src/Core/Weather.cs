@@ -138,7 +138,7 @@ static class Weather
             (fahrenheit ? "&temperature_unit=fahrenheit&wind_speed_unit=mph" : "");
     }
 
-    static string Lang { get { return L.En ? "en" : "fr"; } }
+    static string Lang { get { return L.Culture.TwoLetterISOLanguageName; } }
 
     // ---------- Recherche et détection (appels bloquants : à lancer en arrière-plan) ----------
     public static List<WeatherPlace> Search(string name)
@@ -159,7 +159,7 @@ static class Weather
             if (watcher.Permission == GeoPositionPermission.Denied)
             {
                 error = L.T("Windows refuse l'accès à la position (Paramètres > Confidentialité > Emplacement).",
-                            "Windows denies access to the location (Settings > Privacy > Location).");
+                            "Windows denies access to the location (Settings > Privacy > Location).", "Windows deniega el acceso a la ubicación (Configuración > Privacidad > Ubicación).");
                 return null;
             }
             for (int i = 0; i < 20 && watcher.Position.Location.IsUnknown; i++) Thread.Sleep(250);
@@ -168,7 +168,7 @@ static class Weather
             if (c.IsUnknown)
             {
                 error = L.T("Windows ne connaît pas la position de ce PC. Tape plutôt le nom de ta ville.",
-                            "Windows doesn't know this PC's location. Type your city instead.");
+                            "Windows doesn't know this PC's location. Type your city instead.", "Windows desconoce la ubicación del equipo. Escribe tu ciudad.");
                 return null;
             }
             lat = Math.Round(c.Latitude, 3);
@@ -182,7 +182,7 @@ static class Weather
             p = ParseReverse(Http.FetchText(url, Hosts, MaxResponse), lat, lon);
         }
         catch { }
-        return p ?? new WeatherPlace { Name = L.T("Ma position", "My location"), Lat = lat, Lon = lon };
+        return p ?? new WeatherPlace { Name = L.T("Ma position", "My location", "Mi ubicación"), Lat = lat, Lon = lon };
     }
 
     // ---------- Lecture des réponses JSON (analyseur strict Json, revue QA-23) ----------
@@ -286,18 +286,18 @@ static class Weather
     {
         switch (SkyOf(code))
         {
-            case Sky.Clear: return L.T("Ciel dégagé", "Clear sky");
-            case Sky.MainlyClear: return L.T("Plutôt dégagé", "Mainly clear");
-            case Sky.PartlyCloudy: return L.T("Éclaircies", "Partly cloudy");
-            case Sky.Overcast: return L.T("Couvert", "Overcast");
-            case Sky.Fog: return L.T("Brouillard", "Fog");
-            case Sky.Drizzle: return L.T("Bruine", "Drizzle");
-            case Sky.Rain: return L.T("Pluie", "Rain");
-            case Sky.FreezingRain: return L.T("Pluie verglaçante", "Freezing rain");
-            case Sky.Snow: return L.T("Neige", "Snow");
-            case Sky.Showers: return L.T("Averses", "Showers");
-            case Sky.SnowShowers: return L.T("Averses de neige", "Snow showers");
-            default: return L.T("Orage", "Thunderstorm");
+            case Sky.Clear: return L.T("Ciel dégagé", "Clear sky", "Cielo despejado");
+            case Sky.MainlyClear: return L.T("Plutôt dégagé", "Mainly clear", "Mayormente despejado");
+            case Sky.PartlyCloudy: return L.T("Éclaircies", "Partly cloudy", "Parcialmente nublado");
+            case Sky.Overcast: return L.T("Couvert", "Overcast", "Cubierto");
+            case Sky.Fog: return L.T("Brouillard", "Fog", "Niebla");
+            case Sky.Drizzle: return L.T("Bruine", "Drizzle", "Llovizna");
+            case Sky.Rain: return L.T("Pluie", "Rain", "Lluvia");
+            case Sky.FreezingRain: return L.T("Pluie verglaçante", "Freezing rain", "Lluvia engelante");
+            case Sky.Snow: return L.T("Neige", "Snow", "Nieve");
+            case Sky.Showers: return L.T("Averses", "Showers", "Chubascos");
+            case Sky.SnowShowers: return L.T("Averses de neige", "Snow showers", "Chubascos de nieve");
+            default: return L.T("Orage", "Thunderstorm", "Tormenta");
         }
     }
 
@@ -307,8 +307,8 @@ static class Weather
     public static string DayName(WeatherReport r, DateTime date)
     {
         DateTime today = r.LocalToday != DateTime.MinValue ? r.LocalToday : DateTime.Today;
-        if (date == today) return L.T("Aujourd'hui", "Today");
-        if (date == today.AddDays(1)) return L.T("Demain", "Tomorrow");
+        if (date == today) return L.T("Aujourd'hui", "Today", "Hoy");
+        if (date == today.AddDays(1)) return L.T("Demain", "Tomorrow", "Mañana");
         return date.ToString("dddd", L.Culture);
     }
 }

@@ -76,24 +76,24 @@ partial class App
     {
         Menus.Clear(trayMenu.Items);
         ToolStripMenuItem title = new ToolStripMenuItem("BureauCache " + AppInfo.Version +
-            (updateAvailable ? L.T(" · mise à jour disponible", " · update available") : "")) { Enabled = false };
+            (updateAvailable ? L.T(" · mise à jour disponible", " · update available", " · actualización disponible") : "")) { Enabled = false };
         trayMenu.Items.Add(title);
         trayMenu.Items.Add(new ToolStripSeparator());
 
-        ToolStripMenuItem open = Menus.Item(L.T("Ouvrir la liste", "Open the list"), Glyphs.List, () => OpenManually(TargetScreen(Cursor.Position)));
+        ToolStripMenuItem open = Menus.Item(L.T("Ouvrir la liste", "Open the list", "Abrir la lista"), Glyphs.List, () => OpenManually(TargetScreen(Cursor.Position)));
         open.Font = Ui.Font(trayMenu.Font.Name, trayMenu.Font.Size, FontStyle.Bold);
         open.ShortcutKeyDisplayString = HotkeyBox.Format(Settings.HotMods, Settings.HotKey);
         trayMenu.Items.Add(open);
-        trayMenu.Items.Add(Menus.Item(L.T("Paramètres…", "Settings…"), Glyphs.Settings, ShowSettings));
+        trayMenu.Items.Add(Menus.Item(L.T("Paramètres…", "Settings…", "Configuración…"), Glyphs.Settings, ShowSettings));
         trayMenu.Items.Add(new ToolStripSeparator());
 
-        ToolStripMenuItem pin = Menus.Item(L.T("Épingler le panneau", "Pin the panel"), Glyphs.Pin, () => panel.TogglePin());
+        ToolStripMenuItem pin = Menus.Item(L.T("Épingler le panneau", "Pin the panel", "Fijar el panel"), Glyphs.Pin, () => panel.TogglePin());
         pin.Checked = Settings.Pinned;
         trayMenu.Items.Add(pin);
-        ToolStripMenuItem hide = Menus.Item(L.T("Cacher les icônes du bureau", "Hide desktop icons"), Glyphs.Eye, () => { Settings.HideIcons = !Settings.HideIcons; Settings.Notify(); });
+        ToolStripMenuItem hide = Menus.Item(L.T("Cacher les icônes du bureau", "Hide desktop icons", "Ocultar los iconos del escritorio"), Glyphs.Eye, () => { Settings.HideIcons = !Settings.HideIcons; Settings.Notify(); });
         hide.Checked = Settings.HideIcons;
         trayMenu.Items.Add(hide);
-        ToolStripMenuItem start = Menus.Item(L.T("Lancer au démarrage de Windows", "Start with Windows"), Glyphs.Power, () =>
+        ToolStripMenuItem start = Menus.Item(L.T("Lancer au démarrage de Windows", "Start with Windows", "Iniciar con Windows"), Glyphs.Power, () =>
         {
             try { Startup.Set(!Startup.Enabled, Installer.IsInstalled ? Installer.Exe : null); } catch { }
             Settings.Fire();
@@ -103,12 +103,12 @@ partial class App
         trayMenu.Items.Add(new ToolStripSeparator());
 
         if (updateAvailable && Updater.Latest != null)
-            trayMenu.Items.Add(Menus.Item(L.T("Installer la version ", "Install version ") + Updater.Latest, Glyphs.Download, InstallUpdate));
+            trayMenu.Items.Add(Menus.Item(L.T("Installer la version ", "Install version ", "Instalar la versión ") + Updater.Latest, Glyphs.Download, InstallUpdate));
         else
-            trayMenu.Items.Add(Menus.Item(L.T("Rechercher une mise à jour", "Check for updates"), Glyphs.Restart, CheckUpdateNow));
-        trayMenu.Items.Add(Menus.Item(L.T("Visite guidée", "Guided tour"), Glyphs.School, ShowWelcome));
+            trayMenu.Items.Add(Menus.Item(L.T("Rechercher une mise à jour", "Check for updates", "Buscar actualizaciones"), Glyphs.Restart, CheckUpdateNow));
+        trayMenu.Items.Add(Menus.Item(L.T("Visite guidée", "Guided tour", "Visita guiada"), Glyphs.School, ShowWelcome));
         trayMenu.Items.Add(new ToolStripSeparator());
-        trayMenu.Items.Add(Menus.Item(L.T("Quitter (réaffiche les icônes)", "Quit (shows icons again)"), Glyphs.Power, ExitThread));
+        trayMenu.Items.Add(Menus.Item(L.T("Quitter (réaffiche les icônes)", "Quit (shows icons again)", "Salir (vuelve a mostrar los iconos)"), Glyphs.Power, ExitThread));
     }
 
     // Vérification demandée depuis le menu : on répond toujours par une bulle
@@ -124,9 +124,9 @@ partial class App
                     if (!Updater.AcceptCheck(release)) return;
                     RefreshTray();
                     if (release.Available) Balloon(L.T("La version " + Updater.Latest + " est disponible. Clique ici pour l'installer.",
-                                           "Version " + Updater.Latest + " is available. Click here to install it."), InstallUpdate);
-                    else if (release.Error != null) Balloon(L.T("Vérification impossible : ", "Couldn't check: ") + release.Error, null);
-                    else Balloon(L.T("Tu as la dernière version (" + AppInfo.Version + ").", "You're up to date (" + AppInfo.Version + ")."), null);
+                                           "Version " + Updater.Latest + " is available. Click here to install it.", "La versión " + Updater.Latest + " está disponible. Haz clic para instalarla."), InstallUpdate);
+                    else if (release.Error != null) Balloon(L.T("Vérification impossible : ", "Couldn't check: ", "No se pudo comprobar: ") + release.Error, null);
+                    else Balloon(L.T("Tu as la dernière version (" + AppInfo.Version + ").", "You're up to date (" + AppInfo.Version + ").", "Tienes la última versión (" + AppInfo.Version + ")."), null);
                 }));
             }
             catch { }
@@ -140,8 +140,8 @@ partial class App
         int newFiles = Settings.NewBadge ? panel.All.Count(i => i.IsNew) : 0;
         Color? badge = updateAvailable ? Color.FromArgb(249, 115, 22) : newFiles > 0 ? Color.FromArgb(22, 163, 74) : (Color?)null;
         string tip = "BureauCache" + (Settings.HotkeyOn ? " · " + HotkeyBox.Format(Settings.HotMods, Settings.HotKey) : "");
-        if (updateAvailable && Updater.Latest != null) tip += "\n" + L.T("Mise à jour ", "Update ") + Updater.Latest + L.T(" disponible", " available");
-        else if (newFiles > 0) tip += "\n" + newFiles + L.T(newFiles > 1 ? " nouveaux fichiers" : " nouveau fichier", newFiles > 1 ? " new files" : " new file");
+        if (updateAvailable && Updater.Latest != null) tip += "\n" + L.T("Mise à jour ", "Update ", "Actualización ") + Updater.Latest + L.T(" disponible", " available", " disponible");
+        else if (newFiles > 0) tip += "\n" + newFiles + L.T(newFiles > 1 ? " nouveaux fichiers" : " nouveau fichier", newFiles > 1 ? " new files" : " new file", newFiles > 1 ? " archivos nuevos" : " archivo nuevo");
         if (tip.Length > 63) tip = tip.Substring(0, 62) + "…"; // limite imposée par Windows
 
         string state = Settings.Accent.ToArgb() + "|" + (badge.HasValue ? badge.Value.ToArgb().ToString() : "-");
@@ -162,6 +162,6 @@ partial class App
         Settings.TrayHintShown = true;
         Settings.SaveQuiet();
         Balloon(L.T("BureauCache continue ici, près de l'horloge (flèche ^ si l'icône est cachée). Clic : la liste · double-clic : les paramètres.",
-                    "BureauCache keeps running here, by the clock (^ arrow if the icon is hidden). Click: the list · double-click: settings."), null);
+                    "BureauCache keeps running here, by the clock (^ arrow if the icon is hidden). Click: the list · double-click: settings.", "BureauCache sigue activo junto al reloj (en la flecha ^ si el icono está oculto). Un clic abre la lista y un doble clic abre la configuración."), null);
     }
 }

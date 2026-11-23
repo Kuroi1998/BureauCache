@@ -85,6 +85,24 @@ Les chemins C# de ce tableau sont relatifs à `src/`.
 
 Les essais WinForms appellent les contrôles et les méthodes du binaire du projet. Les parcours de déplacement réel de fichiers personnels, de désinstallation effective, de mise à jour complète et de publication distante restent à valider en conditions dédiées.
 
+## T-015 – Validation avant publication
+
+| Défaut reproduit | Correction vérifiée |
+| --- | --- |
+| En espagnol, la calculatrice refusait les nombres collés comme « 1.234,56 » et « 1.234.567 ». | Les points de groupement sont acceptés quand la notation est sans ambiguïté. Un point seul reste décimal. |
+| Changer de langue remettait la rubrique active en haut de la fenêtre Paramètres. | La position de défilement de la rubrique active est restaurée après l’affichage de la fenêtre traduite. |
+| En mode visible dans les captures, redimensionner le panneau supprimait son effet verre. | La vue adapte l’image du fond prise à l’ouverture à la nouvelle taille du panneau. |
+
+Les cas ajoutés ont produit quatre échecs avant correction. Après correction, le compilateur Windows a produit le binaire sans avertissement et MSTest a exécuté 322 cas, dont 316 réussis et 6 ignorés dans les tests de jonctions. Une capture Windows locale a confirmé les trois étapes visible, masqué, puis visible. La syntaxe de tous les scripts PowerShell de publication et de signature a été vérifiée. Le rendu dans les outils de partage tiers reste à valider.
+
+## T-015 – Vérification des réglages du panneau ouvert
+
+- La largeur et le côté choisis dans les Paramètres s’appliquent au panneau déjà ouvert. Le redimensionnement à la souris et le réglage de largeur utilisent la même logique.
+- Activer ou désactiver les widgets met immédiatement à jour leur minuteur quand le panneau est ouvert. Les curseurs de largeur et de délai évitent un second rafraîchissement des mêmes libellés.
+- Les listes de recherche des paramètres Windows et des commandes sont réutilisées si la langue et la taille des icônes n’ont pas changé. La couleur d’accent et l’état des icônes du bureau ne renouvellent que la liste des commandes.
+
+Les tests WinForms ont reproduit le défaut de géométrie et la reconstruction inutile avant correction. Après correction, 318 tests ont réussi, aucun n’a échoué et 6 cas de jonctions ont été ignorés. Le changement de largeur et de côté a été testé sur un panneau détaché.
+
 ## Références
 
 - Microsoft, [Limites du minuteur Windows Forms](https://learn.microsoft.com/en-us/dotnet/desktop/winforms/controls/limitations-of-the-timer-component-interval-property).

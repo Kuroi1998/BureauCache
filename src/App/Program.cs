@@ -47,7 +47,7 @@ static class Program
                 {
                     // L'ancienne version est revenue à la place de l'exe : on la relance, une fois le mutex libéré
                     Dialogs.Warn(null, L.T("La nouvelle version de BureauCache n'a pas réussi à démarrer.\nLa version précédente a été restaurée.",
-                                           "The new version of BureauCache failed to start.\nThe previous version has been restored."));
+                                           "The new version of BureauCache failed to start.\nThe previous version has been restored.", "La nueva versión de BureauCache no pudo iniciarse.\nSe restauró la versión anterior."));
                     App.RelaunchPath = Application.ExecutablePath;
                 }
                 else
@@ -98,10 +98,10 @@ static class Program
         if (InstanceExists())
         {
             Dialogs.Warn(null, L.T("BureauCache est encore ouvert. Ferme-le avant de relancer la désinstallation.",
-                                   "BureauCache is still running. Close it before trying to uninstall again."));
+                                   "BureauCache is still running. Close it before trying to uninstall again.", "BureauCache sigue en ejecución. Ciérralo antes de volver a intentar desinstalarlo."));
             return;
         }
         Installer.Uninstall();
-        Dialogs.Info(null, L.T("BureauCache a été désinstallé.", "BureauCache has been uninstalled."));
+        Dialogs.Info(null, L.T("BureauCache a été désinstallé.", "BureauCache has been uninstalled.", "BureauCache se ha desinstalado."));
     }
 }

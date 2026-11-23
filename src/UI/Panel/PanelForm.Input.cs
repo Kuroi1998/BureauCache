@@ -12,12 +12,9 @@ partial class PanelForm
     void ApplyWidth(int logical)
     {
         logical = Math.Max(260, Math.Min(560, logical));
-        int right = Right;
-        Width = S(logical);
-        if (Settings.RightSide) { Left = right - Width; openLeft = Left; }
-        if (Settings.Glass && !liveBlurActive) RefreshStaticGlass();
-        if (appbar) AppBarSetPos();
+        if (Settings.PanelWidth == logical) return;
         Settings.PanelWidth = logical;
+        ApplyPanelGeometry();
         Settings.Notify();
     }
 
@@ -41,14 +38,14 @@ partial class PanelForm
         else if (h == 4 && e.Button == MouseButtons.Right)
         {
             Menus.Clear(menu.Items);
-            menu.Items.Add(Menus.Item(L.T("Ouvrir la corbeille", "Open Recycle Bin"), Glyphs.Open, () => { HidePanel(); ShellUtil.Open("explorer.exe", "shell:RecycleBinFolder"); }));
-            ToolStripMenuItem empty = Menus.Item(L.T("Vider la corbeille", "Empty Recycle Bin"), Glyphs.Delete, () =>
+            menu.Items.Add(Menus.Item(L.T("Ouvrir la corbeille", "Open Recycle Bin", "Abrir la papelera"), Glyphs.Open, () => { HidePanel(); ShellUtil.Open("explorer.exe", "shell:RecycleBinFolder"); }));
+            ToolStripMenuItem empty = Menus.Item(L.T("Vider la corbeille", "Empty Recycle Bin", "Vaciar la papelera"), Glyphs.Delete, () =>
             {
                 Busy = true;
                 int r = Native.SHEmptyRecycleBin(Handle, null, 0);
                 Busy = false;
                 RefreshWidgetData();
-                if (r == 0) Toast(L.T("Corbeille vidée", "Recycle Bin emptied"), null, null);
+                if (r == 0) Toast(L.T("Corbeille vidée", "Recycle Bin emptied", "Papelera vaciada"), null, null);
             });
             empty.Enabled = binCount > 0;
             menu.Items.Add(empty);
@@ -92,7 +89,7 @@ partial class PanelForm
             List<DesktopItem> favs = Settings.Favorites.Select(f => All.FirstOrDefault(i => string.Equals(i.Key, f, StringComparison.OrdinalIgnoreCase)))
                                                        .Where(i => i != null).ToList();
             if (n < favs.Count) Launch(favs[n], null);
-            else Toast(L.T("Pas de favori n°" + (n + 1) + " : glisse un élément dans « Favoris ».", "No favorite #" + (n + 1) + ": drag an item into \"Favorites\"."), null, null);
+            else Toast(L.T("Pas de favori n°" + (n + 1) + " : glisse un élément dans « Favoris ».", "No favorite #" + (n + 1) + ": drag an item into \"Favorites\".", "Falta el favorito n.º " + (n + 1) + ". Arrastra un elemento a «Favoritos»."), null, null);
             return true;
         }
         if (ctrl && !shift && k == Keys.Z && toast.CanUndo) { toast.Undo(); return true; }
@@ -112,25 +109,26 @@ partial class PanelForm
 
     List<KeyValuePair<string, string>> HelpLines()
     {
-        Func<string, string, string, KeyValuePair<string, string>> h = (k, fr, en) => new KeyValuePair<string, string>(k, L.T(fr, en));
-        string ent = L.T("Entrée", "Enter"), maj = L.T("Maj", "Shift"), sup = L.T("Suppr", "Del"), esc = L.T("Échap", "Esc");
+        Func<string, string, string, string, KeyValuePair<string, string>> h = (k, fr, en, es) => new KeyValuePair<string, string>(k, L.T(fr, en, es));
+        string ent = L.T("Entrée", "Enter", "Intro"), maj = L.T("Maj", "Shift", "Mayús"), sup = L.T("Suppr", "Del", "Supr"), esc = L.T("Échap", "Esc", "Esc");
         return new List<KeyValuePair<string, string>> {
-            h(ent, "Ouvrir l'élément sélectionné", "Open the selected item"),
-            h("↑ ↓ ← →", "Se déplacer dans la liste", "Move around"),
-            h("Tab / " + maj + "+Tab", "Section suivante / précédente", "Next / previous section"),
-            h("Ctrl+1 … 9", "Ouvrir un favori (maintiens Ctrl pour voir les numéros)", "Open a favorite (hold Ctrl to see numbers)"),
-            h("Ctrl+F", "Ajouter ou retirer des favoris", "Add to / remove from favorites"),
-            h("F2", "Renommer", "Rename"),
-            h(sup, "Supprimer (annulable)", "Delete (can be undone)"),
-            h("Ctrl+Z", "Annuler la dernière action", "Undo the last action"),
-            h("Ctrl+" + ent, "Ouvrir l'emplacement du fichier", "Open file location"),
-            h("Ctrl+" + maj + "+" + ent, "Exécuter en administrateur", "Run as administrator"),
-            h(maj + "+F10", "Options de l'élément (clic droit)", "Item options (right-click)"),
-            h("Ctrl+P", "Épingler / détacher le panneau", "Pin / unpin the panel"),
-            h("Ctrl+G", "Liste ou grille", "List or grid"),
-            h("= ? >", "Calcul, recherche web, commandes", "Math, web search, commands"),
-            h(esc, "Effacer la recherche, puis fermer", "Clear the search, then close"),
-            h("F1", "Afficher / masquer cette aide", "Show / hide this help"),
+            h(ent, "Ouvrir l'élément sélectionné", "Open the selected item", "Abrir el elemento seleccionado"),
+            h("↑ ↓ ← →", "Se déplacer dans la liste", "Move around", "Moverse por la lista"),
+            h("Tab / " + maj + "+Tab", "Section suivante / précédente", "Next / previous section", "Sección siguiente o anterior"),
+            h("Ctrl+1 … 9", "Ouvrir un favori (maintiens Ctrl pour voir les numéros)", "Open a favorite (hold Ctrl to see numbers)", "Abrir un favorito (mantén Ctrl para ver los números)"),
+            h("Ctrl+F", "Ajouter ou retirer des favoris", "Add to / remove from favorites", "Añadir a favoritos o quitar de favoritos"),
+            h("F2", "Renommer", "Rename", "Cambiar nombre"),
+            h(sup, "Supprimer (annulable)", "Delete (can be undone)", "Eliminar (se puede deshacer)"),
+            h("Ctrl+Z", "Annuler la dernière action", "Undo the last action", "Deshacer la última acción"),
+            h("Ctrl+" + ent, "Ouvrir l'emplacement du fichier", "Open file location", "Abrir la ubicación del archivo"),
+            h("Ctrl+" + maj + "+" + ent, "Exécuter en administrateur", "Run as administrator", "Ejecutar como administrador"),
+            h(maj + "+F10", "Options de l'élément (clic droit)", "Item options (right-click)", "Opciones del elemento (clic derecho)"),
+            h("Ctrl+P", "Épingler / détacher le panneau", "Pin / unpin the panel", "Fijar o desfijar el panel"),
+            h("Ctrl+G", "Liste ou grille", "List or grid", "Cambiar entre lista y cuadrícula"),
+            h("= ? >", "Calcul, recherche web, commandes", "Math, web search, commands", "Cálculo, búsqueda web y comandos"),
+            h(esc, "Effacer la recherche, puis fermer", "Clear the search, then close", "Borrar la búsqueda y luego cerrar"),
+            h("", "Pour montrer le panneau, partage l'écran entier.", "To show the panel, share your entire screen.", "Para mostrar el panel, comparte toda la pantalla."),
+            h("F1", "Afficher / masquer cette aide", "Show / hide this help", "Mostrar u ocultar esta ayuda"),
         };
     }
 
@@ -166,12 +164,12 @@ partial class PanelForm
         {
             if (!IsOpen) ShowPanel(Screen.FromPoint(Cursor.Position));
             Pin();
-            Toast(L.T("Panneau épinglé : il reste ouvert et les fenêtres lui laissent la place.", "Panel pinned: it stays open and windows make room for it."), null, null);
+            Toast(L.T("Panneau épinglé : il reste ouvert et les fenêtres lui laissent la place.", "Panel pinned: it stays open and windows make room for it.", "Panel fijado. Permanece abierto y las ventanas dejan espacio para él."), null, null);
         }
         else
         {
             Unpin();
-            Toast(L.T("Panneau détaché.", "Panel unpinned."), null, null);
+            Toast(L.T("Panneau détaché.", "Panel unpinned.", "Panel desfijado."), null, null);
         }
         Invalidate();
     }
@@ -179,12 +177,8 @@ partial class PanelForm
     void Pin()
     {
         pinScreen = Screen.FromControl(this);
-        if (liveBlurActive)
-        {
-            liveBlurActive = false;
-            blurTimer.Stop();
-        }
         AppBarRegister();
+        ApplyCaptureSettings();
         RefreshStaticGlass();
     }
 
@@ -197,19 +191,16 @@ partial class PanelForm
     public void Unpin()
     {
         AppBarRemove();
+        ApplyCaptureSettings();
         TopMost = true;
     }
 
     void RefreshStaticGlass()
     {
-        if (!Settings.Glass) return;
-        try { Native.SetWindowDisplayAffinity(Handle, 0x11); } catch { }
-        Bitmap g = MakeGlass(new Rectangle(Left, Top, Width, Height));
-        try { Native.SetWindowDisplayAffinity(Handle, liveBlurActive ? 0x11u : 0u); } catch { }
-        if (g == null) return;
-        Bitmap old = glass;
-        glass = g;
-        if (old != null) old.Dispose();
+        if (!Settings.Glass || (Visible && !excludedFromCapture)) return;
+        Bitmap bitmap = MakeGlass(Bounds);
+        if (bitmap == null) return;
+        SetGlass(bitmap);
         Invalidate(true);
     }
 

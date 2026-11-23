@@ -52,7 +52,28 @@ partial class PanelForm
         catch { return null; }
     }
 
-    bool liveBlurActive;
+    bool liveBlurActive, excludedFromCapture, layoutRightSide;
+
+    void ApplyCaptureSettings()
+    {
+        excludedFromCapture = false;
+        if (IsHandleCreated)
+        {
+            uint affinity = Settings.HidePanelInCapture ? Native.WDA_EXCLUDEFROMCAPTURE : Native.WDA_NONE;
+            bool applied = Native.SetWindowDisplayAffinity(Handle, affinity);
+            excludedFromCapture = applied && Settings.HidePanelInCapture;
+        }
+        liveBlurActive = excludedFromCapture && Settings.Glass && Settings.LiveBlur && !appbar;
+        blurTimer.Enabled = Visible && liveBlurActive;
+        if (!Settings.Glass) SetGlass(null);
+    }
+
+    void SetGlass(Bitmap bitmap)
+    {
+        Bitmap old = glass;
+        glass = bitmap;
+        if (old != null) old.Dispose();
+    }
     int ClosedLeft { get { return openLeft + (Settings.RightSide ? S(40) : -S(40)); } }
 
     void RefreshGlass()
@@ -69,34 +90,65 @@ partial class PanelForm
     }
 
     // ---------- Affichage / animations ----------
+    void ApplyPanelGeometry()
+    {
+        int width = S(Settings.PanelWidth);
+        bool rightSide = Settings.RightSide;
+        if (!IsOpen || (Width == width && layoutRightSide == rightSide)) return;
+
+        Screen screen = Screen.FromControl(this);
+        layoutRightSide = rightSide;
+        if (appbar)
+        {
+            Width = width;
+            AppBarSetPos();
+        }
+        else
+        {
+            Rectangle work = screen.WorkingArea;
+            openLeft = rightSide ? work.Right - width : work.Left;
+            anim.Stop();
+            Bounds = new Rectangle(openLeft, Top, width, Height);
+            Opacity = 1;
+        }
+        if (!liveBlurActive) RefreshStaticGlass();
+    }
+
     public void ShowPanel(Screen scr)
     {
         if (IsOpen) { Activate(); return; }
-        if (Visible) { StartAnim(true); Activate(); search.Focus(); return; }
+        if (Visible)
+        {
+            StartAnim(true);
+            ApplyCaptureSettings();
+            ApplyPanelGeometry();
+            UpdateWidgetTimer(true);
+            Activate();
+            search.Focus();
+            return;
+        }
         if (Dirty) RequestLoad();
         Rectangle wa = scr.WorkingArea;
         Width = S(Settings.PanelWidth);
         Height = wa.Height;
         Top = wa.Top;
-        openLeft = Settings.RightSide ? wa.Right - Width : wa.Left;
-        if (glass != null) { glass.Dispose(); glass = null; }
-        liveBlurActive = Settings.Glass && Settings.LiveBlur;
-        // Exclut le panneau des captures : permet de capturer ce qu'il y a derrière en continu
-        try { if (!Native.SetWindowDisplayAffinity(Handle, liveBlurActive ? 0x11u : 0u)) liveBlurActive = false; }
-        catch { liveBlurActive = false; }
-        if (Settings.Glass) glass = MakeGlass(new Rectangle(openLeft, Top, Width, Height));
-        if (Settings.Widgets || Settings.WeatherOn) { RefreshWidgetData(); widgetTimer.Start(); }
+        layoutRightSide = Settings.RightSide;
+        openLeft = layoutRightSide ? wa.Right - Width : wa.Left;
+        // Le panneau est encore masqué : la photo du fond ne le contient pas.
+        SetGlass(Settings.Glass ? MakeGlass(new Rectangle(openLeft, Top, Width, Height)) : null);
+        ApplyCaptureSettings();
         ApplyTheme();
         if (search.Text.Length > 0) search.Text = "";
         else Rebuild(true);
         Left = Settings.Animations ? ClosedLeft : openLeft;
         Opacity = Settings.Animations ? 0 : 1;
         Show();
+        ApplyCaptureSettings();
+        UpdateWidgetTimer(true);
         Activate();
         Native.SetForegroundWindow(Handle);
         search.Focus();
         StartAnim(true);
-        if (liveBlurActive) blurTimer.Start();
     }
 
     public DateTime LastHidden = DateTime.MinValue;

@@ -22,11 +22,11 @@ class CleanupDialog : ThemedDialog
         using (CleanupDialog d = new CleanupDialog()) d.ShowDialog();
     }
 
-    CleanupDialog() : base(L.T("Nettoyage rapide", "Quick clean-up"), Ui.S(560), Ui.S(140) + Ui.S(64) * 6)
+    CleanupDialog() : base(L.T("Nettoyage rapide", "Quick clean-up", "Limpieza rápida"), Ui.S(560), Ui.S(140) + Ui.S(64) * 6)
     {
         int pad = Ui.S(20), w = ClientSize.Width - 2 * pad, y = Ui.S(14);
         Label intro = AddLabel(L.T("Seuls des caches et des fichiers temporaires de ton compte sont supprimés. Windows, les programmes et tes documents ne sont jamais touchés.",
-            "Only caches and temporary files of your account are deleted. Windows, programs and your documents are never touched."), pad, y);
+            "Only caches and temporary files of your account are deleted. Windows, programs and your documents are never touched.", "Solo se borran las cachés y los archivos temporales de tu cuenta. Se conservan Windows, los programas y tus documentos."), pad, y);
         intro.MaximumSize = new Size(w, 0);
         y = Ui.S(62);
         foreach (CleanCategory c in categories)
@@ -37,7 +37,7 @@ class CleanupDialog : ThemedDialog
             Label detail = AddLabel(c.Detail, pad, y + Ui.S(21));
             detail.Font = Ui.Font("Segoe UI", 8.25f);
             detail.MaximumSize = new Size(w - Ui.S(170), Ui.S(34));
-            Label size = AddLabel(L.T("analyse…", "scanning…"), pad + w - Ui.S(160), y + Ui.S(3));
+            Label size = AddLabel(L.T("analyse…", "scanning…", "analizando…"), pad + w - Ui.S(160), y + Ui.S(3));
             size.AutoSize = false;
             size.Size = new Size(Ui.S(105), Ui.S(20));
             size.TextAlign = ContentAlignment.MiddleRight;
@@ -51,9 +51,9 @@ class CleanupDialog : ThemedDialog
         }
         status = AddLabel("", pad, y + Ui.S(4));
         status.MaximumSize = new Size(w - Ui.S(250), 0);
-        AddButtons(DoClean, L.T("Nettoyer", "Clean up"));
+        AddButtons(DoClean, L.T("Nettoyer", "Clean up", "Limpiar"));
         bClean = Controls.OfType<FlatButton>().First(b => b.Primary);
-        Controls.OfType<FlatButton>().First(b => !b.Primary).Text = L.T("Fermer", "Close");
+        Controls.OfType<FlatButton>().First(b => !b.Primary).Text = L.T("Fermer", "Close", "Cerrar");
         Shown += (s, e) => Analyse();
     }
 
@@ -67,7 +67,7 @@ class CleanupDialog : ThemedDialog
     void Analyse()
     {
         SetBusy(true);
-        status.Text = L.T("Analyse en cours…", "Scanning…");
+        status.Text = L.T("Analyse en cours…", "Scanning…", "Analizando…");
         Background.Run(() =>
         {
             foreach (CleanCategory c in categories)
@@ -96,8 +96,8 @@ class CleanupDialog : ThemedDialog
         if (busy) return;
         long total = categories.Where(c => c.Checked).Sum(c => c.Size);
         List<string> running = categories.Where(c => c.Checked).SelectMany(c => c.Running).Distinct().ToList();
-        status.Text = L.T("À libérer : ", "To free: ") + L.Size(total) +
-            (running.Count > 0 ? L.T("\n* Ferme ", "\n* Close ") + string.Join(", ", running) + L.T(" pour nettoyer son cache.", " to clean its cache.") : "");
+        status.Text = L.T("À libérer : ", "To free: ", "Espacio recuperable: ") + L.Size(total) +
+            (running.Count > 0 ? L.T("\n* Ferme ", "\n* Close ", "\n* Cierra ") + string.Join(", ", running) + L.T(" pour nettoyer son cache.", " to clean its cache.", " para limpiar su caché.") : "");
     }
 
     void DoClean()
@@ -105,11 +105,11 @@ class CleanupDialog : ThemedDialog
         if (busy) return;
         List<CleanCategory> chosen = categories.Where(c => c.Checked).ToList();
         long total = chosen.Sum(c => c.Size);
-        if (chosen.Count == 0 || total == 0) { status.Text = L.T("Rien à nettoyer dans les catégories cochées.", "Nothing to clean in the selected categories."); return; }
+        if (chosen.Count == 0 || total == 0) { status.Text = L.T("Rien à nettoyer dans les catégories cochées.", "Nothing to clean in the selected categories.", "No hay nada que limpiar en las categorías seleccionadas."); return; }
         string list = string.Join("\n", chosen.Where(c => c.Size > 0).Select(c => "• " + c.Title + " (" + L.Size(c.Size) + ")"));
-        if (!Dialogs.Ask(this, L.T("Supprimer définitivement ", "Permanently delete ") + L.Size(total) + L.T(" ?\n\n", "?\n\n") + list)) return;
+        if (!Dialogs.Ask(this, L.T("Supprimer définitivement ", "Permanently delete ", "¿Eliminar de forma permanente ") + L.Size(total) + L.T(" ?\n\n", "?\n\n", "?\n\n") + list)) return;
         SetBusy(true);
-        status.Text = L.T("Nettoyage en cours…", "Cleaning up…");
+        status.Text = L.T("Nettoyage en cours…", "Cleaning up…", "Limpiando…");
         Background.Run(() =>
         {
             CleanResult r = null;
@@ -119,8 +119,8 @@ class CleanupDialog : ThemedDialog
                 SetBusy(false);
                 Analyse();
                 if (r != null)
-                    Dialogs.Info(this, L.Size(r.Freed) + L.T(" libérés.", " freed.") +
-                        (r.Skipped > 0 ? "\n" + r.Skipped + L.T(" fichier(s) en cours d'utilisation ont été laissés en place.", " file(s) in use were left in place.") : ""));
+                    Dialogs.Info(this, L.Size(r.Freed) + L.T(" libérés.", " freed.", " liberados.") +
+                        (r.Skipped > 0 ? "\n" + r.Skipped + L.T(" fichier(s) en cours d'utilisation ont été laissés en place.", " file(s) in use were left in place.", " archivo(s) en uso se conservaron.") : ""));
             });
         });
     }

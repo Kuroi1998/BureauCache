@@ -7,8 +7,8 @@ using System.Runtime.CompilerServices;
 [assembly: AssemblyProduct("BureauCache")]
 [assembly: AssemblyDescription("Ton bureau, rangé sur le côté de l'écran")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Kuroi1998 — licence MIT")]
-[assembly: AssemblyVersion(AppInfo.Version + ".0.0")]
-[assembly: AssemblyFileVersion(AppInfo.Version + ".0.0")]
+[assembly: AssemblyVersion(AppInfo.Version)]
+[assembly: AssemblyFileVersion(AppInfo.Version)]
 [assembly: AssemblyInformationalVersion(AppInfo.Version)]
 // Les classes de l'application sont internes : le projet tests/BureauCache.Tests y accède par ce biais
 [assembly: InternalsVisibleTo("BureauCache.Tests")]

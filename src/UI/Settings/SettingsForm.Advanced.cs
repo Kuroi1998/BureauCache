@@ -21,7 +21,7 @@ partial class SettingsForm
         if (customCounts.Count == 0) return;
         var counts = Settings.CatOverride.Values.ToLookup(name => name, StringComparer.OrdinalIgnoreCase);
         foreach (var row in customCounts)
-            row.Value.Text = counts[row.Key.Name].Count() + T(" élément(s)", " item(s)");
+            row.Value.Text = counts[row.Key.Name].Count() + T(" élément(s)", " item(s)", " elemento(s)");
     }
 
     void BuildCustomRows()
@@ -40,20 +40,20 @@ partial class SettingsForm
         foreach (CustomCat cc in Settings.CustomCats.ToList())
         {
             CustomCat c = cc;
-            FlatButton del = Button(T("Supprimer", "Delete"), false, S(100), () =>
+            FlatButton del = Button(T("Supprimer", "Delete", "Eliminar"), false, S(100), () =>
             {
                 if (!Ask(T("Supprimer la catégorie « " + c.Name + " » ?\nSes éléments retournent dans leur catégorie automatique.",
-                           "Delete the \"" + c.Name + "\" category?\nIts items go back to their automatic category."))) return;
+                           "Delete the \"" + c.Name + "\" category?\nIts items go back to their automatic category.", "¿Eliminar la categoría «" + c.Name + "»?\nSus elementos volverán a la categoría automática."))) return;
                 Settings.DeleteCategory(c);
                 Settings.Notify();
             });
-            FlatButton edit = Button(T("Modifier", "Edit"), false, S(100), () => { if (CategoryDialog.Run(c) != null) Settings.Notify(); });
+            FlatButton edit = Button(T("Modifier", "Edit", "Editar"), false, S(100), () => { if (CategoryDialog.Run(c) != null) Settings.Notify(); });
             del.Danger = true;
             customCounts[c] = Row(c.Name, "", del, null, new GlyphTileControl(c.Glyph, c.Color), edit);
         }
-        FlatButton add = Button(T("Nouvelle catégorie", "New category"), true, S(170), () => { if (CategoryDialog.Run(null) != null) Settings.Notify(); });
-        Row(Settings.CustomCats.Count == 0 ? T("Aucune catégorie personnalisée", "No custom category") : T("Ajouter une catégorie", "Add a category"),
-            T("Ex. : Travail, Cours, Mods… avec ton icône et ta couleur.", "E.g. Work, School, Mods… with your own icon and color."), add, null);
+        FlatButton add = Button(T("Nouvelle catégorie", "New category", "Nueva categoría"), true, S(170), () => { if (CategoryDialog.Run(null) != null) Settings.Notify(); });
+        Row(Settings.CustomCats.Count == 0 ? T("Aucune catégorie personnalisée", "No custom category", "Sin categorías personalizadas") : T("Ajouter une catégorie", "Add a category", "Añadir una categoría"),
+            T("Ex. : Travail, Cours, Mods… avec ton icône et ta couleur.", "E.g. Work, School, Mods… with your own icon and color.", "Por ejemplo, Trabajo, Estudios o Mods, con tu propio icono y color."), add, null);
         Style(customCard);
         cur = saved;
         ArrangePages();
@@ -61,42 +61,42 @@ partial class SettingsForm
 
     void BuildAdvanced()
     {
-        NewPage(T("Avancé", "Advanced"), T("Sauvegardes et mises à jour.", "Backups and updates."));
-        Section(T("SAUVEGARDE", "BACKUP"));
-        Row(T("Exporter mes réglages", "Export my settings"), T("Réglages, favoris, catégories et ordre.", "Settings, favorites, categories and order."),
-            Button(T("Exporter…", "Export…"), false, S(130), Export), null);
-        Row(T("Importer des réglages", "Import settings"), T("Remplace les réglages actuels.", "Replaces the current settings."),
-            Button(T("Importer…", "Import…"), false, S(130), Import), null);
+        NewPage(T("Avancé", "Advanced", "Opciones avanzadas"), T("Sauvegardes et mises à jour.", "Backups and updates.", "Copias de seguridad y actualizaciones."));
+        Section(T("SAUVEGARDE", "BACKUP", "COPIA DE SEGURIDAD"));
+        Row(T("Exporter mes réglages", "Export my settings", "Exportar mi configuración"), T("Réglages, favoris, catégories et ordre.", "Settings, favorites, categories and order.", "Configuración, favoritos, categorías y orden."),
+            Button(T("Exporter…", "Export…", "Exportar…"), false, S(130), Export), null);
+        Row(T("Importer des réglages", "Import settings", "Importar configuración"), T("Remplace les réglages actuels.", "Replaces the current settings.", "Sustituye la configuración actual."),
+            Button(T("Importer…", "Import…", "Importar…"), false, S(130), Import), null);
 
-        Section(T("MISES À JOUR", "UPDATES"));
+        Section(T("MISES À JOUR", "UPDATES", "ACTUALIZACIONES"));
         repo = new InputBox(S(230));
         repo.Box.Leave += (s, e) => { if (repo.Box.Text.Trim() != Settings.UpdateRepo) { Settings.UpdateRepo = repo.Box.Text.Trim(); ResetUpdateButton(); Settings.Notify(); } };
         repo.Box.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; ActiveControl = null; } };
         repo.Box.HandleCreated += (s, e) => Native.SendMessage(repo.Box.Handle, 0x1501, (IntPtr)1, Updater.DefaultRepo);
-        Row(T("Dépôt GitHub", "GitHub repository"), T("Laisse vide pour le dépôt officiel.", "Leave empty for the official repository."), repo, null);
+        Row(T("Dépôt GitHub", "GitHub repository", "Repositorio de GitHub"), T("Laisse vide pour le dépôt officiel.", "Leave empty for the official repository.", "Deja este campo vacío para usar el repositorio oficial."), repo, null);
         tAutoUpd = NewToggle(v => Settings.AutoUpdate = v);
-        Row(T("Vérifier chaque jour", "Check daily"), null, tAutoUpd, null);
-        bCheck = Button(T("Vérifier", "Check"), true, S(170), CheckUpdate);
-        lUpdate = Row(T("Version ", "Version ") + Installer.Version, "-", bCheck, null);
+        Row(T("Vérifier chaque jour", "Check daily", "Comprobar a diario"), null, tAutoUpd, null);
+        bCheck = Button(T("Vérifier", "Check", "Comprobar"), true, S(170), CheckUpdate);
+        lUpdate = Row(T("Version ", "Version ", "Versión ") + Installer.Version, "-", bCheck, null);
 
-        Section(T("SÉCURITÉ", "SAFETY"));
+        Section(T("SÉCURITÉ", "SAFETY", "SEGURIDAD"));
         Note(T("Si BureauCache se ferme de façon inattendue, un petit processus de surveillance réaffiche automatiquement tes icônes du bureau.",
-               "If BureauCache closes unexpectedly, a small watchdog process automatically brings your desktop icons back."));
+               "If BureauCache closes unexpectedly, a small watchdog process automatically brings your desktop icons back.", "Si BureauCache se cierra de forma inesperada, un proceso de supervisión restaura los iconos del escritorio."));
     }
 
     void Export()
     {
         if (!Settings.Save())
         {
-            Dialogs.Warn(this, T("Impossible de sauvegarder les réglages.", "Could not save settings."));
+            Dialogs.Warn(this, T("Impossible de sauvegarder les réglages.", "Could not save settings.", "No se pudo guardar la configuración."));
             return;
         }
         using (SaveFileDialog d = new SaveFileDialog())
         {
-            d.FileName = T("BureauCache-reglages", "BureauCache-settings") + ".ini";
-            d.Filter = T("Réglages BureauCache", "BureauCache settings") + " (*.ini)|*.ini";
+            d.FileName = T("BureauCache-reglages", "BureauCache-settings", "BureauCache-configuracion") + ".ini";
+            d.Filter = T("Réglages BureauCache", "BureauCache settings", "Configuración de BureauCache") + " (*.ini)|*.ini";
             if (d.ShowDialog(this) != DialogResult.OK) return;
-            try { File.Copy(Settings.FilePath, d.FileName, true); Dialogs.Info(this, T("Réglages exportés.", "Settings exported.")); }
+            try { File.Copy(Settings.FilePath, d.FileName, true); Dialogs.Info(this, T("Réglages exportés.", "Settings exported.", "Configuración exportada.")); }
             catch (Exception ex) { Dialogs.Info(this, ex.Message); }
         }
     }
@@ -105,16 +105,16 @@ partial class SettingsForm
     {
         using (OpenFileDialog d = new OpenFileDialog())
         {
-            d.Filter = T("Réglages BureauCache", "BureauCache settings") + " (*.ini)|*.ini";
+            d.Filter = T("Réglages BureauCache", "BureauCache settings", "Configuración de BureauCache") + " (*.ini)|*.ini";
             if (d.ShowDialog(this) != DialogResult.OK) return;
             try
             {
-                if (!Ask(T("Remplacer tes réglages actuels par ceux de ce fichier ?", "Replace your current settings with this file?"))) return;
+                if (!Ask(T("Remplacer tes réglages actuels par ceux de ce fichier ?", "Replace your current settings with this file?", "¿Sustituir la configuración actual por la de este archivo?"))) return;
                 if (!Settings.Load(d.FileName))
-                    throw new IOException(T("Fichier de réglages invalide ou trop volumineux.", "Invalid or oversized settings file."));
+                    throw new IOException(T("Fichier de réglages invalide ou trop volumineux.", "Invalid or oversized settings file.", "Archivo de configuración no válido o demasiado grande."));
                 L.Refresh();
                 Settings.Notify();
-                Dialogs.Info(this, T("Réglages importés.", "Settings imported."));
+                Dialogs.Info(this, T("Réglages importés.", "Settings imported.", "Configuración importada."));
             }
             catch (Exception ex) { Dialogs.Info(this, ex.Message); }
         }
@@ -122,7 +122,7 @@ partial class SettingsForm
 
     void ResetUpdateButton()
     {
-        bCheck.Text = T("Vérifier", "Check");
+        bCheck.Text = T("Vérifier", "Check", "Comprobar");
         lUpdate.Text = "-";
     }
 
@@ -137,11 +137,11 @@ partial class SettingsForm
         Settings.SaveQuiet();
         if (!Updater.RepoValid)
         {
-            lUpdate.Text = T("Dépôt invalide (format : utilisateur/projet).", "Invalid repository (format: owner/name).");
+            lUpdate.Text = T("Dépôt invalide (format : utilisateur/projet).", "Invalid repository (format: owner/name).", "Repositorio no válido (formato: propietario/nombre).");
             return;
         }
         bCheck.Enabled = false;
-        lUpdate.Text = T("Vérification…", "Checking…");
+        lUpdate.Text = T("Vérification…", "Checking…", "Comprobando…");
         Background.Run(() =>
         {
             Updater.Release release = Updater.Check();
@@ -154,11 +154,11 @@ partial class SettingsForm
                     if (!Updater.AcceptCheck(release)) { ResetUpdateButton(); UpdateTexts(); return; }
                     if (release.Available)
                     {
-                        lUpdate.Text = T("Version ", "Version ") + release.Version + T(" disponible.", " is available.");
-                        bCheck.Text = T("Installer la ", "Install ") + release.Version;
+                        lUpdate.Text = T("Version ", "Version ", "Versión ") + release.Version + T(" disponible.", " is available.", " está disponible.");
+                        bCheck.Text = T("Installer la ", "Install ", "Instalar ") + release.Version;
                     }
                     else if (release.Error != null) lUpdate.Text = release.Error;
-                    else lUpdate.Text = T("Tu as la dernière version.", "You're up to date.");
+                    else lUpdate.Text = T("Tu as la dernière version.", "You're up to date.", "Tienes la última versión.");
                 }));
             }
             catch { }
@@ -169,7 +169,7 @@ partial class SettingsForm
     {
         return Button(text, false, S(130), () =>
         {
-            if (!Ask(T("Confirmer : ", "Confirm: ") + text.ToLower(L.Culture) + " ?")) return;
+            if (!Ask(T("Confirmer : ", "Confirm: ", "Confirmar: ") + text.ToLower(L.Culture) + " ?")) return;
             a();
             Settings.Notify();
         });

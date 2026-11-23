@@ -270,7 +270,7 @@ partial class ItemsView : Control
                 g.FillPath(b, p);
                 g.DrawPath(pen, p);
             }
-            string msg = L.T("Dépose ici pour ajouter au bureau", "Drop here to add to the desktop");
+            string msg = L.T("Dépose ici pour ajouter au bureau", "Drop here to add to the desktop", "Suelta aquí para añadir al escritorio");
             Size ts = TextRenderer.MeasureText(msg, fItem);
             Rectangle pill = new Rectangle((Width - ts.Width) / 2 - S(16), Height / 2 - S(20), ts.Width + S(32), S(40));
             Ui.Fill(g, Theme.Accent, pill, S(20));
@@ -281,7 +281,7 @@ partial class ItemsView : Control
     void DrawHelp(Graphics g)
     {
         int y = S(6);
-        TextRenderer.DrawText(g, L.T("RACCOURCIS CLAVIER", "KEYBOARD SHORTCUTS"), fHeader, new Point(S(16), y + S(6)), Theme.FgDim, TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(g, L.T("RACCOURCIS CLAVIER", "KEYBOARD SHORTCUTS", "ATAJOS DE TECLADO"), fHeader, new Point(S(16), y + S(6)), Theme.FgDim, TextFormatFlags.NoPrefix);
         y += S(34);
         int keyW = 0;
         foreach (KeyValuePair<string, string> h in Help) keyW = Math.Max(keyW, TextRenderer.MeasureText(h.Key, fBadge).Width);
@@ -298,7 +298,7 @@ partial class ItemsView : Control
                 TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
             y += rh;
         }
-        TextRenderer.DrawText(g, L.T("Échap pour revenir", "Esc to go back"), fDetail, new Rectangle(0, y + S(10), Width, S(20)), Theme.FgDim,
+        TextRenderer.DrawText(g, L.T("Échap pour revenir", "Esc to go back", "Esc para volver"), fDetail, new Rectangle(0, y + S(10), Width, S(20)), Theme.FgDim,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPrefix);
     }
 
@@ -371,7 +371,7 @@ partial class ItemsView : Control
         int right = r.Right - S(8);
         if (it.IsNew)
         {
-            string nb = L.T("Nouveau", "New");
+            string nb = L.T("Nouveau", "New", "Nuevo");
             Size bs = TextRenderer.MeasureText(nb, fBadge);
             Rectangle pill = new Rectangle(right - bs.Width - S(8), r.Y + (r.Height - S(18)) / 2, bs.Width + S(8), S(18));
             Ui.Fill(g, Theme.Accent, pill, S(9));

@@ -22,6 +22,8 @@ partial class PanelForm : Form
     readonly Font fSmall = Ui.Font("Segoe UI", 8.25f);
     public List<DesktopItem> All = new List<DesktopItem>(), Apps = new List<DesktopItem>(), Recent = new List<DesktopItem>();
     List<DesktopItem> winSettings = new List<DesktopItem>(), commands = new List<DesktopItem>();
+    int catalogPx, catalogLanguage, catalogAccent;
+    bool catalogHidesIcons;
     public volatile bool Dirty = true;
     public bool Busy;
     public event EventHandler SettingsRequested;
@@ -109,7 +111,7 @@ partial class PanelForm : Form
 
     void SetCue()
     {
-        Native.SendMessage(search.Handle, 0x1501, (IntPtr)1, L.T("Rechercher partout…   (F1 : aide)", "Search everything…   (F1: help)"));
+        Native.SendMessage(search.Handle, 0x1501, (IntPtr)1, L.T("Rechercher partout…   (F1 : aide)", "Search everything…   (F1: help)", "Buscar en todo…   (F1: ayuda)"));
     }
 
     protected override CreateParams CreateParams
@@ -127,13 +129,22 @@ partial class PanelForm : Form
     {
         base.OnHandleCreated(e);
         Native.SetRoundCorners(Handle);
+        ApplyCaptureSettings();
     }
 
     public void RefreshCatalog()
     {
-        winSettings = SystemCatalog.WindowsSettings(ListPx);
-        commands = SystemCatalog.Commands(ListPx, () => { if (SettingsRequested != null) SettingsRequested(this, EventArgs.Empty); });
-        if (search.IsHandleCreated) SetCue();
+        int px = ListPx, language = L.CurrentLanguage, accent = Settings.Accent.ToArgb();
+        bool hidesIcons = Settings.HideIcons;
+        bool refreshNames = catalogPx != px || catalogLanguage != language;
+        if (refreshNames) winSettings = SystemCatalog.WindowsSettings(px);
+        if (refreshNames || catalogAccent != accent || catalogHidesIcons != hidesIcons)
+            commands = SystemCatalog.Commands(px, () => { if (SettingsRequested != null) SettingsRequested(this, EventArgs.Empty); });
+        if (catalogLanguage != language && search.IsHandleCreated) SetCue();
+        catalogPx = px;
+        catalogLanguage = language;
+        catalogAccent = accent;
+        catalogHidesIcons = hidesIcons;
     }
 
     public void ApplyTheme()
@@ -179,8 +190,13 @@ partial class PanelForm : Form
 
     public void PaintBg(Graphics g, Rectangle area, Point offset)
     {
-        if (glass != null)
-            g.DrawImage(glass, area, new Rectangle(offset.X + area.X, offset.Y + area.Y, area.Width, area.Height), GraphicsUnit.Pixel);
+        if (glass != null && ClientSize.Width > 0 && ClientSize.Height > 0)
+        {
+            // En capture visible, conserve l'image prise à l'ouverture pendant un redimensionnement.
+            float sx = (float)glass.Width / ClientSize.Width, sy = (float)glass.Height / ClientSize.Height;
+            var source = new RectangleF((offset.X + area.X) * sx, (offset.Y + area.Y) * sy, area.Width * sx, area.Height * sy);
+            g.DrawImage(glass, area, source, GraphicsUnit.Pixel);
+        }
         else
             using (SolidBrush b = new SolidBrush(Theme.Bg)) g.FillRectangle(b, area);
     }
@@ -192,10 +208,10 @@ partial class PanelForm : Form
         Graphics g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
         int x0 = X0;
-        string title = L.T("Bureau", "Desktop");
+        string title = L.T("Bureau", "Desktop", "Escritorio");
         TextRenderer.DrawText(g, title, fTitle, new Point(x0 + S(16), S(16)), Theme.Fg, TextFormatFlags.NoPrefix);
         int tw = TextRenderer.MeasureText(title, fTitle).Width;
-        string count = loading && !loadedOnce ? L.T("Chargement…", "Loading…") : All.Count + L.T(" éléments", " items");
+        string count = loading && !loadedOnce ? L.T("Chargement…", "Loading…", "Cargando…") : All.Count + L.T(" éléments", " items", " elementos");
         Rectangle countRect = new Rectangle(x0 + S(16) + tw, S(14), rcPin.X - S(4) - (x0 + S(16) + tw), S(30));
         if (countRect.Width > S(30))
             TextRenderer.DrawText(g, count, fCount, countRect, Theme.FgDim, TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
@@ -244,15 +260,26 @@ partial class PanelForm : Form
             Color c = used > 0.9f ? Theme.Danger : Theme.Accent;
             Ui.Fill(g, c, new RectangleF(bar.X, bar.Y, Math.Max(S(4), bar.Width * used), bar.Height), S(2));
         }
-        TextRenderer.DrawText(g, L.T("libres", "free"), fSmall, new Rectangle(rcDisk.X, rcDisk.Y + S(32), rcDisk.Width, S(14)), Theme.FgDim,
+        TextRenderer.DrawText(g, L.T("libres", "free", "libre"), fSmall, new Rectangle(rcDisk.X, rcDisk.Y + S(32), rcDisk.Width, S(14)), Theme.FgDim,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPrefix);
 
         Ui.Glyph(g, Glyphs.Delete, 9f, Theme.FgDim, new Rectangle(rcBin.X + S(6), rcBin.Y + S(4), S(18), S(20)));
-        string bt = binCount == 0 ? L.T("vide", "empty") : binCount.ToString();
+        string bt = binCount == 0 ? L.T("vide", "empty", "vacía") : binCount.ToString();
         TextRenderer.DrawText(g, bt, fSmall, new Rectangle(rcBin.X + S(24), rcBin.Y + S(4), rcBin.Width - S(28), S(20)), Theme.Fg,
             TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
-        TextRenderer.DrawText(g, L.T("corbeille", "bin"), fSmall, new Rectangle(rcBin.X, rcBin.Y + S(26), rcBin.Width, S(18)), Theme.FgDim,
+        TextRenderer.DrawText(g, L.T("corbeille", "bin", "papelera"), fSmall, new Rectangle(rcBin.X, rcBin.Y + S(26), rcBin.Width, S(18)), Theme.FgDim,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+    }
+
+    void UpdateWidgetTimer(bool open)
+    {
+        bool enabled = open && (Settings.Widgets || Settings.WeatherOn);
+        if (enabled && !widgetTimer.Enabled)
+        {
+            widgetTicks = 0;
+            RefreshWidgetData();
+        }
+        widgetTimer.Enabled = enabled;
     }
 
     void RefreshWidgetData()

@@ -23,11 +23,11 @@ class HotkeyBox : FlatControl
 
     public static string Format(int mods, int key)
     {
-        if (key == 0) return L.T("Aucun", "None");
+        if (key == 0) return L.T("Aucun", "None", "Ninguno");
         List<string> p = new List<string>();
         if ((mods & 2) != 0) p.Add("Ctrl");
         if ((mods & 1) != 0) p.Add("Alt");
-        if ((mods & 4) != 0) p.Add(L.T("Maj", "Shift"));
+        if ((mods & 4) != 0) p.Add(L.T("Maj", "Shift", "Mayús"));
         if ((mods & 8) != 0) p.Add("Win");
         p.Add(KeyName((Keys)key));
         return string.Join(" + ", p);
@@ -38,7 +38,7 @@ class HotkeyBox : FlatControl
         List<string> p = new List<string>();
         if ((mods & 2) != 0) p.Add("Ctrl");
         if ((mods & 1) != 0) p.Add("Alt");
-        if ((mods & 4) != 0) p.Add(L.T("Maj", "Shift"));
+        if ((mods & 4) != 0) p.Add(L.T("Maj", "Shift", "Mayús"));
         if ((mods & 8) != 0) p.Add("Win");
         return string.Join(" + ", p);
     }
@@ -46,16 +46,16 @@ class HotkeyBox : FlatControl
     static string KeyName(Keys k)
     {
         if (k >= Keys.D0 && k <= Keys.D9) return ((int)(k - Keys.D0)).ToString();
-        if (k >= Keys.NumPad0 && k <= Keys.NumPad9) return L.T("Pavé ", "Num ") + (int)(k - Keys.NumPad0);
+        if (k >= Keys.NumPad0 && k <= Keys.NumPad9) return L.T("Pavé ", "Num ", "Num ") + (int)(k - Keys.NumPad0);
         switch (k)
         {
-            case Keys.Space: return L.T("Espace", "Space");
-            case Keys.Return: return L.T("Entrée", "Enter");
+            case Keys.Space: return L.T("Espace", "Space", "Espacio");
+            case Keys.Return: return L.T("Entrée", "Enter", "Intro");
             case Keys.Tab: return "Tab";
-            case Keys.Up: return L.T("Haut", "Up");
-            case Keys.Down: return L.T("Bas", "Down");
-            case Keys.Left: return L.T("Gauche", "Left");
-            case Keys.Right: return L.T("Droite", "Right");
+            case Keys.Up: return L.T("Haut", "Up", "Arriba");
+            case Keys.Down: return L.T("Bas", "Down", "Abajo");
+            case Keys.Left: return L.T("Gauche", "Left", "Izquierda");
+            case Keys.Right: return L.T("Droite", "Right", "Derecha");
             case Keys.Oemtilde: return "²";
         }
         return k.ToString();
@@ -93,7 +93,7 @@ class HotkeyBox : FlatControl
             return;
         }
         bool fkey = k >= Keys.F1 && k <= Keys.F24;
-        if (m == 0 && !fkey) { live = L.T("Ajoute Ctrl, Alt ou Maj", "Add Ctrl, Alt or Shift"); Invalidate(); return; }
+        if (m == 0 && !fkey) { live = L.T("Ajoute Ctrl, Alt ou Maj", "Add Ctrl, Alt or Shift", "Añade Ctrl, Alt o Mayús"); Invalidate(); return; }
         Mods = m;
         Key = (int)k;
         live = null;
@@ -121,7 +121,7 @@ class HotkeyBox : FlatControl
         if (capturing || SettingsHighContrast)
             using (GraphicsPath p = Ui.Round(r, Ui.S(8)))
             using (Pen pen = new Pen(SettingsHighContrast ? SystemColors.ControlText : Theme.Accent, Ui.S(2))) g.DrawPath(pen, p);
-        string txt = capturing ? (live ?? L.T("Appuie sur tes touches…", "Press your keys…")) : Format(Mods, Key);
+        string txt = capturing ? (live ?? L.T("Appuie sur tes touches…", "Press your keys…", "Pulsa las teclas…")) : Format(Mods, Key);
         Color text = SettingsHighContrast ? SystemColors.ControlText : capturing && live == null ? Theme.FgDim : Theme.Fg;
         TextRenderer.DrawText(g, txt, Font, ClientRectangle, text,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);

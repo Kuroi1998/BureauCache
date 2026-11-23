@@ -8,6 +8,7 @@ partial class SettingsForm
 {
     Icon settingsIcon;
     int iconAccent;
+    Point? restoredScroll;
     // ---------- Valeurs ----------
     void LoadValues()
     {
@@ -31,6 +32,8 @@ partial class SettingsForm
         swatch.Invalidate();
         tGlass.Checked = Settings.Glass;
         tLive.Checked = Settings.LiveBlur;
+        tCapture.Checked = Settings.HidePanelInCapture;
+        tLive.Enabled = Settings.Glass && Settings.HidePanelInCapture;
         tAnim.Checked = Settings.Animations;
         sView.Selected = Settings.GridView ? 1 : 0;
         slWidth.Value = Settings.PanelWidth;
@@ -60,47 +63,47 @@ partial class SettingsForm
     {
         lDelay.Text = Settings.Delay + " ms";
         lWidth.Text = Settings.PanelWidth + " px";
-        lWeatherPlace.Text = string.IsNullOrEmpty(Settings.WeatherPlace) ? T("Aucun lieu choisi.", "No place chosen.") : Settings.WeatherPlace;
+        lWeatherPlace.Text = string.IsNullOrEmpty(Settings.WeatherPlace) ? T("Aucun lieu choisi.", "No place chosen.", "Ningún lugar seleccionado.") : Settings.WeatherPlace;
         bool ok = act.HotkeyOk == null || act.HotkeyOk();
-        if (!Settings.HotkeyOn) { lHotStatus.Text = T("Raccourci désactivé.", "Shortcut turned off."); lHotStatus.Tag = null; }
-        else if (ok) { lHotStatus.Text = T("Clique dans le champ puis appuie sur tes touches.", "Click the box, then press your keys."); lHotStatus.Tag = null; }
-        else { lHotStatus.Text = T("Déjà utilisé par une autre application : choisis-en un autre.", "Already used by another app: pick another one."); lHotStatus.Tag = "err"; }
+        if (!Settings.HotkeyOn) { lHotStatus.Text = T("Raccourci désactivé.", "Shortcut turned off.", "Atajo desactivado."); lHotStatus.Tag = null; }
+        else if (ok) { lHotStatus.Text = T("Clique dans le champ puis appuie sur tes touches.", "Click the box, then press your keys.", "Haz clic en el campo y pulsa las teclas."); lHotStatus.Tag = null; }
+        else { lHotStatus.Text = T("Déjà utilisé par une autre application : choisis-en un autre.", "Already used by another app: pick another one.", "Otra aplicación ya lo usa. Elige otro."); lHotStatus.Tag = "err"; }
         lHotStatus.ForeColor = SystemInformation.HighContrast ? SystemColors.WindowText : lHotStatus.Tag != null ? Theme.Danger : Theme.FgDim;
         if (Installer.IsInstalled && Installer.RunningFromInstall)
         {
-            lInstall.Text = T("Installé, présent dans le menu Démarrer et les applications.", "Installed, in the Start menu and installed apps.");
-            bInstall.Text = T("Désinstaller", "Uninstall"); bInstall.Primary = false; bInstall.Danger = true;
+            lInstall.Text = T("Installé, présent dans le menu Démarrer et les applications.", "Installed, in the Start menu and installed apps.", "Instalado y disponible en el menú Inicio y en Aplicaciones instaladas.");
+            bInstall.Text = T("Désinstaller", "Uninstall", "Desinstalar"); bInstall.Primary = false; bInstall.Danger = true;
         }
         else if (Installer.IsInstalled)
         {
-            lInstall.Text = T("Une version installée existe : la mettre à jour avec celle-ci.", "An installed version exists: update it with this one.");
-            bInstall.Text = T("Mettre à jour", "Update"); bInstall.Primary = true; bInstall.Danger = false;
+            lInstall.Text = T("Une version installée existe : la mettre à jour avec celle-ci.", "An installed version exists: update it with this one.", "Ya hay una versión instalada. Puedes actualizarla con esta.");
+            bInstall.Text = T("Mettre à jour", "Update", "Actualizar"); bInstall.Primary = true; bInstall.Danger = false;
         }
         else
         {
-            lInstall.Text = T("Ajoute BureauCache au menu Démarrer et aux applications.", "Adds BureauCache to the Start menu and installed apps.");
-            bInstall.Text = T("Installer", "Install"); bInstall.Primary = true; bInstall.Danger = false;
+            lInstall.Text = T("Ajoute BureauCache au menu Démarrer et aux applications.", "Adds BureauCache to the Start menu and installed apps.", "Añade BureauCache al menú Inicio y a Aplicaciones instaladas.");
+            bInstall.Text = T("Installer", "Install", "Instalar"); bInstall.Primary = true; bInstall.Danger = false;
         }
         bInstall.Invalidate();
         bool? promoted = ShellUtil.TrayIconPromoted(Application.ExecutablePath);
-        lTray.Text = promoted == true ? T("✓ L'icône est affichée à côté de l'horloge.", "✓ The icon is shown next to the clock.")
-                   : promoted == false ? T("Rangée dans la flèche ^ : ouvre le réglage, puis active BureauCache.", "Hidden in the ^ arrow: open the setting, then turn BureauCache on.")
-                   : T("Si l'icône est dans la flèche ^, ouvre le réglage pour l'afficher.", "If the icon is in the ^ arrow, open the setting to show it.");
+        lTray.Text = promoted == true ? T("✓ L'icône est affichée à côté de l'horloge.", "✓ The icon is shown next to the clock.", "✓ El icono aparece junto al reloj.")
+                   : promoted == false ? T("Rangée dans la flèche ^ : ouvre le réglage, puis active BureauCache.", "Hidden in the ^ arrow: open the setting, then turn BureauCache on.", "El icono está en la flecha ^. Abre el ajuste y activa BureauCache.")
+                   : T("Si l'icône est dans la flèche ^, ouvre le réglage pour l'afficher.", "If the icon is in the ^ arrow, open the setting to show it.", "Si el icono está en la flecha ^, abre el ajuste para mostrarlo.");
         bArchiveUndo.Enabled = Archiver.CanUndo;
         bArchiveUndo.Invalidate();
         var release = Updater.AvailableRelease;
-        bCheck.Text = release == null ? T("Vérifier", "Check") : T("Installer la ", "Install ") + release.Version;
+        bCheck.Text = release == null ? T("Vérifier", "Check", "Comprobar") : T("Installer la ", "Install ", "Instalar ") + release.Version;
         if (release != null)
-            lUpdate.Text = T("Version ", "Version ") + release.Version + T(" disponible.", " available.");
+            lUpdate.Text = T("Version ", "Version ", "Versión ") + release.Version + T(" disponible.", " available.", " disponible.");
         else if (lUpdate.Text == "-" || lUpdate.Text.Length == 0)
-            lUpdate.Text = Updater.RepoValid ? T("Clique pour vérifier.", "Click to check.") : T("Dépôt invalide.", "Invalid repository.");
+            lUpdate.Text = Updater.RepoValid ? T("Clique pour vérifier.", "Click to check.", "Haz clic para comprobar.") : T("Dépôt invalide.", "Invalid repository.", "Repositorio no válido.");
     }
 
     void UpdateArchiveText()
     {
         int n = Archiver.Candidates().Count;
-        lArchive.Text = n == 0 ? T("Rien à ranger pour le moment.", "Nothing to tidy up right now.")
-                               : n + T(" élément(s) inutilisé(s) depuis " + Settings.ArchiveDays + " jours.", " item(s) unused for " + Settings.ArchiveDays + " days.");
+        lArchive.Text = n == 0 ? T("Rien à ranger pour le moment.", "Nothing to tidy up right now.", "Por ahora no hay nada que archivar.")
+                               : n + T(" élément(s) inutilisé(s) depuis " + Settings.ArchiveDays + " jours.", " item(s) unused for " + Settings.ArchiveDays + " days.", " elemento(s) sin usar durante " + Settings.ArchiveDays + " días.");
     }
 
     void OnSettingsChanged()
@@ -133,6 +136,23 @@ partial class SettingsForm
         Bounds = bounds;
         WindowState = state;
         SelectPage(previous.CurrentPage);
+        Point scroll = previous.restoredScroll ?? previous.pages[previous.CurrentPage].AutoScrollPosition;
+        restoredScroll = previous.restoredScroll ?? new Point(-scroll.X, -scroll.Y);
+        RestorePageScroll();
+    }
+
+    protected override void OnVisibleChanged(EventArgs e)
+    {
+        base.OnVisibleChanged(e);
+        RestorePageScroll();
+    }
+
+    void RestorePageScroll()
+    {
+        if (!Visible || !restoredScroll.HasValue) return;
+        ArrangePages();
+        pages[CurrentPage].AutoScrollPosition = restoredScroll.Value;
+        restoredScroll = null;
     }
 
     void Restyle()

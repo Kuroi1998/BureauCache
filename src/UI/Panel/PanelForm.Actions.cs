@@ -40,9 +40,9 @@ partial class PanelForm
         }
         catch (System.ComponentModel.Win32Exception ex)
         {
-            if (ex.NativeErrorCode != 1223) ShowError(L.T("Impossible d'ouvrir « ", "Can't open \"") + it.Name + L.T(" » :\n", "\":\n") + ex.Message);
+            if (ex.NativeErrorCode != 1223) ShowError(L.T("Impossible d'ouvrir « ", "Can't open \"", "No se pudo abrir «") + it.Name + L.T(" » :\n", "\":\n", "»:\n") + ex.Message);
         }
-        catch (Exception ex) { ShowError(L.T("Impossible d'ouvrir « ", "Can't open \"") + it.Name + L.T(" » :\n", "\":\n") + ex.Message); }
+        catch (Exception ex) { ShowError(L.T("Impossible d'ouvrir « ", "Can't open \"", "No se pudo abrir «") + it.Name + L.T(" » :\n", "\":\n", "»:\n") + ex.Message); }
         Rebuild(true);
     }
 
@@ -54,13 +54,13 @@ partial class PanelForm
     void ShowItemMenu(DesktopItem it, Point pt)
     {
         Menus.Clear(menu.Items);
-        ToolStripMenuItem open = Menus.Item(it.Kind == ItemKind.Calc ? L.T("Copier le résultat", "Copy result") : L.T("Ouvrir", "Open"), Glyphs.Open, () => Launch(it, null));
+        ToolStripMenuItem open = Menus.Item(it.Kind == ItemKind.Calc ? L.T("Copier le résultat", "Copy result", "Copiar resultado") : L.T("Ouvrir", "Open", "Abrir"), Glyphs.Open, () => Launch(it, null));
         open.Font = Ui.Font(menu.Font.Name, menu.Font.Size, FontStyle.Bold);
         menu.Items.Add(open);
         if (it.HasPath && Catalog.IsExecutable(it.Target))
-            menu.Items.Add(Menus.Item(L.T("Exécuter en tant qu'administrateur", "Run as administrator"), Glyphs.Shield, () => Launch(it, "runas")));
+            menu.Items.Add(Menus.Item(L.T("Exécuter en tant qu'administrateur", "Run as administrator", "Ejecutar como administrador"), Glyphs.Shield, () => Launch(it, "runas")));
         if (it.HasPath)
-            menu.Items.Add(Menus.Item(L.T("Ouvrir l'emplacement du fichier", "Open file location"), Glyphs.Folder, () =>
+            menu.Items.Add(Menus.Item(L.T("Ouvrir l'emplacement du fichier", "Open file location", "Abrir la ubicación del archivo"), Glyphs.Folder, () =>
             {
                 HidePanel();
                 ShellUtil.Reveal(it.Target);
@@ -69,11 +69,11 @@ partial class PanelForm
         {
             menu.Items.Add(new ToolStripSeparator());
             bool fav = Settings.FavIndex(it.Key) >= 0;
-            menu.Items.Add(Menus.Item(fav ? L.T("Retirer des favoris", "Remove from favorites") : L.T("Ajouter aux favoris", "Add to favorites"), fav ? Glyphs.Unfavorite : Glyphs.Star, () => ToggleFavorite(it)));
+            menu.Items.Add(Menus.Item(fav ? L.T("Retirer des favoris", "Remove from favorites", "Quitar de favoritos") : L.T("Ajouter aux favoris", "Add to favorites", "Añadir a favoritos"), fav ? Glyphs.Unfavorite : Glyphs.Star, () => ToggleFavorite(it)));
         }
         if (it.IsDesktopFile)
         {
-            ToolStripMenuItem mv = Menus.Sub(menu, L.T("Déplacer vers", "Move to"), Glyphs.Move);
+            ToolStripMenuItem mv = Menus.Sub(menu, L.T("Déplacer vers", "Move to", "Mover a"), Glyphs.Move);
             foreach (string cat in Catalog.AllCats())
             {
                 string c = cat;
@@ -82,7 +82,7 @@ partial class PanelForm
                 mv.DropDownItems.Add(ci);
             }
             mv.DropDownItems.Add(new ToolStripSeparator());
-            mv.DropDownItems.Add(Menus.Item(L.T("Nouvelle catégorie…", "New category…"), Glyphs.Add, () =>
+            mv.DropDownItems.Add(Menus.Item(L.T("Nouvelle catégorie…", "New category…", "Nueva categoría…"), Glyphs.Add, () =>
             {
                 HidePanel();
                 string name = CategoryDialog.Run(null);
@@ -90,7 +90,7 @@ partial class PanelForm
                 SetCategory(it, name, false);
                 Settings.Notify();
             }));
-            mv.DropDownItems.Add(Menus.Item(L.T("Automatique (", "Automatic (") + Catalog.Display(it.AutoCategory) + ")", null, () =>
+            mv.DropDownItems.Add(Menus.Item(L.T("Automatique (", "Automatic (", "Automático (") + Catalog.Display(it.AutoCategory) + ")", null, () =>
             {
                 Settings.CatOverride.Remove(it.Key);
                 Settings.SaveQuiet();
@@ -98,14 +98,14 @@ partial class PanelForm
             }));
             menu.Items.Add(mv);
             menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add(Menus.Item(L.T("Renommer…", "Rename…"), Glyphs.Rename, () => Rename(it)));
-            menu.Items.Add(Menus.Item(L.T("Supprimer", "Delete"), Glyphs.Delete, () => Delete(it)));
+            menu.Items.Add(Menus.Item(L.T("Renommer…", "Rename…", "Cambiar nombre…"), Glyphs.Rename, () => Rename(it)));
+            menu.Items.Add(Menus.Item(L.T("Supprimer", "Delete", "Eliminar"), Glyphs.Delete, () => Delete(it)));
         }
         if (it.HasPath)
         {
-            menu.Items.Add(Menus.Item(L.T("Propriétés", "Properties"), Glyphs.Info, () => { HidePanel(); ShellUtil.Properties(it.Target); }));
-            ToolStripMenuItem more = Menus.Sub(menu, L.T("Plus d'options", "More options"), Glyphs.More);
-            more.DropDownItems.Add(new ToolStripMenuItem(L.T("Chargement…", "Loading…")) { Enabled = false });
+            menu.Items.Add(Menus.Item(L.T("Propriétés", "Properties", "Propiedades"), Glyphs.Info, () => { HidePanel(); ShellUtil.Properties(it.Target); }));
+            ToolStripMenuItem more = Menus.Sub(menu, L.T("Plus d'options", "More options", "Más opciones"), Glyphs.More);
+            more.DropDownItems.Add(new ToolStripMenuItem(L.T("Chargement…", "Loading…", "Cargando…")) { Enabled = false });
             more.DropDownOpening += (s, e) =>
             {
                 Menus.Clear(more.DropDownItems);
@@ -114,7 +114,7 @@ partial class PanelForm
                     object verb = v.Value;
                     more.DropDownItems.Add(new ToolStripMenuItem(v.Key, null, (s2, e2) => { HidePanel(); ShellUtil.InvokeVerb(verb); Dirty = true; }));
                 }
-                if (more.DropDownItems.Count == 0) more.DropDownItems.Add(new ToolStripMenuItem(L.T("Aucune option", "No options")) { Enabled = false });
+                if (more.DropDownItems.Count == 0) more.DropDownItems.Add(new ToolStripMenuItem(L.T("Aucune option", "No options", "Sin opciones")) { Enabled = false });
             };
             menu.Items.Add(more);
         }
@@ -147,14 +147,14 @@ partial class PanelForm
                     FileOps.Move(oldPath, newPath, folder);
                     Settings.RenameKey(oldPath, newPath);
                     ReloadNow();
-                    Toast(L.T("Renommé en « " + d.Value + " »", "Renamed to \"" + d.Value + "\""), () =>
+                    Toast(L.T("Renommé en « " + d.Value + " »", "Renamed to \"" + d.Value + "\"", "Nuevo nombre: «" + d.Value + "»"), () =>
                     {
                         FileOps.Move(newPath, oldPath, folder);
                         Settings.RenameKey(newPath, oldPath);
                         ReloadNow();
                     }, null);
                 }
-                catch (Exception ex) { ShowError(L.T("Impossible de renommer :\n", "Can't rename:\n") + ex.Message); }
+                catch (Exception ex) { ShowError(L.T("Impossible de renommer :\n", "Can't rename:\n", "No se pudo cambiar el nombre:\n") + ex.Message); }
             }
         }
         finally
@@ -206,17 +206,17 @@ partial class PanelForm
             {
                 FileOps.Recycle(original, true);
                 Settings.RemoveKey(it.Key);
-                Toast(L.T("« " + name + " » placé dans la corbeille", "\"" + name + "\" moved to the Recycle Bin"), null, null);
+                Toast(L.T("« " + name + " » placé dans la corbeille", "\"" + name + "\" moved to the Recycle Bin", "«" + name + "» se movió a la papelera"), null, null);
             }
             catch (OperationCanceledException) { }
-            catch (Exception ex) { ShowError(L.T("Impossible de supprimer :\n", "Can't delete:\n") + ex.Message); }
+            catch (Exception ex) { ShowError(L.T("Impossible de supprimer :\n", "Can't delete:\n", "No se pudo eliminar:\n") + ex.Message); }
             finally { Busy = false; }
             ReloadNow();
             return;
         }
         Settings.RemoveKey(it.Key);
         ReloadNow();
-        Toast(L.T("« " + name + " » supprimé", "\"" + name + "\" deleted"),
+        Toast(L.T("« " + name + " » supprimé", "\"" + name + "\" deleted", "«" + name + "» se eliminó"),
             () =>
             {
                 FileOps.Move(held, original, folder);
@@ -259,12 +259,12 @@ partial class PanelForm
                     added++;
                 }
                 catch (OperationCanceledException) { }
-                catch (Exception ex) { ShowError(L.T("Impossible d'ajouter « ", "Can't add \"") + name + L.T(" » :\n", "\":\n") + ex.Message); }
+                catch (Exception ex) { ShowError(L.T("Impossible d'ajouter « ", "Can't add \"", "No se pudo añadir «") + name + L.T(" » :\n", "\":\n", "»:\n") + ex.Message); }
             }
         }
         finally { Busy = false; }
         ReloadNow();
-        if (added > 0) Toast(added + L.T(added > 1 ? " éléments ajoutés au bureau" : " élément ajouté au bureau", added > 1 ? " items added to the desktop" : " item added to the desktop"), null, null);
+        if (added > 0) Toast(added + L.T(added > 1 ? " éléments ajoutés au bureau" : " élément ajouté au bureau", added > 1 ? " items added to the desktop" : " item added to the desktop", added > 1 ? " elementos añadidos al escritorio" : " elemento añadido al escritorio"), null, null);
     }
 
     void SearchKeyDown(object sender, KeyEventArgs e)

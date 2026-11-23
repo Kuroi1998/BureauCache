@@ -71,7 +71,7 @@ static class Installer
     {
         Directory.CreateDirectory(Dir);
         if (!RunningFromInstall) File.Copy(Application.ExecutablePath, Exe, true);
-        ShellUtil.CreateShortcut(StartMenuLnk, Exe, L.T("Ton bureau, rangé sur le côté de l'écran", "Your desktop, tucked at the edge of the screen"));
+        ShellUtil.CreateShortcut(StartMenuLnk, Exe, L.T("Ton bureau, rangé sur le côté de l'écran", "Your desktop, tucked at the edge of the screen", "Tu escritorio, al borde de la pantalla"));
         RegisterVersion();
         if (Startup.Enabled) Startup.Set(true, Exe);
     }
@@ -97,7 +97,7 @@ static class Installer
         get
         {
             return L.T("Désinstaller BureauCache ?\n\nTes icônes du bureau seront réaffichées et tes réglages supprimés.",
-                       "Uninstall BureauCache?\n\nYour desktop icons will come back and your settings will be deleted.");
+                       "Uninstall BureauCache?\n\nYour desktop icons will come back and your settings will be deleted.", "¿Desinstalar BureauCache?\n\nSe restaurarán los iconos del escritorio y se borrará tu configuración.");
         }
     }
 

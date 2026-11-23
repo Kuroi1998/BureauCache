@@ -25,6 +25,7 @@ static class Settings
         GroupCats = true, GridView = false, Glass = true, LiveBlur = true, Animations = true, NoFullscreen = true, HotkeyOn = true,
         SearchApps = true, SearchRecent = true, SearchSettings = true, SearchCommands = true,
         NewBadge = true, ArchiveOn = false, HoverPreview = true, Widgets = true, AutoUpdate = true, Pinned = false, QuietStart = false, TrayHintShown = false;
+    public static bool HidePanelInCapture;
     public static string LastVersion = "";
     public static List<string> ArchiveLog = new List<string>();
     public static int ThemeMode = 0, Language = 0, Delay = 120, PanelWidth = 340, EdgeZone = 0, ScreenIdx = -1,
@@ -89,6 +90,7 @@ static class Settings
         if (!File.Exists(path)) { FirstRun = true; return false; }
         bool hasThemeMode = false;
         string oldDark = null;
+        bool hidePanelInCapture = false;
         try
         {
             string[] lines;
@@ -118,6 +120,7 @@ static class Settings
                     case "GridView": GridView = b; break;
                     case "Glass": Glass = b; break;
                     case "LiveBlur": LiveBlur = b; break;
+                    case "HidePanelInCapture": hidePanelInCapture = b; break;
                     case "Animations": Animations = b; break;
                     case "NoFullscreen": NoFullscreen = b; break;
                     case "HotkeyOn": HotkeyOn = b; break;
@@ -198,7 +201,8 @@ static class Settings
         PanelWidth = Math.Max(260, Math.Min(560, PanelWidth));
         EdgeZone = Math.Max(0, Math.Min(3, EdgeZone));
         ThemeMode = Math.Max(0, Math.Min(2, ThemeMode));
-        Language = Math.Max(0, Math.Min(2, Language));
+        if (Language < L.SystemLanguage || Language > L.Spanish) Language = L.SystemLanguage;
+        HidePanelInCapture = hidePanelInCapture;
         WebEngine = Math.Max(0, Math.Min(3, WebEngine));
         if (NewDays < 1) NewDays = 3;
         if (ArchiveDays < 7 || ArchiveDays > 36500) ArchiveDays = 60;
@@ -269,7 +273,7 @@ static class Settings
             return new string[] {
                 "HideIcons=" + B(HideIcons), "RightSide=" + B(RightSide), "AutoClose=" + B(AutoClose),
                 "ShowSystem=" + B(ShowSystem), "ShowRecents=" + B(ShowRecents), "GroupCats=" + B(GroupCats),
-                "GridView=" + B(GridView), "Glass=" + B(Glass), "LiveBlur=" + B(LiveBlur), "Animations=" + B(Animations),
+                "GridView=" + B(GridView), "Glass=" + B(Glass), "LiveBlur=" + B(LiveBlur), "HidePanelInCapture=" + B(HidePanelInCapture), "Animations=" + B(Animations),
                 "NoFullscreen=" + B(NoFullscreen), "HotkeyOn=" + B(HotkeyOn),
                 "SearchApps=" + B(SearchApps), "SearchRecent=" + B(SearchRecent), "SearchSettings=" + B(SearchSettings),
                 "SearchCommands=" + B(SearchCommands), "NewBadge=" + B(NewBadge), "ArchiveOn=" + B(ArchiveOn),

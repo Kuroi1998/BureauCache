@@ -9,7 +9,7 @@ param([Parameter(Mandatory = $true)][string]$Version)
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 
-if ($Version -notmatch '^[0-9]+\.[0-9]+$') { throw "Format attendu : X.Y (ex. 3.3)" }
+if ($Version -notmatch '^[0-9]+\.[0-9]+(?:\.[0-9]+)?$') { throw "Format attendu : X.Y ou X.Y.Z (ex. 3.7.1)" }
 if (-not (Select-String -Path CHANGELOG.md -Pattern "^## $([regex]::Escape($Version))(?=\s|$)" -Quiet)) {
     throw "Ajoute d'abord une section '## $Version' dans CHANGELOG.md"
 }

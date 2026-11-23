@@ -117,15 +117,15 @@ static class Cleaner
         List<CleanCategory> list = new List<CleanCategory>();
 
         CleanCategory temp = new CleanCategory { Id = "temp", Checked = true,
-            Title = L.T("Fichiers temporaires", "Temporary files"),
-            Detail = L.T("Dossier temporaire de ton compte (fichiers de plus de 24 h).", "Your account's temporary folder (files older than 24 h).") };
+            Title = L.T("Fichiers temporaires", "Temporary files", "Archivos temporales"),
+            Detail = L.T("Dossier temporaire de ton compte (fichiers de plus de 24 h).", "Your account's temporary folder (files older than 24 h).", "Carpeta temporal de tu cuenta (archivos de más de 24 h).") };
         temp.Targets.Add(new CleanTarget { Dir = Path.GetTempPath(), MinAge = TimeSpan.FromHours(24) });
         list.Add(temp);
 
         CleanCategory web = new CleanCategory { Id = "browsers", Checked = true,
-            Title = L.T("Caches des navigateurs", "Browser caches"),
+            Title = L.T("Caches des navigateurs", "Browser caches", "Cachés de navegadores"),
             Detail = L.T("Edge, Chrome, Brave, Vivaldi, Opera, Firefox. Mots de passe, historique et sessions restent intacts.",
-                         "Edge, Chrome, Brave, Vivaldi, Opera, Firefox. Passwords, history and sessions stay intact.") };
+                         "Edge, Chrome, Brave, Vivaldi, Opera, Firefox. Passwords, history and sessions stay intact.", "Edge, Chrome, Brave, Vivaldi, Opera y Firefox. Se conservan las contraseñas, el historial y las sesiones.") };
         Chromium(web, Path.Combine(Local, @"Microsoft\Edge\User Data"), "msedge");
         Chromium(web, Path.Combine(Local, @"Google\Chrome\User Data"), "chrome");
         Chromium(web, Path.Combine(Local, @"BraveSoftware\Brave-Browser\User Data"), "brave");
@@ -137,9 +137,9 @@ static class Cleaner
         list.Add(web);
 
         CleanCategory apps = new CleanCategory { Id = "apps", Checked = true,
-            Title = L.T("Caches des applications", "App caches"),
+            Title = L.T("Caches des applications", "App caches", "Cachés de aplicaciones"),
             Detail = L.T("Discord, Teams, Steam, Visual Studio Code. Comptes et réglages restent intacts.",
-                         "Discord, Teams, Steam, Visual Studio Code. Accounts and settings stay intact.") };
+                         "Discord, Teams, Steam, Visual Studio Code. Accounts and settings stay intact.", "Discord, Teams, Steam y Visual Studio Code. Se conservan las cuentas y la configuración.") };
         Dirs(apps, Path.Combine(Roaming, "discord"), new[] { @"Cache\Cache_Data", "Code Cache", "GPUCache" }, "Discord");
         Dirs(apps, Path.Combine(Local, @"Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\EBWebView\Default"),
             new[] { @"Cache\Cache_Data", "GPUCache" }, "ms-teams");
@@ -148,23 +148,23 @@ static class Cleaner
         list.Add(apps);
 
         CleanCategory crash = new CleanCategory { Id = "crash",
-            Title = L.T("Rapports d'erreurs", "Error reports"),
+            Title = L.T("Rapports d'erreurs", "Error reports", "Informes de errores"),
             Detail = L.T("Rapports de plantage et vidages mémoire de Windows. Utiles pour diagnostiquer un problème récent.",
-                         "Windows crash reports and memory dumps. Useful to diagnose a recent problem.") };
+                         "Windows crash reports and memory dumps. Useful to diagnose a recent problem.", "Informes de fallos y volcados de memoria de Windows. Ayudan a diagnosticar problemas recientes.") };
         Dirs(crash, Path.Combine(Local, @"Microsoft\Windows\WER"), new[] { "ReportArchive", "ReportQueue" });
         crash.Targets.Add(new CleanTarget { Dir = Path.Combine(Local, "CrashDumps") });
         list.Add(crash);
 
         CleanCategory thumbs = new CleanCategory { Id = "thumbs",
-            Title = L.T("Miniatures de Windows", "Windows thumbnails"),
+            Title = L.T("Miniatures de Windows", "Windows thumbnails", "Miniaturas de Windows"),
             Detail = L.T("Recréées automatiquement, mais l'Explorateur sera plus lent la première fois. Souvent verrouillées.",
-                         "Rebuilt automatically, but Explorer will be slower the first time. Often locked.") };
+                         "Rebuilt automatically, but Explorer will be slower the first time. Often locked.", "Se regeneran automáticamente, aunque el Explorador irá más lento la primera vez. Suelen estar bloqueadas.") };
         thumbs.Targets.Add(new CleanTarget { Dir = Path.Combine(Local, @"Microsoft\Windows\Explorer"), Pattern = "thumbcache_*.db", Recurse = false });
         list.Add(thumbs);
 
         list.Add(new CleanCategory { Id = "bin", RecycleBin = true,
-            Title = L.T("Corbeille", "Recycle Bin"),
-            Detail = L.T("Vide définitivement la corbeille de tous les disques.", "Permanently empties the Recycle Bin on all drives.") });
+            Title = L.T("Corbeille", "Recycle Bin", "Papelera de reciclaje"),
+            Detail = L.T("Vide définitivement la corbeille de tous les disques.", "Permanently empties the Recycle Bin on all drives.", "Vacía de forma permanente la papelera de reciclaje de todas las unidades.") });
         return list;
     }
 

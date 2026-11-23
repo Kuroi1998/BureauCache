@@ -16,7 +16,7 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\compilation-commun.ps1"
 $depot = Split-Path $PSScriptRoot -Parent
 if (-not $Cle) { $Cle = Join-Path (Get-DossierClesParDefaut) 'principale.cle' }
-if ($Version -notmatch '^[0-9]+\.[0-9]+$') { throw "Format attendu : X.Y (ex. 3.4)" }
+if ($Version -notmatch '^[0-9]+\.[0-9]+(?:\.[0-9]+)?$') { throw "Format attendu : X.Y ou X.Y.Z (ex. 3.7.1)" }
 if (-not (Test-Path $Cle)) { throw "Clé introuvable : $Cle (voir outils\creer-cles.ps1)" }
 $publiques = Get-ClesPubliquesDuCode $depot
 if ($publiques.Count -eq 0) { throw "src\Core\UpdateKeys.cs ne contient aucune clé publique." }

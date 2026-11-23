@@ -44,7 +44,8 @@ partial class App : ApplicationContext
     ContextMenuStrip trayMenu;
     IntPtr listView = IntPtr.Zero;
     int edgeTicks, outsideTicks, pollCount;
-    bool requireLeave, wasOpen, hotkeyOk = true, autoCloseArmed, lastEn;
+    bool requireLeave, wasOpen, hotkeyOk = true, autoCloseArmed;
+    int lastLanguage;
     Action balloonAction;
     const int PollMs = 20;
     public static string RelaunchPath;
@@ -57,7 +58,7 @@ partial class App : ApplicationContext
         Settings.AttachToUi();
         IntPtr unused = panel.Handle;
         panel.SettingsRequested += (s, e) => ShowSettings();
-        lastEn = L.En;
+        lastLanguage = L.CurrentLanguage;
 
         SetupTray();
 
@@ -121,11 +122,11 @@ partial class App : ApplicationContext
         {
             Settings.SaveQuiet();
             Balloon(L.T("BureauCache a été mis à jour en " + Installer.Version + ". Clique pour voir les nouveautés.",
-                        "BureauCache was updated to " + Installer.Version + ". Click to see what's new."),
+                        "BureauCache was updated to " + Installer.Version + ". Click to see what's new.", "BureauCache se actualizó a la versión " + Installer.Version + ". Haz clic para ver las novedades."),
                     () => { try { ShellUtil.Open("https://github.com/" + Updater.RepoName + "/releases/tag/v" + Installer.Version, null); } catch { } });
         }
-        else if (!Settings.Pinned && !Settings.QuietStart) Balloon(L.T("Amène la souris sur le bord " + (Settings.RightSide ? "droit" : "gauche") + " de l'écran", "Move the mouse to the " + (Settings.RightSide ? "right" : "left") + " edge of the screen") +
-            (Settings.HotkeyOn ? L.T(" ou appuie sur ", " or press ") + HotkeyBox.Format(Settings.HotMods, Settings.HotKey) : "") + ".", null);
+        else if (!Settings.Pinned && !Settings.QuietStart) Balloon(L.T("Amène la souris sur le bord " + (Settings.RightSide ? "droit" : "gauche") + " de l'écran", "Move the mouse to the " + (Settings.RightSide ? "right" : "left") + " edge of the screen", "Lleva el ratón al borde " + (Settings.RightSide ? "derecho" : "izquierdo") + " de la pantalla") +
+            (Settings.HotkeyOn ? L.T(" ou appuie sur ", " or press ", " o pulsa ") + HotkeyBox.Format(Settings.HotMods, Settings.HotKey) : "") + ".", null);
     }
 
     void RegisterHotkey() { hotkeyOk = hotkey.Register(Settings.HotkeyOn, Settings.HotMods, Settings.HotKey); }
@@ -137,9 +138,9 @@ partial class App : ApplicationContext
         RegisterHotkey();
         panel.OnSettingsChanged();
         RefreshTray();
-        if (L.En != lastEn)
+        if (L.CurrentLanguage != lastLanguage)
         {
-            lastEn = L.En;
+            lastLanguage = L.CurrentLanguage;
             panel.ReloadNow();
             if (settingsForm != null && !settingsForm.IsDisposed)
             {
@@ -202,13 +203,13 @@ partial class App : ApplicationContext
         {
             Installer.Install();
             Dialogs.Info(settingsForm, L.T("BureauCache est installé.\nTu le trouveras dans le menu Démarrer et dans Paramètres > Applications.\n\nIl va redémarrer depuis son dossier d'installation.",
-                "BureauCache is installed.\nYou'll find it in the Start menu and in Settings > Apps.\n\nIt will now restart from its install folder."));
+                "BureauCache is installed.\nYou'll find it in the Start menu and in Settings > Apps.\n\nIt will now restart from its install folder.", "BureauCache está instalado.\nLo encontrarás en el menú Inicio y en Configuración > Aplicaciones.\n\nAhora se reiniciará desde la carpeta de instalación."));
             if (!Installer.RunningFromInstall) { RelaunchPath = Installer.Exe; ExitThread(); }
             else Settings.Fire();
         }
         catch (Exception ex)
         {
-            Dialogs.Warn(settingsForm, L.T("L'installation a échoué :\n", "Installation failed:\n") + ex.Message);
+            Dialogs.Warn(settingsForm, L.T("L'installation a échoué :\n", "Installation failed:\n", "Error de instalación:\n") + ex.Message);
         }
     }
 
@@ -227,9 +228,9 @@ partial class App : ApplicationContext
         string notes = Updater.ShortNotes(release);
         string origin = Updater.IsOfficial(release.Repository) ? "" :
             "\n\n" + L.T("Attention : cette version vient du dépôt « " + release.Repository + " », pas du dépôt officiel. Elle n'est pas signée par l'éditeur de BureauCache.",
-                         "Warning: this version comes from the \"" + release.Repository + "\" repository, not the official one. It is not signed by the BureauCache publisher.");
-        if (!Dialogs.Ask(null, L.T("Installer BureauCache " + release.Version + " ?\nLe programme va redémarrer.", "Install BureauCache " + release.Version + "?\nThe program will restart.") + origin +
-            (notes.Length > 0 ? "\n\n" + L.T("Nouveautés :", "What's new:") + "\n" + notes : ""))) return;
+                         "Warning: this version comes from the \"" + release.Repository + "\" repository, not the official one. It is not signed by the BureauCache publisher.", "Atención: esta versión proviene del repositorio «" + release.Repository + "», distinto del oficial. El editor de BureauCache no la ha firmado.");
+        if (!Dialogs.Ask(null, L.T("Installer BureauCache " + release.Version + " ?\nLe programme va redémarrer.", "Install BureauCache " + release.Version + "?\nThe program will restart.", "¿Instalar BureauCache " + release.Version + "?\nEl programa se reiniciará.") + origin +
+            (notes.Length > 0 ? "\n\n" + L.T("Nouveautés :", "What's new:", "Novedades:") + "\n" + notes : ""))) return;
         if (installingUpdate || Updater.AvailableRelease != release) return;
         installingUpdate = true;
         string exe = Application.ExecutablePath;
@@ -242,7 +243,7 @@ partial class App : ApplicationContext
             {
                 installingUpdate = false;
                 if (error == null) { RelaunchPath = exe; ExitThread(); }
-                else Dialogs.Warn(null, L.T("La mise à jour a échoué :\n", "Update failed:\n") + error);
+                else Dialogs.Warn(null, L.T("La mise à jour a échoué :\n", "Update failed:\n", "Error de actualización:\n") + error);
             }));
         });
     }
@@ -259,7 +260,7 @@ partial class App : ApplicationContext
                 if (!Updater.AcceptCheck(release)) return;
                 RefreshTray();
                 if (release.Available) Balloon(L.T("BureauCache " + release.Version + " est disponible. Clique pour l'installer.",
-                    "BureauCache " + release.Version + " is available. Click to install."), InstallUpdate);
+                    "BureauCache " + release.Version + " is available. Click to install.", "BureauCache " + release.Version + " está disponible. Haz clic para instalarlo."), InstallUpdate);
             }));
         });
     }
@@ -278,7 +279,7 @@ partial class App : ApplicationContext
         if (n > 0)
         {
             panel.ReloadNow();
-            Balloon(n + L.T(" élément(s) inutilisé(s) rangé(s) dans « " + Settings.ArchiveName + " ».", " unused item(s) moved into \"" + Settings.ArchiveName + "\"."),
+            Balloon(n + L.T(" élément(s) inutilisé(s) rangé(s) dans « " + Settings.ArchiveName + " ».", " unused item(s) moved into \"" + Settings.ArchiveName + "\".", " elemento(s) sin usar movido(s) a «" + Settings.ArchiveName + "»."),
                 () => { try { ShellUtil.Open(Archiver.Folder, null); } catch { } });
         }
     }

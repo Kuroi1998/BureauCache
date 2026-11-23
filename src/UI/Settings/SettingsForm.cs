@@ -26,7 +26,7 @@ partial class SettingsForm : Form
     readonly Panel header;
     readonly int NavW;
 
-    Toggle tQuiet, tHide, tStartup, tAuto, tFull, tHot, tGlass, tLive, tAnim, tWidgets, tWeather, tPreview, tSystem, tRecents, tGroups,
+    Toggle tQuiet, tHide, tStartup, tAuto, tFull, tHot, tGlass, tLive, tCapture, tAnim, tWidgets, tWeather, tPreview, tSystem, tRecents, tGroups,
         tSApps, tSRecent, tSSettings, tSCmd, tNew, tArchive, tAutoUpd;
     Segmented sSide, sZone, sScreen, sTheme, sView, sLang, sEngine, sNewDays, sArchDays;
     Slider slDelay, slWidth;
@@ -43,7 +43,7 @@ partial class SettingsForm : Form
     bool loading, arranging, layoutReady;
 
     static int S(int v) { return Ui.S(v); }
-    static string T(string fr, string en) { return L.T(fr, en); }
+    static string T(string fr, string en, string es = null) { return L.T(fr, en, es); }
     static readonly int[] NewDaysOpts = { 1, 3, 7 };
     static readonly int[] ArchiveOpts = { 30, 60, 90, 180 };
 
@@ -53,7 +53,7 @@ partial class SettingsForm : Form
     {
         this.act = act;
         NavW = S(204);
-        Text = "BureauCache – " + T("Paramètres", "Settings");
+        Text = "BureauCache – " + T("Paramètres", "Settings", "Configuración");
         FormBorderStyle = FormBorderStyle.Sizable;
         StartPosition = FormStartPosition.CenterScreen;
         AutoScaleMode = AutoScaleMode.None;
@@ -63,18 +63,18 @@ partial class SettingsForm : Form
                               Math.Max(1, Math.Min(S(730), work.Height - S(56))));
         KeyPreview = true;
 
-        nav = new SettingsNavigation(new[] { T("Général", "General"), T("Ouverture", "Opening"), T("Apparence", "Appearance"),
-                                  T("Recherche", "Search"), T("Organisation", "Organization"), T("Avancé", "Advanced") },
+        nav = new SettingsNavigation(new[] { T("Général", "General", "General"), T("Ouverture", "Opening", "Apertura"), T("Apparence", "Appearance", "Apariencia"),
+                                  T("Recherche", "Search", "Búsqueda"), T("Organisation", "Organization", "Organización"), T("Avancé", "Advanced", "Opciones avanzadas") },
                           new[] { Glyphs.Settings, Glyphs.Mouse, Glyphs.Palette, Glyphs.Search, Glyphs.Library, Glyphs.Info });
         nav.Width = NavW;
         nav.TabIndex = 0;
         nav.SelectedChanged += ShowPage;
         Controls.Add(nav);
 
-        FlatButton bQuit = new FlatButton(T("Quitter BureauCache", "Quit BureauCache"), false, NavW - S(32));
+        FlatButton bQuit = new FlatButton(T("Quitter BureauCache", "Quit BureauCache", "Salir de BureauCache"), false, NavW - S(32));
         nav.AddAction(bQuit, false);
         bQuit.Click += (s, e) => { if (act.Quit != null) act.Quit(); };
-        FlatButton bPrev = new FlatButton(T("Aperçu du panneau", "Preview panel"), true, NavW - S(32));
+        FlatButton bPrev = new FlatButton(T("Aperçu du panneau", "Preview panel", "Vista previa"), true, NavW - S(32));
         nav.AddAction(bPrev, true);
         bPrev.Click += (s, e) => { if (act.Preview != null) act.Preview(); };
         header = new Panel { TabStop = false };
@@ -208,7 +208,8 @@ partial class SettingsForm : Form
 
     FlatButton Button(string text, bool primary, int width, Action click)
     {
-        FlatButton b = new FlatButton(text, primary, width);
+        FlatButton b = new FlatButton(text, primary);
+        b.Width = Math.Max(width, b.Width);
         b.Height = S(32);
         b.Click += (s, e) => click();
         return b;

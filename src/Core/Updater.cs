@@ -107,7 +107,7 @@ static class Updater
         Uri u;
         if (!Uri.TryCreate(url, UriKind.Absolute, out u) || u.Scheme != Uri.UriSchemeHttps ||
             !AllowedHosts.Contains(u.Host.ToLowerInvariant()))
-            throw new Exception(L.T("Adresse de téléchargement refusée : ", "Download address refused: ") + url);
+            throw new Exception(L.T("Adresse de téléchargement refusée : ", "Download address refused: ", "Dirección de descarga rechazada: ") + url);
     }
 
     // Vrai si une version plus récente avec un BureauCache.exe est disponible
@@ -116,7 +116,7 @@ static class Updater
         var result = new Release { Repository = RepoName };
         if (!Regex.IsMatch(result.Repository, @"^[\w.-]+/[\w.-]+$"))
         {
-            result.Error = L.T("Dépôt invalide.", "Invalid repository.");
+            result.Error = L.T("Dépôt invalide.", "Invalid repository.", "Repositorio no válido.");
             return result;
         }
         try
@@ -127,7 +127,7 @@ static class Updater
             Match h = Regex.Match(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+/BureauCache\\.exe\\.sha256)\"");
             Match s = Regex.Match(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+/BureauCache\\.exe\\.sig)\"");
             Match b = Regex.Match(json, "\"body\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
-            if (!t.Success) throw new IOException(L.T("Aucune version publiée.", "No release published."));
+            if (!t.Success) throw new IOException(L.T("Aucune version publiée.", "No release published.", "No hay ninguna versión publicada."));
             result.Version = t.Groups[1].Value.TrimStart('v', 'V');
             result.Url = a.Success ? a.Groups[1].Value : null;
             result.ShaUrl = h.Success ? h.Groups[1].Value : null;
@@ -253,23 +253,23 @@ static class Updater
             byte[] head = new byte[2];
             using (FileStream fs = File.OpenRead(tmp)) fs.Read(head, 0, 2);
             if (head[0] != 'M' || head[1] != 'Z' || size < 50000 || size > MaxDownload)
-                throw new Exception(L.T("Le fichier téléchargé n'est pas un programme valide.", "The downloaded file is not a valid program."));
+                throw new Exception(L.T("Le fichier téléchargé n'est pas un programme valide.", "The downloaded file is not a valid program.", "El archivo descargado no es un programa válido."));
             if (!Regex.IsMatch(expected, "^[0-9a-f]{64}$") || Sha256(tmp) != expected)
-                throw new Exception(L.T("L'empreinte du fichier téléchargé ne correspond pas : mise à jour annulée.", "The downloaded file's checksum doesn't match: update cancelled."));
+                throw new Exception(L.T("L'empreinte du fichier téléchargé ne correspond pas : mise à jour annulée.", "The downloaded file's checksum doesn't match: update cancelled.", "La suma de comprobación del archivo descargado no coincide. Se canceló la actualización."));
             // Dépôt officiel : la signature, faite avec une clé privée qui ne passe jamais par GitHub, protège même
             // contre un dépôt compromis qui remplacerait à la fois l'exe et son empreinte (R-04, D-004)
             if (IsOfficial(release.Repository))
             {
                 if (release.SigUrl == null)
-                    throw new Exception(L.T("Cette version n'est pas signée : mise à jour annulée.", "This version is not signed: update cancelled."));
+                    throw new Exception(L.T("Cette version n'est pas signée : mise à jour annulée.", "This version is not signed: update cancelled.", "La versión carece de firma. Se canceló la actualización."));
                 RequireTrustedUrl(release.SigUrl);
                 string signature = FetchText(release.SigUrl, 4096);
                 if (!VerifySignature(HashBytes(tmp), signature, UpdateKeys.Trusted))
-                    throw new Exception(L.T("La signature du fichier téléchargé n'est pas valide : mise à jour annulée.", "The downloaded file's signature is not valid: update cancelled."));
+                    throw new Exception(L.T("La signature du fichier téléchargé n'est pas valide : mise à jour annulée.", "The downloaded file's signature is not valid: update cancelled.", "La firma del archivo descargado no es válida. Se canceló la actualización."));
             }
             string fileVersion = FileVersionInfo.GetVersionInfo(tmp).ProductVersion ?? "";
             if (!string.Equals(fileVersion, release.Version, StringComparison.Ordinal))
-                throw new Exception(L.T("La version du fichier téléchargé ne correspond pas à la version annoncée.", "The downloaded file's version doesn't match the announced version."));
+                throw new Exception(L.T("La version du fichier téléchargé ne correspond pas à la version annoncée.", "The downloaded file's version doesn't match the announced version.", "La versión del archivo descargado no coincide con la anunciada."));
             ReplaceExecutable(tmp, exe);
         }
         finally

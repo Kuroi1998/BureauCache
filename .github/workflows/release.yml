@@ -1,4 +1,4 @@
-# Publie une version quand on pousse un tag vX.Y (voir publier.ps1)
+# Publie une version quand on pousse un tag vX.Y ou vX.Y.Z (voir publier.ps1)
 name: Publier une version
 
 on:
@@ -19,7 +19,7 @@ jobs:
       - name: Vérifier que le numéro de version du code correspond au tag
         shell: pwsh
         run: |
-          if ($env:RELEASE_TAG -cnotmatch '^v[0-9]+\.[0-9]+$') { throw "Tag de version invalide" }
+          if ($env:RELEASE_TAG -cnotmatch '^v[0-9]+\.[0-9]+(?:\.[0-9]+)?$') { throw "Tag de version invalide" }
           $tag = $env:RELEASE_TAG.Substring(1)
           $code = (Select-String -Path src/Properties/AssemblyInfo.cs -Pattern 'public const string Version = "([^"]+)"').Matches[0].Groups[1].Value
           if ($code -ne $tag) { throw "Le tag v$tag ne correspond pas à AppInfo.Version ($code) dans src/Properties/AssemblyInfo.cs" }

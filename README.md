@@ -23,7 +23,7 @@ Aucun droit administrateur n'est nécessaire. Le programme se met ensuite à jou
 - **Icône près de l'horloge** : clic pour la liste, double-clic pour les paramètres, menu complet, point d'information (mise à jour, nouveaux fichiers) ; réduire la fenêtre la range près de l'horloge.
 - **Ergonomie** : visite guidée, annulation (Ctrl+Z), raccourcis clavier (F1 pour la liste), panneau redimensionnable et mode épinglé.
 - **Sécurité** : un processus de surveillance réaffiche les icônes du bureau si le programme plante.
-- Français et anglais.
+- Français, anglais et espagnol.
 
 ## Compiler
 
@@ -53,19 +53,19 @@ Les grandes fenêtres sont découpées avec `partial class` : chaque fichier `Cl
 
 ## Publier une nouvelle version
 
-1. Ajoute une section `## X.Y — Titre` en haut de [CHANGELOG.md](CHANGELOG.md) (le titre apparaît sur GitHub).
+1. Ajoute une section `## X.Y.Z — Titre` en haut de [CHANGELOG.md](CHANGELOG.md) (le titre apparaît sur GitHub).
 2. Lance :
 
 ```powershell
-.\publier.ps1 -Version X.Y
+.\publier.ps1 -Version X.Y.Z
 ```
 
-Le script met à jour le numéro de version dans `src/Properties/AssemblyInfo.cs`, compile, crée le commit et le tag `vX.Y`, puis pousse le tout. GitHub Actions compile alors le programme, calcule son empreinte SHA-256 et crée la version **en brouillon**.
+Le script met à jour le numéro de version dans `src/Properties/AssemblyInfo.cs`, compile, crée le commit et le tag `vX.Y.Z`, puis pousse le tout. GitHub Actions compile alors le programme, calcule son empreinte SHA-256 et crée la version **en brouillon**.
 
 3. Une fois la compilation terminée, signe et publie :
 
 ```powershell
-.\outils\signer-version.ps1 -Version X.Y
+.\outils\signer-version.ps1 -Version X.Y.Z
 ```
 
 Le script vérifie que le tag de GitHub est bien le tag local et affiche les changements depuis la version précédente, en signalant les fichiers sensibles. Il **recompile ensuite le tag sur ton PC**, sans exécuter aucun script du dépôt, remplace l'exe du brouillon par cette compilation, la signe avec la clé privée (demande du mot de passe), relit ce que GitHub sert réellement, puis publie. Les installations existantes proposeront alors la version, et ne l'installeront que si la signature est valide. La clé privée ne passe jamais par GitHub : un compte GitHub piraté ne suffit donc pas à diffuser une fausse mise à jour. Les clés se créent une seule fois avec `outils\creer-cles.ps1`.
@@ -73,3 +73,10 @@ Le script vérifie que le tag de GitHub est bien le tag local et affiche les cha
 ## Licence
 
 BureauCache est distribué sous licence [MIT](LICENSE) : tu peux l'utiliser, le modifier et le redistribuer librement, en conservant la mention de copyright.
+
+
+## Langue et partage d’écran
+
+Choisis **Système**, **Français**, **English** ou **Español** dans **Paramètres → Général**. Le changement s’applique immédiatement.
+
+Pour montrer le panneau ou ses menus, partage **l’écran entier**. Dans **Paramètres → Apparence**, laisse **Masquer le panneau dans les captures** désactivé. L’effet verre utilise alors une image du fond prise à l’ouverture. Le masquage du panneau dépend de la méthode de capture et de la version de Windows. [Documentation Microsoft](https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-setwindowdisplayaffinity)

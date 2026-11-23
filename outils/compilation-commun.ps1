@@ -19,7 +19,7 @@ function New-CompilationDeReference([string]$Depot, [string]$Tag, [string]$Dossi
     Push-Location $sources
     try {
         # Mêmes options que build.cmd (à garder alignées)
-        & $csc -nologo -target:winexe -optimize -warn:4 -win32icon:BureauCache.ico "-out:$exe" `
+        & $csc -nologo -codepage:65001 -target:winexe -optimize -warn:4 -win32icon:BureauCache.ico "-out:$exe" `
             -r:Microsoft.CSharp.dll -r:System.Core.dll -r:Microsoft.VisualBasic.dll -r:System.Device.dll -recurse:src\*.cs | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "La compilation de référence du tag $Tag a échoué." }
     } finally { Pop-Location }

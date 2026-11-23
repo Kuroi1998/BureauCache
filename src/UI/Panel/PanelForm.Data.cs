@@ -57,6 +57,9 @@ partial class PanelForm
         if (IconPx != loadedPx || loadedSystem != Settings.ShowSystem ||
             loadedApps != Settings.SearchApps || loadedRecents != Settings.SearchRecent) Dirty = true;
         RefreshCatalog();
+        ApplyCaptureSettings();
+        ApplyPanelGeometry();
+        UpdateWidgetTimer(IsOpen);
         ApplyTheme();
         if (Dirty) RequestLoad();
         Rebuild(true);
@@ -70,12 +73,12 @@ partial class PanelForm
         View.Help = q == "?" ? HelpLines() : null;
         if (q == "?") q = "";
         View.ForceList = q.Length > 0;
-        View.EmptyText = q.Length > 0 ? L.T("Aucun résultat pour « ", "No results for \"") + q + L.T(" »", "\"")
-                                      : loading && !loadedOnce ? L.T("Chargement…", "Loading…") : L.T("Ton bureau est vide", "Your desktop is empty");
+        View.EmptyText = q.Length > 0 ? L.T("Aucun résultat pour « ", "No results for \"", "No hay resultados para «") + q + L.T(" »", "\"", "»")
+                                      : loading && !loadedOnce ? L.T("Chargement…", "Loading…", "Cargando…") : L.T("Ton bureau est vide", "Your desktop is empty", "Tu escritorio está vacío");
         List<Group> groups = q.Length > 0 ? SearchGroups(q) : BuildGroups();
         if (q.StartsWith("=") && groups.Count == 0)
-            View.EmptyText = q.Length == 1 ? L.T("Saisis un calcul après le signe =.", "Enter a calculation after the = sign.")
-                                          : L.T("Expression invalide.", "Invalid expression.");
+            View.EmptyText = q.Length == 1 ? L.T("Saisis un calcul après le signe =.", "Enter a calculation after the = sign.", "Introduce un cálculo después del signo =.")
+                                          : L.T("Expression invalide.", "Invalid expression.", "Expresión no válida.");
         View.SetGroups(groups, keepScroll);
         Invalidate();
     }
@@ -86,7 +89,7 @@ partial class PanelForm
         Dictionary<string, DesktopItem> byKey = new Dictionary<string, DesktopItem>(StringComparer.OrdinalIgnoreCase);
         foreach (DesktopItem it in All) byKey[it.Key] = it;
 
-        Group fav = new Group { Key = "fav", Title = L.T("Favoris", "Favorites"), Glyph = Glyphs.StarFilled, GlyphColor = Theme.Accent };
+        Group fav = new Group { Key = "fav", Title = L.T("Favoris", "Favorites", "Favoritos"), Glyph = Glyphs.StarFilled, GlyphColor = Theme.Accent };
         HashSet<string> favKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (string k in Settings.Favorites)
         {
@@ -97,7 +100,7 @@ partial class PanelForm
 
         if (Settings.ShowRecents)
         {
-            Group rec = new Group { Key = "recent", Title = L.T("Récents", "Recent"), Glyph = Glyphs.Recent };
+            Group rec = new Group { Key = "recent", Title = L.T("Récents", "Recent", "Recientes"), Glyph = Glyphs.Recent };
             rec.Items = All.Where(i => Settings.Usage.ContainsKey(i.Key) && !favKeys.Contains(i.Key))
                            .OrderByDescending(i => Settings.Usage[i.Key][1]).Take(5).ToList();
             if (rec.Items.Count > 0) res.Add(rec);
@@ -129,7 +132,7 @@ partial class PanelForm
         }
         else
         {
-            Group g = new Group { Key = "all", Title = res.Count > 0 ? L.T("Tous les éléments", "All items") : null, Glyph = Glyphs.AllItems };
+            Group g = new Group { Key = "all", Title = res.Count > 0 ? L.T("Tous les éléments", "All items", "Todos los elementos") : null, Glyph = Glyphs.AllItems };
             g.Items = rest;
             g.Items.Sort(cmp);
             res.Add(g);
@@ -166,7 +169,7 @@ partial class PanelForm
         if (q.StartsWith(">"))
         {
             string c = Search.Norm(q.Substring(1));
-            Group g = new Group { Key = "s:cmd", Title = L.T("Commandes", "Commands"), Glyph = Glyphs.Terminal };
+            Group g = new Group { Key = "s:cmd", Title = L.T("Commandes", "Commands", "Comandos"), Glyph = Glyphs.Terminal };
             g.Items = c.Length == 0 ? commands.ToList() : Rank(commands, c, 20).Select(k => k.Key).ToList();
             if (g.Items.Count > 0) res.Add(g);
             return res;
@@ -179,9 +182,9 @@ partial class PanelForm
             string r = Calc.Format(v);
             res.Add(new Group
             {
-                Key = "s:calc", Title = L.T("Calcul", "Calculator"), Glyph = Glyphs.Calculator,
+                Key = "s:calc", Title = L.T("Calcul", "Calculator", "Calculadora"), Glyph = Glyphs.Calculator,
                 Items = { new DesktopItem { Kind = ItemKind.Calc, Key = "calc", Name = "= " + r, Args = r,
-                    Detail = L.T("Entrée pour copier le résultat", "Press Enter to copy the result"),
+                    Detail = L.T("Entrée pour copier le résultat", "Press Enter to copy the result", "Pulsa Intro para copiar el resultado"),
                     Icon = IconCache.Tile("=", "Segoe UI", Color.FromArgb(22, 163, 74), px) } }
             });
         }
@@ -197,12 +200,12 @@ partial class PanelForm
                 Group g = new Group { Key = key, Title = title, Glyph = glyph, Items = r.Select(k => k.Key).ToList() };
                 found.Add(new KeyValuePair<Group, int>(g, r[0].Value));
             };
-            addGroup("s:desk", L.T("Bureau", "Desktop"), Glyphs.AllItems, All, 12);
+            addGroup("s:desk", L.T("Bureau", "Desktop", "Escritorio"), Glyphs.AllItems, All, 12);
             HashSet<string> deskNames = new HashSet<string>(All.Select(i => i.NormName));
-            if (Settings.SearchApps) addGroup("s:apps", L.T("Applications", "Apps"), Glyphs.Apps, Apps.Where(a => !deskNames.Contains(a.NormName)), 8);
-            if (Settings.SearchRecent) addGroup("s:recent", L.T("Fichiers récents", "Recent files"), Glyphs.Recent, Recent, 6);
-            if (Settings.SearchSettings) addGroup("s:set", L.T("Paramètres Windows", "Windows settings"), Glyphs.Settings, winSettings, 5);
-            if (Settings.SearchCommands) addGroup("s:cmd", L.T("Commandes", "Commands"), Glyphs.Terminal, commands, 4);
+            if (Settings.SearchApps) addGroup("s:apps", L.T("Applications", "Apps", "Aplicaciones"), Glyphs.Apps, Apps.Where(a => !deskNames.Contains(a.NormName)), 8);
+            if (Settings.SearchRecent) addGroup("s:recent", L.T("Fichiers récents", "Recent files", "Archivos recientes"), Glyphs.Recent, Recent, 6);
+            if (Settings.SearchSettings) addGroup("s:set", L.T("Paramètres Windows", "Windows settings", "Configuración de Windows"), Glyphs.Settings, winSettings, 5);
+            if (Settings.SearchCommands) addGroup("s:cmd", L.T("Commandes", "Commands", "Comandos"), Glyphs.Terminal, commands, 4);
             res.AddRange(found.OrderByDescending(k => k.Value).Select(k => k.Key));
         }
         if (Settings.WebEngine != 3 && !res.Any(g => g.Key == "s:calc")) res.Add(WebGroup(q, px));
@@ -230,7 +233,7 @@ partial class PanelForm
         {
             Key = "s:web", Title = "Web", Glyph = Glyphs.Globe,
             Items = { new DesktopItem {
-                Kind = ItemKind.Web, Key = "web", Name = L.T("Rechercher « " + q + " » sur " + engine, "Search " + engine + " for \"" + q + "\""),
+                Kind = ItemKind.Web, Key = "web", Name = L.T("Rechercher « " + q + " » sur " + engine, "Search " + engine + " for \"" + q + "\"", "Buscar «" + q + "» en " + engine),
                 Detail = url, Icon = IconCache.Tile(Glyphs.Globe, Ui.GlyphFont, Settings.Accent, px), Run = () => ShellUtil.Open(url, null) } }
         };
     }
@@ -242,8 +245,8 @@ partial class PanelForm
         Settings.Snap snap = Settings.Snapshot();
         if (from != to)
         {
-            string msg = to.Key == "fav" ? L.T("« " + it.Name + " » ajouté aux favoris", "\"" + it.Name + "\" added to favorites")
-                                         : L.T("« " + it.Name + " » déplacé vers " + to.Title, "\"" + it.Name + "\" moved to " + to.Title);
+            string msg = to.Key == "fav" ? L.T("« " + it.Name + " » ajouté aux favoris", "\"" + it.Name + "\" added to favorites", "«" + it.Name + "» se añadió a favoritos")
+                                         : L.T("« " + it.Name + " » déplacé vers " + to.Title, "\"" + it.Name + "\" moved to " + to.Title, "«" + it.Name + "» se movió a " + to.Title);
             BeginInvoke(new Action(() => Toast(msg, () => { Settings.Restore(snap); Rebuild(true); }, null)));
         }
         if (to.Key == "fav")
@@ -278,8 +281,8 @@ partial class PanelForm
         if (i >= 0) Settings.Favorites.RemoveAt(i); else Settings.Favorites.Add(it.Key);
         Settings.SaveQuiet();
         Rebuild(true);
-        Toast(i >= 0 ? L.T("« " + it.Name + " » retiré des favoris", "\"" + it.Name + "\" removed from favorites")
-                     : L.T("« " + it.Name + " » ajouté aux favoris", "\"" + it.Name + "\" added to favorites"),
+        Toast(i >= 0 ? L.T("« " + it.Name + " » retiré des favoris", "\"" + it.Name + "\" removed from favorites", "«" + it.Name + "» se quitó de favoritos")
+                     : L.T("« " + it.Name + " » ajouté aux favoris", "\"" + it.Name + "\" added to favorites", "«" + it.Name + "» se añadió a favoritos"),
               () => { Settings.Restore(snap); Rebuild(true); }, null);
     }
 
@@ -288,7 +291,7 @@ partial class PanelForm
         Settings.Snap snap = Settings.Snapshot();
         SetCategory(it, cat, true);
         Rebuild(true);
-        Toast(L.T("« " + it.Name + " » déplacé vers " + Catalog.Display(cat), "\"" + it.Name + "\" moved to " + Catalog.Display(cat)),
+        Toast(L.T("« " + it.Name + " » déplacé vers " + Catalog.Display(cat), "\"" + it.Name + "\" moved to " + Catalog.Display(cat), "«" + it.Name + "» se movió a " + Catalog.Display(cat)),
               () => { Settings.Restore(snap); Rebuild(true); }, null);
     }
 

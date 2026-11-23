@@ -19,11 +19,11 @@ static class Http
             Uri u;
             if (!Uri.TryCreate(url, UriKind.Absolute, out u) || u.Scheme != Uri.UriSchemeHttps || !u.IsDefaultPort ||
                 Array.IndexOf(hosts, u.Host.ToLowerInvariant()) < 0)
-                throw new IOException(L.T("Adresse refusée : ", "Address refused: ") + url);
+                throw new IOException(L.T("Adresse refusée : ", "Address refused: ", "Dirección rechazada: ") + url);
             // Une redirection reste sur le même service : la requête (coordonnées, ville) ne part pas ailleurs (revue QA-23)
             if (firstHost == null) firstHost = u.Host;
             else if (!string.Equals(u.Host, firstHost, StringComparison.OrdinalIgnoreCase))
-                throw new IOException(L.T("Redirection refusée : ", "Redirect refused: ") + url);
+                throw new IOException(L.T("Redirection refusée : ", "Redirect refused: ", "Redirección rechazada: ") + url);
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(u);
             request.AllowAutoRedirect = false;
             request.UserAgent = "BureauCache/" + AppInfo.Version;

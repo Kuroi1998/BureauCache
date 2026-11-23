@@ -24,23 +24,23 @@ class WelcomeForm : Form
     readonly int W, H, IllusH;
 
     static int S(int v) { return Ui.S(v); }
-    static string T(string fr, string en) { return L.T(fr, en); }
+    static string T(string fr, string en, string es = null) { return L.T(fr, en, es); }
 
     string[] Titles { get { return new[] {
-        T("Bienvenue dans BureauCache", "Welcome to BureauCache"),
-        T("Un raccourci pour tout", "One shortcut for everything"),
-        T("Cherche tout, même avec des fautes", "Search everything, typos included"),
-        T("Organise à ta façon", "Organize your way") }; } }
+        T("Bienvenue dans BureauCache", "Welcome to BureauCache", "Te damos la bienvenida a BureauCache"),
+        T("Un raccourci pour tout", "One shortcut for everything", "Un atajo para todo"),
+        T("Cherche tout, même avec des fautes", "Search everything, typos included", "Busca en todo, incluso con erratas"),
+        T("Organise à ta façon", "Organize your way", "Organiza a tu manera") }; } }
 
     string[] Texts { get { return new[] {
         T("Tes icônes du bureau sont rangées dans un panneau qui apparaît quand ta souris touche le bord de l'écran. Choisis le bord qui te convient :",
-          "Your desktop icons live in a panel that slides in when your mouse touches the edge of the screen. Pick the edge you prefer:"),
+          "Your desktop icons live in a panel that slides in when your mouse touches the edge of the screen. Pick the edge you prefer:", "Los iconos del escritorio están en un panel que se abre al tocar el borde con el ratón. Elige el borde que prefieras:"),
         T("Ouvre le panneau depuis n'importe où, même sans la souris. Clique dans le champ pour choisir une autre combinaison.",
-          "Open the panel from anywhere, even without the mouse. Click the box to pick another combination."),
+          "Open the panel from anywhere, even without the mouse. Click the box to pick another combination.", "Abre el panel desde cualquier lugar, incluso sin ratón. Haz clic en el campo para elegir otra combinación."),
         T("Tape simplement ce que tu cherches : bureau, applications, fichiers récents, paramètres Windows…",
-          "Just type what you're looking for: desktop, apps, recent files, Windows settings…"),
+          "Just type what you're looking for: desktop, apps, recent files, Windows settings…", "Escribe lo que buscas: escritorio, aplicaciones, archivos recientes, configuración de Windows…"),
         T("Glisse un élément pour le classer ou le mettre en favori. Clic droit pour toutes les options.",
-          "Drag an item to sort it or make it a favorite. Right-click for every option.") }; } }
+          "Drag an item to sort it or make it a favorite. Right-click for every option.", "Arrastra un elemento para ordenarlo o añadirlo a favoritos. Haz clic derecho para ver las opciones.") }; } }
 
     public WelcomeForm(Action onFinish)
     {
@@ -59,12 +59,12 @@ class WelcomeForm : Form
         for (int i = 0; i < 4; i++) pageControls[i] = new List<Control>();
 
         int cy = IllusH + S(130);
-        side = new Segmented(T("Gauche", "Left"), T("Droite", "Right")) { Location = new Point(S(40), cy) };
+        side = new Segmented(T("Gauche", "Left", "Izquierda"), T("Droite", "Right", "Derecha")) { Location = new Point(S(40), cy) };
         side.Selected = Settings.RightSide ? 1 : 0;
         side.Changed += (s, e) => { Settings.RightSide = side.Selected == 1; Settings.Notify(); Invalidate(); };
         Toggle hide = new Toggle { Location = new Point(S(40), cy + S(52)), Checked = Settings.HideIcons };
         hide.Changed += (s, e) => { Settings.HideIcons = hide.Checked; Settings.Notify(); };
-        Label hideL = new Label { Text = T("Cacher les icônes du bureau", "Hide desktop icons"), AutoSize = true, Font = fSmall, Location = new Point(S(94), cy + S(54)) };
+        Label hideL = new Label { Text = T("Cacher les icônes du bureau", "Hide desktop icons", "Ocultar los iconos del escritorio"), AutoSize = true, Font = fSmall, Location = new Point(S(94), cy + S(54)) };
         AddTo(0, side, hide, hideL);
 
         hk = new HotkeyBox { Location = new Point(S(40), cy), Mods = Settings.HotMods, Key = Settings.HotKey };
@@ -73,12 +73,12 @@ class WelcomeForm : Form
 
         Toggle start = new Toggle { Location = new Point(S(40), cy + S(66)), Checked = Startup.Enabled };
         start.Changed += (s, e) => { try { Startup.Set(start.Checked, Installer.IsInstalled ? Installer.Exe : null); } catch { } };
-        Label startL = new Label { Text = T("Lancer BureauCache au démarrage de Windows", "Start BureauCache with Windows"), AutoSize = true, Font = fSmall, Location = new Point(S(94), cy + S(68)) };
+        Label startL = new Label { Text = T("Lancer BureauCache au démarrage de Windows", "Start BureauCache with Windows", "Iniciar BureauCache con Windows"), AutoSize = true, Font = fSmall, Location = new Point(S(94), cy + S(68)) };
         AddTo(3, start, startL);
 
-        bNext = new FlatButton(T("Suivant", "Next"), true, S(150)) { Location = new Point(W - S(40) - S(150), H - S(62)) };
-        bPrev = new FlatButton(T("Précédent", "Back"), false, S(120)) { Location = new Point(bNext.Left - S(10) - S(120), H - S(62)) };
-        bSkip = new FlatButton(T("Passer", "Skip"), false, S(100)) { Location = new Point(S(40), H - S(62)) };
+        bNext = new FlatButton(T("Suivant", "Next", "Siguiente"), true, S(150)) { Location = new Point(W - S(40) - S(150), H - S(62)) };
+        bPrev = new FlatButton(T("Précédent", "Back", "Atrás"), false, S(120)) { Location = new Point(bNext.Left - S(10) - S(120), H - S(62)) };
+        bSkip = new FlatButton(T("Passer", "Skip", "Omitir"), false, S(100)) { Location = new Point(S(40), H - S(62)) };
         bNext.Click += (s, e) => { if (page == 3) Finish(); else SetPage(page + 1); };
         bPrev.Click += (s, e) => SetPage(page - 1);
         bSkip.Click += (s, e) => Close();
@@ -101,7 +101,7 @@ class WelcomeForm : Form
         page = Math.Max(0, Math.Min(3, p));
         for (int i = 0; i < 4; i++) foreach (Control c in pageControls[i]) c.Visible = i == page;
         bPrev.Visible = page > 0;
-        bNext.Text = page == 3 ? T("C'est parti !", "Let's go!") : T("Suivant", "Next");
+        bNext.Text = page == 3 ? T("C'est parti !", "Let's go!", "¡Empezar!") : T("Suivant", "Next", "Siguiente");
         Invalidate();
     }
 
@@ -226,10 +226,10 @@ class WelcomeForm : Form
     void DrawExamples(Graphics g, int y)
     {
         string[][] ex = {
-            new[] { "steam", T("tes jeux et applications", "your games and apps") },
-            new[] { "= 12*7", T("calcule (Entrée copie le résultat)", "calculates (Enter copies the result)") },
-            new[] { "? météo", T("cherche sur le web", "searches the web") },
-            new[] { ">", T("commandes : verrouiller, veille, redémarrer…", "commands: lock, sleep, restart…") } };
+            new[] { "steam", T("tes jeux et applications", "your games and apps", "tus juegos y aplicaciones") },
+            new[] { "= 12*7", T("calcule (Entrée copie le résultat)", "calculates (Enter copies the result)", "calcula (Intro copia el resultado)") },
+            new[] { T("? météo", "? weather", "? tiempo"), T("cherche sur le web", "searches the web", "busca en la web") },
+            new[] { ">", T("commandes : verrouiller, veille, redémarrer…", "commands: lock, sleep, restart…", "comandos: bloquear, suspender, reiniciar…") } };
         foreach (string[] e in ex)
         {
             Rectangle pill = new Rectangle(S(40), y, S(96), S(26));
@@ -243,9 +243,9 @@ class WelcomeForm : Form
     void DrawTips(Graphics g, int y)
     {
         string[] tips = {
-            T("Ctrl+1 … 9 ouvre tes favoris, F1 affiche tous les raccourcis.", "Ctrl+1 … 9 opens your favorites, F1 shows every shortcut."),
-            T("Suppr supprime, et Ctrl+Z annule si tu t'es trompé.", "Delete removes an item, Ctrl+Z undoes it if you made a mistake."),
-            T("Tire le bord du panneau pour l'élargir, Ctrl+P pour l'épingler.", "Drag the panel's edge to widen it, Ctrl+P to pin it.") };
+            T("Ctrl+1 … 9 ouvre tes favoris, F1 affiche tous les raccourcis.", "Ctrl+1 … 9 opens your favorites, F1 shows every shortcut.", "Ctrl+1 a 9 abre tus favoritos. F1 muestra todos los atajos."),
+            T("Suppr supprime, et Ctrl+Z annule si tu t'es trompé.", "Delete removes an item, Ctrl+Z undoes it if you made a mistake.", "Supr elimina un elemento y Ctrl+Z deshace la acción."),
+            T("Tire le bord du panneau pour l'élargir, Ctrl+P pour l'épingler.", "Drag the panel's edge to widen it, Ctrl+P to pin it.", "Arrastra el borde del panel para ensancharlo. Pulsa Ctrl+P para fijarlo.") };
         foreach (string t in tips)
         {
             Ui.Glyph(g, Glyphs.Check, 9f, Theme.Accent, new Rectangle(S(36), y, S(24), S(22)));

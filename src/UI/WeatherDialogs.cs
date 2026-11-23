@@ -21,15 +21,15 @@ class WeatherPlaceDialog : ThemedDialog
         using (WeatherPlaceDialog d = new WeatherPlaceDialog()) d.ShowDialog();
     }
 
-    WeatherPlaceDialog() : base(L.T("Lieu de la météo", "Weather location"), Ui.S(480), Ui.S(430))
+    WeatherPlaceDialog() : base(L.T("Lieu de la météo", "Weather location", "Ubicación para el tiempo"), Ui.S(480), Ui.S(430))
     {
         int pad = Ui.S(20), w = ClientSize.Width - 2 * pad;
-        AddLabel(L.T("Tape le nom de ta ville, ou laisse Windows trouver ta position.", "Type your city, or let Windows find your location."), pad, Ui.S(16));
+        AddLabel(L.T("Tape le nom de ta ville, ou laisse Windows trouver ta position.", "Type your city, or let Windows find your location.", "Escribe tu ciudad o deja que Windows detecte tu ubicación."), pad, Ui.S(16));
 
         query = new InputBox(w - Ui.S(130)) { Location = new Point(pad, Ui.S(44)), BackColor = Theme.Bg };
         query.Box.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; DoSearch(); } };
         Controls.Add(query);
-        bSearch = new FlatButton(L.T("Rechercher", "Search"), true, Ui.S(120)) { Location = new Point(pad + w - Ui.S(120), Ui.S(43)), BackColor = Theme.Bg };
+        bSearch = new FlatButton(L.T("Rechercher", "Search", "Buscar"), true, Ui.S(120)) { Location = new Point(pad + w - Ui.S(120), Ui.S(43)), BackColor = Theme.Bg };
         bSearch.Click += (s, e) => DoSearch();
         Controls.Add(bSearch);
 
@@ -41,18 +41,18 @@ class WeatherPlaceDialog : ThemedDialog
         results.DoubleClick += (s, e) => Choose();
         Controls.Add(results);
 
-        bLocate = new FlatButton(L.T("Détecter ma position", "Detect my location"), false) { Location = new Point(pad, Ui.S(270)), BackColor = Theme.Bg };
+        bLocate = new FlatButton(L.T("Détecter ma position", "Detect my location", "Detectar mi ubicación"), false) { Location = new Point(pad, Ui.S(270)), BackColor = Theme.Bg };
         bLocate.Click += (s, e) => DoLocate();
         Controls.Add(bLocate);
         status = AddLabel("", pad + bLocate.Width + Ui.S(10), Ui.S(279));
         status.MaximumSize = new Size(w - bLocate.Width - Ui.S(10), 0);
 
         Label privacy = AddLabel(L.T("La recherche envoie le nom tapé à Open-Meteo. La détection demande la position à Windows, puis envoie les coordonnées arrondies à BigDataCloud pour trouver le nom de la ville. Ensuite, seules les coordonnées du lieu choisi sont envoyées à Open-Meteo, quand le panneau s'ouvre : au plus toutes les 30 minutes (5 minutes après un échec).",
-            "Search sends the typed name to Open-Meteo. Detection asks Windows for the location, then sends the rounded coordinates to BigDataCloud to find the city name. Afterwards, only the chosen place's coordinates are sent to Open-Meteo when the panel opens: at most every 30 minutes (5 minutes after a failure)."), pad, Ui.S(318));
+            "Search sends the typed name to Open-Meteo. Detection asks Windows for the location, then sends the rounded coordinates to BigDataCloud to find the city name. Afterwards, only the chosen place's coordinates are sent to Open-Meteo when the panel opens: at most every 30 minutes (5 minutes after a failure).", "La búsqueda envía el nombre a Open-Meteo. La detección pide la ubicación a Windows y envía las coordenadas redondeadas a BigDataCloud para identificar la ciudad. Al abrir el panel, solo se envían a Open-Meteo las coordenadas del lugar elegido como máximo cada 30 minutos, o cada 5 minutos tras un error."), pad, Ui.S(318));
         privacy.MaximumSize = new Size(w, 0);
         privacy.Font = Ui.Font("Segoe UI", 8.25f);
 
-        AddButtons(Choose, L.T("Choisir", "Choose"));
+        AddButtons(Choose, L.T("Choisir", "Choose", "Elegir"));
         if (!string.IsNullOrEmpty(Settings.WeatherPlace)) query.Box.Text = Settings.WeatherPlace.Split(',')[0];
     }
 
@@ -76,7 +76,7 @@ class WeatherPlaceDialog : ThemedDialog
     {
         string q = query.Box.Text.Trim();
         if (busy || q.Length < 2) return;
-        SetBusy(true, L.T("Recherche…", "Searching…"));
+        SetBusy(true, L.T("Recherche…", "Searching…", "Buscando…"));
         Background.Run(() =>
         {
             List<WeatherPlace> found = null;
@@ -85,8 +85,8 @@ class WeatherPlaceDialog : ThemedDialog
             Done(() =>
             {
                 if (found != null) ShowResults(found);
-                SetBusy(false, error != null ? L.T("Recherche impossible : ", "Search failed: ") + error
-                    : found.Count == 0 ? L.T("Aucune ville trouvée.", "No city found.") : "");
+                SetBusy(false, error != null ? L.T("Recherche impossible : ", "Search failed: ", "Error de búsqueda: ") + error
+                    : found.Count == 0 ? L.T("Aucune ville trouvée.", "No city found.", "No se encontró ninguna ciudad.") : "");
             });
         });
     }
@@ -94,7 +94,7 @@ class WeatherPlaceDialog : ThemedDialog
     void DoLocate()
     {
         if (busy) return;
-        SetBusy(true, L.T("Demande de la position à Windows…", "Asking Windows for the location…"));
+        SetBusy(true, L.T("Demande de la position à Windows…", "Asking Windows for the location…", "Solicitando la ubicación a Windows…"));
         Background.Run(() =>
         {
             WeatherPlace p = null;
@@ -117,7 +117,7 @@ class WeatherPlaceDialog : ThemedDialog
     {
         if (busy) return;
         int i = results.SelectedIndex;
-        if (i < 0 || i >= places.Count) { status.Text = L.T("Choisis un lieu dans la liste.", "Choose a place in the list."); return; }
+        if (i < 0 || i >= places.Count) { status.Text = L.T("Choisis un lieu dans la liste.", "Choose a place in the list.", "Elige un lugar de la lista."); return; }
         WeatherPlace p = places[i];
         Settings.WeatherPlace = p.Label;
         Settings.WeatherLat = Math.Round(p.Lat, 4);
@@ -145,18 +145,18 @@ class WeatherDetailDialog : ThemedDialog
         using (WeatherDetailDialog d = new WeatherDetailDialog(report)) d.ShowDialog();
     }
 
-    WeatherDetailDialog(WeatherReport report) : base(L.T("Météo", "Weather"), Ui.S(400), Ui.S(360))
+    WeatherDetailDialog(WeatherReport report) : base(L.T("Météo", "Weather", "Tiempo"), Ui.S(400), Ui.S(360))
     {
         w = report;
         DoubleBuffered = true;
         LinkLabel credit = new LinkLabel
         {
-            Text = L.T("Données : ", "Data: ") + Weather.Attribution, AutoSize = true, Font = fSmall,
+            Text = L.T("Données : ", "Data: ", "Datos: ") + Weather.Attribution, AutoSize = true, Font = fSmall,
             LinkColor = Theme.Accent, ActiveLinkColor = Theme.Accent, BackColor = Theme.Bg, Location = new Point(Ui.S(20), ClientSize.Height - Ui.S(44))
         };
         credit.LinkClicked += (s, e) => { try { ShellUtil.Open(Weather.AttributionUrl, null); } catch { } };
         Controls.Add(credit);
-        FlatButton close = new FlatButton(L.T("Fermer", "Close"), true, Ui.S(100)) { BackColor = Theme.Bg };
+        FlatButton close = new FlatButton(L.T("Fermer", "Close", "Cerrar"), true, Ui.S(100)) { BackColor = Theme.Bg };
         close.Location = new Point(ClientSize.Width - Ui.S(20) - close.Width, ClientSize.Height - Ui.S(18) - close.Height);
         close.Click += (s, e) => Close();
         Controls.Add(close);
@@ -171,7 +171,7 @@ class WeatherDetailDialog : ThemedDialog
         TextRenderer.DrawText(g, Settings.WeatherPlace, fText, new Rectangle(pad, Ui.S(12), width, Ui.S(22)), Theme.FgDim, flags);
         if (w == null)
         {
-            TextRenderer.DrawText(g, L.T("Pas encore de données : réessaie dans un instant.", "No data yet: try again in a moment."), fText,
+            TextRenderer.DrawText(g, L.T("Pas encore de données : réessaie dans un instant.", "No data yet: try again in a moment.", "Todavía no hay datos. Inténtalo de nuevo en un momento."), fText,
                 new Rectangle(pad, Ui.S(60), width, Ui.S(24)), Theme.Fg, flags);
             return;
         }
@@ -179,7 +179,7 @@ class WeatherDetailDialog : ThemedDialog
         TextRenderer.DrawText(g, Weather.Temp(w.Temp), fBig, new Rectangle(pad + Ui.S(84), Ui.S(38), Ui.S(130), Ui.S(50)), Theme.Fg, flags);
         TextRenderer.DrawText(g, Weather.Describe(w.Code), fText, new Rectangle(pad + Ui.S(84), Ui.S(84), width - Ui.S(84), Ui.S(22)), Theme.Fg, flags);
         string wind = double.IsNaN(w.Wind) ? "—" : Math.Round(w.Wind).ToString("0", L.Culture) + " " + Weather.WindUnit;
-        string extra = L.T("Ressenti ", "Feels like ") + Weather.Temp(w.Feels) + "  ·  " + L.T("Vent ", "Wind ") + wind;
+        string extra = L.T("Ressenti ", "Feels like ", "Sensación térmica: ") + Weather.Temp(w.Feels) + "  ·  " + L.T("Vent ", "Wind ", "Viento: ") + wind;
         TextRenderer.DrawText(g, extra, fSmall, new Rectangle(pad, Ui.S(122), width, Ui.S(20)), Theme.FgDim, flags);
 
         int y = Ui.S(152);
@@ -196,7 +196,7 @@ class WeatherDetailDialog : ThemedDialog
                 flags | TextFormatFlags.Right);
             y += Ui.S(46);
         }
-        TextRenderer.DrawText(g, L.T("Mis à jour à ", "Updated at ") + w.Fetched.ToString("HH:mm", L.Culture), fSmall,
+        TextRenderer.DrawText(g, L.T("Mis à jour à ", "Updated at ", "Actualizado a las ") + w.Fetched.ToString("HH:mm", L.Culture), fSmall,
             new Rectangle(pad, y, width, Ui.S(20)), Theme.FgDim, flags);
     }
 }

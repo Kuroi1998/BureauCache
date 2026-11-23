@@ -87,6 +87,7 @@ namespace BureauCache.Tests
         public void SettingsPages_StayWithinViewportAfterResizeAndNavigation()
         {
             InWinForms(VerifyPages);
+            InWinForms(() => { using (LanguageScope.Spanish()) VerifyPages(); });
         }
 
         [TestMethod]
@@ -202,7 +203,7 @@ namespace BureauCache.Tests
                     previous.Show();
                     previous.Size = previous.MinimumSize;
                     previous.SelectPage(2);
-                    using (LanguageScope.English())
+                    using (LanguageScope.Spanish())
                     using (var replacement = new SettingsForm(new SettingsActions()))
                     {
                         replacement.RestoreWindowState(previous);
@@ -210,6 +211,160 @@ namespace BureauCache.Tests
                         Assert.AreEqual(2, replacement.CurrentPage);
                     }
                 }
+            });
+        }
+
+        [TestMethod]
+        public void SettingsLanguageRecreation_KeepsScrollOnTheActivePage()
+        {
+            InWinForms(() =>
+            {
+                using (var previous = new SettingsForm(new SettingsActions()))
+                {
+                    previous.Size = previous.MinimumSize;
+                    previous.Show();
+                    previous.SelectPage(2);
+                    var fields = BindingFlags.Instance | BindingFlags.NonPublic;
+                    var pages = typeof(SettingsForm).GetField("pages", fields);
+                    var source = ((List<Panel>)pages.GetValue(previous))[2];
+                    source.AutoScrollPosition = new Point(0, Ui.S(100));
+                    Assert.IsTrue(source.AutoScrollPosition.Y < 0);
+
+                    using (LanguageScope.Spanish())
+                    using (var replacement = new SettingsForm(new SettingsActions()))
+                    {
+                        replacement.RestoreWindowState(previous);
+                        replacement.Show();
+                        var target = ((List<Panel>)pages.GetValue(replacement))[2];
+                        Assert.AreEqual(source.AutoScrollPosition.Y, target.AutoScrollPosition.Y);
+                    }
+                }
+            });
+        }
+
+        [TestMethod]
+        public void PanelVisibleInCapture_KeepsGlassWhenResized()
+        {
+            InWinForms(() =>
+            {
+                var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                var glassField = typeof(PanelForm).GetField("glass", flags);
+                var refresh = typeof(PanelForm).GetMethod("RefreshStaticGlass", flags);
+                bool originalCapture = Settings.HidePanelInCapture, originalGlass = Settings.Glass;
+                try
+                {
+                    Settings.HidePanelInCapture = false;
+                    Settings.Glass = true;
+                    using (var panel = new PanelForm())
+                    using (var bitmap = new Bitmap(100, 100))
+                    using (var rendered = new Bitmap(200, 150))
+                    {
+                        using (var graphics = Graphics.FromImage(bitmap)) graphics.Clear(Color.Lime);
+                        glassField.SetValue(panel, bitmap);
+                        panel.Show();
+                        panel.ClientSize = rendered.Size;
+                        refresh.Invoke(panel, null);
+                        using (var graphics = Graphics.FromImage(rendered))
+                            panel.PaintBg(graphics, panel.ClientRectangle, Point.Empty);
+
+                        Assert.AreEqual(Color.Lime.ToArgb(), rendered.GetPixel(180, 130).ToArgb());
+                        glassField.SetValue(panel, null);
+                    }
+                }
+                finally
+                {
+                    Settings.Glass = originalGlass;
+                    Settings.HidePanelInCapture = originalCapture;
+                }
+            });
+        }
+
+        [TestMethod]
+        public void OpenPanelAppliesGeometryAndWidgetChangesImmediately()
+        {
+            InWinForms(() =>
+            {
+                bool oldGlass = Settings.Glass, oldRight = Settings.RightSide;
+                bool oldWidgets = Settings.Widgets, oldWeather = Settings.WeatherOn;
+                bool oldAnimations = Settings.Animations;
+                int oldWidth = Settings.PanelWidth;
+                try
+                {
+                    Settings.Glass = Settings.RightSide = Settings.Widgets = Settings.WeatherOn = Settings.Animations = false;
+                    Settings.PanelWidth = 340;
+                    using (var panel = new PanelForm { Dirty = false })
+                    {
+                        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                        typeof(PanelForm).GetField("loadedPx", flags).SetValue(panel, panel.IconPx);
+                        typeof(PanelForm).GetField("loadedSystem", flags).SetValue(panel, Settings.ShowSystem);
+                        typeof(PanelForm).GetField("loadedApps", flags).SetValue(panel, Settings.SearchApps);
+                        typeof(PanelForm).GetField("loadedRecents", flags).SetValue(panel, Settings.SearchRecent);
+
+                        Screen screen = Screen.PrimaryScreen;
+                        panel.ShowPanel(screen);
+                        Assert.AreEqual(screen.WorkingArea.Left, panel.Left);
+                        Settings.PanelWidth = 420;
+                        Settings.RightSide = true;
+                        panel.OnSettingsChanged();
+                        Assert.AreEqual(Ui.S(420), panel.Width);
+                        Assert.AreEqual(screen.WorkingArea.Right, panel.Right);
+
+                        var timer = (System.Windows.Forms.Timer)typeof(PanelForm).GetField("widgetTimer", flags).GetValue(panel);
+                        Assert.IsFalse(timer.Enabled);
+                        Settings.Widgets = true;
+                        panel.OnSettingsChanged();
+                        Assert.IsTrue(timer.Enabled);
+                        Settings.Widgets = false;
+                        panel.OnSettingsChanged();
+                        Assert.IsFalse(timer.Enabled);
+                    }
+                }
+                finally
+                {
+                    Settings.Glass = oldGlass;
+                    Settings.RightSide = oldRight;
+                    Settings.Widgets = oldWidgets;
+                    Settings.WeatherOn = oldWeather;
+                    Settings.Animations = oldAnimations;
+                    Settings.PanelWidth = oldWidth;
+                }
+            });
+        }
+
+        [TestMethod]
+        public void PanelRefreshKeepsCatalogUntilRelevantSettingsChange()
+        {
+            InWinForms(() =>
+            {
+                const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                var windows = typeof(PanelForm).GetField("winSettings", flags);
+                var commands = typeof(PanelForm).GetField("commands", flags);
+                Color accent = Settings.Accent;
+                try
+                {
+                    using (var panel = new PanelForm())
+                    {
+                        var originalWindows = windows.GetValue(panel);
+                        var originalCommands = commands.GetValue(panel);
+                        panel.RefreshCatalog();
+                        Assert.AreSame(originalWindows, windows.GetValue(panel));
+                        Assert.AreSame(originalCommands, commands.GetValue(panel));
+
+                        Settings.Accent = accent.ToArgb() == Color.Lime.ToArgb() ? Color.Blue : Color.Lime;
+                        panel.RefreshCatalog();
+                        Assert.AreSame(originalWindows, windows.GetValue(panel));
+                        Assert.AreNotSame(originalCommands, commands.GetValue(panel));
+
+                        using (LanguageScope.Spanish())
+                        {
+                            panel.RefreshCatalog();
+                            Assert.AreNotSame(originalWindows, windows.GetValue(panel));
+                            var items = (List<DesktopItem>)commands.GetValue(panel);
+                            Assert.IsTrue(items.Exists(item => item.Key == "cmd:Lock" && item.Name == "Bloquear"));
+                        }
+                    }
+                }
+                finally { Settings.Accent = accent; }
             });
         }
 
