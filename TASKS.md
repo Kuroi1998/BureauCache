@@ -7,16 +7,18 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 
 | ID | Titre | Statut | Porteur | Branche | Lien |
 |---|---|---|---|---|---|
-| T-001 | Mettre en place le projet de tests (`tests/`) | Revue | Claude | `chore/T-001-tests` | D-002 |
-| T-002 | Tests de `Calc` (séparateurs FR/EN, exposants, limites) | Revue | ChatGPT puis Claude | `chore/T-001-tests` | QA-03, R-16 |
-| T-007 | Calculatrice : séparateurs de milliers et virgule après le point | Revue | Claude | `fix/T-007-calc-separateurs` | QA-13 (ex R-19, R-16) |
-| T-008 | Calculatrice : convention de `-2^2` et précision des petits nombres | Revue | Claude | `fix/T-007-calc-separateurs` | QA-14, QA-15, D-003 |
-| T-003 | Rangement : ne pas archiver un dossier dont l'activité n'est pas confirmée | Revue | Claude | `fix/T-003-T-004-rangement` | QA-16 (ex R-01) |
-| T-004 | Rangement concurrent d'une opération utilisateur sur le même élément | Revue (essai manuel à faire) | Claude puis Toi | `fix/T-003-T-004-rangement` | QA-17 (ex R-03) |
-| T-005 | Mises à jour signées par une clé hors de GitHub | Revue (première version signée à publier) | Gemini, Toi, Claude | `feat/T-005-signature` | R-04, D-004 |
-| T-006 | Conserver l'ancienne version jusqu'à un démarrage réussi | Revue | Claude | `fix/T-006-retour-arriere` | QA-19 (ex R-07) |
+| T-001 | Mettre en place le projet de tests (`tests/`) | Fait (3.4) | Claude | PR #5 | D-002 |
+| T-002 | Tests de `Calc` (séparateurs FR/EN, exposants, limites) | Fait (3.4) | ChatGPT puis Claude | PR #5 | QA-03 |
+| T-007 | Calculatrice : séparateurs de milliers et virgule après le point | Fait (3.4) | Claude | PR #6 | QA-13 |
+| T-008 | Calculatrice : convention de `-2^2` et précision des petits nombres | Fait (3.4) | Toi puis Claude | PR #6 | QA-14, QA-15, D-003 |
+| T-003 | Rangement : ne pas archiver un dossier dont l'activité n'est pas confirmée | Fait (3.4) | Claude | PR #7 | QA-16, QA-18 |
+| T-004 | Rangement concurrent d'une opération utilisateur sur le même élément | Fait (3.4) ; essai manuel encore à faire | Claude puis Toi | PR #7 | QA-17, QA-18 |
+| T-006 | Conserver l'ancienne version jusqu'à un démarrage réussi | Fait (3.4) | Claude | PR #8 | QA-19, QA-21 |
+| T-005 | Mises à jour signées par une clé hors de GitHub | Fait (3.4, publiée signée le 2026-11-23) | Gemini, Toi, Claude | PR #9 | QA-20, QA-21, D-004 |
+| T-009 | Observer la mise à jour 3.3 → 3.4 sur une vraie installation (démarrage, `.old` effacé après 10 s) | À faire | Toi | — | QA-19, QA-20 |
+| T-010 | Vérifier sur un dépôt de test qu'une installation 3.4 refuse une version non signée ou mal signée | À faire | Toi puis Claude | — | QA-20 |
 
-Les autres risques ouverts (R-05 à R-18) restent dans [AUDIT_QA_BureauCache.md](AUDIT_QA_BureauCache.md) jusqu'à leur planification.
+Les autres risques ouverts (R-05, R-06, R-08 à R-15, R-17, R-18, R-22 à R-25) restent dans [AUDIT_QA_BureauCache.md](AUDIT_QA_BureauCache.md) jusqu'à leur planification.
 
 ---
 
