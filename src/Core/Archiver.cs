@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 
 // =====================================================================
 //  Rangement automatique du bureau
@@ -12,52 +11,113 @@ static class Archiver
     public static string Desk { get { return Paths.Desktop; } }
     public static string Folder { get { return Path.Combine(Desk, Settings.ArchiveName); } }
 
-    static DateTime Max(DateTime a, DateTime b) { return a > b ? a : b; }
+    // Nombre maximal d'entrées examinées dans un dossier : au-delà, son ancienneté n'est pas confirmée
+    internal const int MaxScan = 5000;
+
+    internal enum Activity { Recent, Old, Unknown }
+
+    // Limite en temps universel : l'heure locale se répète lors du changement d'heure d'octobre
+    static DateTime Limit { get { return DateTime.UtcNow.AddDays(-Settings.ArchiveDays); } }
 
     public static List<string> Candidates()
     {
         List<string> res = new List<string>();
-        DateTime limit = DateTime.Now.AddDays(-Settings.ArchiveDays);
+        DateTime limit = Limit;
         string[] entries;
         try { entries = Directory.GetFileSystemEntries(Desk); } catch { return res; }
-        foreach (string p in entries)
-        {
-            try
-            {
-                string name = Path.GetFileName(p);
-                if (string.Equals(p, Folder, StringComparison.OrdinalIgnoreCase)) continue;
-                FileAttributes a = File.GetAttributes(p);
-                if ((a & (FileAttributes.Hidden | FileAttributes.System)) != 0) continue;
-                string ext = Path.GetExtension(p).ToLowerInvariant();
-                if (ext == ".lnk" || ext == ".url" || name.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase)) continue;
-                if (Settings.FavIndex(p) >= 0) continue;
-                DateTime last = Max(File.GetLastWriteTime(p), File.GetCreationTime(p));
-                long[] u;
-                if (Settings.Usage.TryGetValue(p, out u)) last = Max(last, new DateTime(u[1]));
-                if ((a & FileAttributes.Directory) != 0)
-                    try { foreach (string c in Directory.EnumerateFileSystemEntries(p).Take(300)) last = Max(last, File.GetLastWriteTime(c)); } catch { }
-                if (last < limit) res.Add(p);
-            }
-            catch { }
-        }
+        foreach (string p in entries) if (IsCandidate(p, limit)) res.Add(p);
         return res;
     }
 
-    public static int Run(List<string> items)
+    // Vrai si l'élément du bureau peut être rangé : ni exclu, ni utilisé depuis la limite, et ancienneté confirmée
+    static bool IsCandidate(string p, DateTime limit)
     {
-        if (items.Count == 0) return 0;
-        string folder = Folder;
         try
         {
-            Directory.CreateDirectory(folder);
-            if ((File.GetAttributes(folder) & FileAttributes.ReparsePoint) != 0) return 0;
+            string name = Path.GetFileName(p);
+            if (string.Equals(p, Folder, StringComparison.OrdinalIgnoreCase)) return false;
+            FileAttributes a = File.GetAttributes(p);
+            if ((a & (FileAttributes.Hidden | FileAttributes.System)) != 0) return false;
+            string ext = Path.GetExtension(p).ToLowerInvariant();
+            if (ext == ".lnk" || ext == ".url" || name.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase)) return false;
+            if (Settings.FavIndex(p) >= 0) return false;
+            long[] u;
+            if (Settings.Usage.TryGetValue(p, out u) && new DateTime(u[1], DateTimeKind.Local).ToUniversalTime() >= limit) return false;
+            return ActivityOf(p, limit, MaxScan) == Activity.Old;
         }
-        catch (IOException) { return 0; }
-        catch (UnauthorizedAccessException) { return 0; }
+        catch { return false; }
+    }
+
+    // Ancienneté d'un fichier ou d'un dossier (R-01). Un dossier n'est « ancien » que si lui-même et tout son
+    // contenu, sous-dossiers compris, le sont. Le parcours s'arrête au premier élément récent. Si le dossier ne peut
+    // pas être lu entièrement (droits, erreur) ou dépasse maxEntries, l'ancienneté n'est pas confirmée : Unknown.
+    // Une jonction ou un lien symbolique, à la racine ou dans le contenu, rend aussi l'ancienneté non confirmée : son
+    // contenu est ailleurs (parfois actif), il peut boucler, et un lien relatif se casse si on le déplace.
+    // limit : en temps universel de préférence (une heure locale est convertie).
+    internal static Activity ActivityOf(string path, DateTime limit, int maxEntries)
+    {
+        if (limit.Kind != DateTimeKind.Utc) limit = limit.ToUniversalTime();
+        try
+        {
+            DirectoryInfo dir = new DirectoryInfo(path);
+            FileSystemInfo root = dir.Exists ? (FileSystemInfo)dir : new FileInfo(path);
+            if (!root.Exists || IsLink(root)) return Activity.Unknown;
+            if (IsRecent(root, limit)) return Activity.Recent;
+            if (!dir.Exists) return Activity.Old;
+            int seen = 0;
+            Stack<DirectoryInfo> pending = new Stack<DirectoryInfo>();
+            pending.Push(dir);
+            while (pending.Count > 0)
+            {
+                foreach (FileSystemInfo child in pending.Pop().EnumerateFileSystemInfos())
+                {
+                    if (++seen > maxEntries || IsLink(child)) return Activity.Unknown;
+                    if (IsRecent(child, limit)) return Activity.Recent;
+                    DirectoryInfo sub = child as DirectoryInfo;
+                    if (sub != null) pending.Push(sub);
+                }
+            }
+            return Activity.Old;
+        }
+        catch { return Activity.Unknown; }
+    }
+
+    // La date de création compte aussi : un élément ancien copié récemment a été apporté récemment
+    static bool IsRecent(FileSystemInfo info, DateTime limitUtc)
+    {
+        return info.LastWriteTimeUtc >= limitUtc || info.CreationTimeUtc >= limitUtc;
+    }
+
+    static bool IsLink(FileSystemInfo info)
+    {
+        return (info.Attributes & FileAttributes.ReparsePoint) != 0 && Native.IsLink(info.FullName);
+    }
+
+    // Rangement automatique : chaque élément du bureau est évalué juste avant d'être déplacé
+    public static int RunNow()
+    {
+        string[] entries;
+        try { entries = Directory.GetFileSystemEntries(Desk); } catch { return 0; }
+        return Run(new List<string>(entries));
+    }
+
+    // Range les éléments de la liste qui sont encore candidats. L'évaluation est refaite juste avant chaque
+    // déplacement : l'élément a pu être utilisé, modifié ou remplacé depuis l'établissement de la liste (R-03).
+    public static int Run(List<string> items)
+    {
+        string folder = Folder;
+        DateTime limit = Limit;
+        bool ready = false;
         int n = 0;
         List<string> log = new List<string>();
         foreach (string p in items)
         {
+            if (!IsCandidate(p, limit)) continue;
+            if (!ready)
+            {
+                if (!PrepareFolder(folder)) break;
+                ready = true;
+            }
             try
             {
                 string dest = Unique(Path.Combine(folder, Path.GetFileName(p)));
@@ -70,8 +130,22 @@ static class Archiver
         }
         if (log.Count > 0) Settings.ArchiveLog = log;
         Settings.LastArchive = DateTime.Now.Ticks;
-        Settings.SaveQuiet();
+        // Enregistrement immédiat si des éléments ont bougé : un arrêt brutal ne doit pas perdre le journal d'annulation
+        if (n == 0 || !Settings.Save()) Settings.SaveQuiet();
         return n;
+    }
+
+    // Crée le dossier d'archive. Refusé si c'est une jonction ou un lien (les éléments partiraient ailleurs).
+    // Un dossier OneDrive « à la demande » est aussi un point d'analyse, mais ce n'est pas un lien : il est accepté.
+    static bool PrepareFolder(string folder)
+    {
+        try
+        {
+            Directory.CreateDirectory(folder);
+            return !IsLink(new DirectoryInfo(folder));
+        }
+        catch (IOException) { return false; }
+        catch (UnauthorizedAccessException) { return false; }
     }
 
     public static bool CanUndo { get { return Settings.ArchiveLog.Count > 0; } }

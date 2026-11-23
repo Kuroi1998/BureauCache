@@ -2,6 +2,9 @@
 
 ## Non publié
 
+- Rangement automatique plus prudent : un dossier n'est rangé que si **tout** son contenu, sous-dossiers compris, est inutilisé. Un dossier trop volumineux pour être vérifié reste sur le bureau.
+- Rangement automatique : il attend la fin d'un renommage, d'une copie ou d'une suppression en cours (et de son délai d'annulation), ainsi que la fermeture des fenêtres de confirmation, avant de se lancer.
+- Rangement automatique : un dossier qui contient une jonction ou un lien symbolique n'est plus rangé, et le rangement fonctionne avec un dossier d'archive OneDrive.
 - Calculatrice : un résultat copié avec Entrée se relit correctement, même avec des milliers (« 1 234,5 », « 1,000 »). En anglais, « 1,000 » ne donne plus 1.
 - Calculatrice : une saisie aux séparateurs incohérents (« 1.234,5 », « 12,34.5 ») est refusée au lieu de donner un résultat faux. Un nombre collé au format de l'autre langue reste compris.
 - Calculatrice : `-2^2` vaut -4, comme en mathématiques (le signe s'applique après la puissance). Écrire `(-2)^2` pour obtenir 4.

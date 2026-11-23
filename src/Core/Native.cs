@@ -15,6 +15,9 @@ static class Native
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int cmd);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr hWnd);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindFirstFile(string path, out WIN32_FIND_DATA data);
+    [DllImport("kernel32.dll")] static extern bool FindClose(IntPtr h);
     [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
@@ -42,6 +45,30 @@ static class Native
     public static extern void SHCreateItemFromParsingName(string path, IntPtr pbc, [MarshalAs(UnmanagedType.LPStruct)] Guid riid, out IShellItemImageFactory ppv);
 
     [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    struct WIN32_FIND_DATA
+    {
+        public uint Attributes;
+        // FILETIME = deux DWORD alignés sur 4 octets (un long décalerait les champs suivants)
+        public uint CreatedLow, CreatedHigh, AccessedLow, AccessedHigh, WrittenLow, WrittenHigh;
+        public uint SizeHigh, SizeLow, ReparseTag, Reserved1;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)] public string Name;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 14)] public string ShortName;
+    }
+
+    const uint TagMountPoint = 0xA0000003, TagSymlink = 0xA000000C;
+
+    // Vrai pour une jonction ou un lien symbolique. Les fichiers OneDrive « à la demande » sont aussi des points
+    // d'analyse, mais avec une autre étiquette : ce ne sont pas des liens. Illisible : vrai, par prudence.
+    public static bool IsLink(string path)
+    {
+        WIN32_FIND_DATA d;
+        IntPtr h = FindFirstFile(path.TrimEnd('\\'), out d);
+        if (h == new IntPtr(-1)) return true;
+        FindClose(h);
+        if ((d.Attributes & 0x400) == 0) return false;
+        return d.ReparseTag == TagMountPoint || d.ReparseTag == TagSymlink;
+    }
     [StructLayout(LayoutKind.Sequential)]
     public struct APPBARDATA { public int cbSize; public IntPtr hWnd; public uint uCallbackMessage; public uint uEdge; public RECT rc; public IntPtr lParam; }
     [DllImport("shell32.dll")] public static extern UIntPtr SHAppBarMessage(uint msg, ref APPBARDATA data);
