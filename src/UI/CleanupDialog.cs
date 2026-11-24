@@ -15,7 +15,7 @@ class CleanupDialog : ThemedDialog
     readonly List<Label> sizes = new List<Label>();
     readonly FlatButton bClean;
     readonly Label status;
-    bool busy;
+    bool busy, cleaning;
 
     public static void Run()
     {
@@ -28,33 +28,51 @@ class CleanupDialog : ThemedDialog
         Label intro = AddLabel(L.T("Seuls des caches et des fichiers temporaires de ton compte sont supprimés. Windows, les programmes et tes documents ne sont jamais touchés.",
             "Only caches and temporary files of your account are deleted. Windows, programs and your documents are never touched.", "Solo se borran las cachés y los archivos temporales de tu cuenta. Se conservan Windows, los programas y tus documentos."), pad, y);
         intro.MaximumSize = new Size(w, 0);
-        y = Ui.S(62);
+        // Le texte d'introduction peut prendre trois lignes (espagnol, grand zoom) : la liste commence dessous
+        y = Math.Max(Ui.S(62), y + intro.GetPreferredSize(new Size(w, 0)).Height + Ui.S(14));
+        // Les catégories sont dans une zone qui défile : sur un petit écran (768 px à 150 %), la fenêtre est
+        // bornée à la zone de travail et ses boutons restent visibles (Q30-03)
+        int rowH = Ui.S(56), contentH = rowH * categories.Count, footer = Ui.S(78);
+        int frame = Height - ClientSize.Height;
+        int room = Screen.FromPoint(Cursor.Position).WorkingArea.Height - frame - Ui.S(16) - y - footer;
+        Panel list = new Panel { Location = new Point(0, y), Size = new Size(ClientSize.Width, Math.Max(rowH * 2, Math.Min(contentH, room))), AutoScroll = true, BackColor = Theme.Bg };
+        Controls.Add(list);
+        int ly = 0;
         foreach (CleanCategory c in categories)
         {
-            Label title = AddLabel(c.Title, pad, y);
+            Label title = ListLabel(list, c.Title, pad, ly);
             title.ForeColor = Theme.Fg;
             title.Font = Ui.Font("Segoe UI Semibold", 10f);
-            Label detail = AddLabel(c.Detail, pad, y + Ui.S(21));
+            Label detail = ListLabel(list, c.Detail, pad, ly + Ui.S(21));
             detail.Font = Ui.Font("Segoe UI", 8.25f);
-            detail.MaximumSize = new Size(w - Ui.S(170), Ui.S(34));
-            Label size = AddLabel(L.T("analyse…", "scanning…", "analizando…"), pad + w - Ui.S(160), y + Ui.S(3));
+            detail.MaximumSize = new Size(w - Ui.S(170), Ui.S(30));
+            Label size = ListLabel(list, L.T("analyse…", "scanning…", "analizando…"), pad + w - Ui.S(160), ly + Ui.S(3));
             size.AutoSize = false;
             size.Size = new Size(Ui.S(105), Ui.S(20));
             size.TextAlign = ContentAlignment.MiddleRight;
-            Toggle t = new Toggle { Checked = c.Checked, BackColor = Theme.Bg, Location = new Point(pad + w - Ui.S(44), y + Ui.S(2)) };
+            Toggle t = new Toggle { Checked = c.Checked, BackColor = Theme.Bg, Location = new Point(pad + w - Ui.S(44), ly + Ui.S(2)) };
             CleanCategory cat = c;
             t.Changed += (s, e) => { cat.Checked = t.Checked; UpdateTotal(); };
-            Controls.Add(t);
+            list.Controls.Add(t);
             toggles.Add(t);
             sizes.Add(size);
-            y += Ui.S(64);
+            ly += rowH;
         }
+        y = list.Bottom;
         status = AddLabel("", pad, y + Ui.S(4));
         status.MaximumSize = new Size(w - Ui.S(250), 0);
+        ClientSize = new Size(ClientSize.Width, y + footer);   // hauteur suivant le contenu réel
         AddButtons(DoClean, L.T("Nettoyer", "Clean up", "Limpiar"));
         bClean = Controls.OfType<FlatButton>().First(b => b.Primary);
         Controls.OfType<FlatButton>().First(b => !b.Primary).Text = L.T("Fermer", "Close", "Cerrar");
         Shown += (s, e) => Analyse();
+    }
+
+    static Label ListLabel(Panel list, string text, int x, int y)
+    {
+        Label l = new Label { Text = text, AutoSize = true, Font = Ui.Font("Segoe UI", 9.75f), ForeColor = Theme.FgDim, BackColor = Theme.Bg, Location = new Point(x, y) };
+        list.Controls.Add(l);
+        return l;
     }
 
     void SetBusy(bool on)
@@ -109,6 +127,7 @@ class CleanupDialog : ThemedDialog
         string list = string.Join("\n", chosen.Where(c => c.Size > 0).Select(c => "• " + c.Title + " (" + L.Size(c.Size) + ")"));
         if (!Dialogs.Ask(this, L.T("Supprimer définitivement ", "Permanently delete ", "¿Eliminar de forma permanente ") + L.Size(total) + L.T(" ?\n\n", "?\n\n", "?\n\n") + list)) return;
         SetBusy(true);
+        cleaning = true;
         status.Text = L.T("Nettoyage en cours…", "Cleaning up…", "Limpiando…");
         Background.Run(() =>
         {
@@ -116,6 +135,7 @@ class CleanupDialog : ThemedDialog
             try { r = Cleaner.Clean(chosen); } catch { }
             Done(() =>
             {
+                cleaning = false;
                 SetBusy(false);
                 Analyse();
                 if (r != null)
@@ -123,6 +143,13 @@ class CleanupDialog : ThemedDialog
                         (r.Skipped > 0 ? "\n" + r.Skipped + L.T(" fichier(s) en cours d'utilisation ont été laissés en place.", " file(s) in use were left in place.", " archivo(s) en uso se conservaron.") : ""));
             });
         });
+    }
+
+    // Pendant la suppression, la fenêtre reste ouverte : la fermer laissait le nettoyage continuer sans résultat
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        if (cleaning && e.CloseReason == CloseReason.UserClosing) e.Cancel = true;
+        base.OnFormClosing(e);
     }
 
     void Done(Action a)

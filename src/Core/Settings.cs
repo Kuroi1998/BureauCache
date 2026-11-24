@@ -31,6 +31,9 @@ static class Settings
     public static int ThemeMode = 0, Language = 0, Delay = 120, PanelWidth = 340, EdgeZone = 0, ScreenIdx = -1,
         HotMods = 3, HotKey = (int)Keys.B, WebEngine = 0, NewDays = 3, ArchiveDays = 60;
     public static long LastUpdateCheck, LastArchive;
+    // « Effacer l'historique des récents » : les dates d'usage restent (elles protègent du rangement automatique),
+    // seuls les éléments utilisés depuis ce moment s'affichent dans « Récents » (QA-30)
+    public static long RecentsSince;
     public static string ArchiveName = "Archive du bureau", UpdateRepo = "";
     // Écran choisi, reconnu par son nom de périphérique : un indice seul change de sens quand on débranche
     // ou réordonne les écrans (R-10)
@@ -51,7 +54,9 @@ static class Settings
     static bool sysDark = true;
     public static bool Dark { get { return ThemeMode == 1 || (ThemeMode == 0 && sysDark); } }
 
-    public static string Dir { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BureauCache"); } }
+    // Dossier de remplacement, posé par les tests : ils ne doivent jamais écrire dans les vrais réglages (QA-32)
+    internal static string DirOverride;
+    public static string Dir { get { return DirOverride ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BureauCache"); } }
     public static string FilePath { get { return Path.Combine(Dir, "settings.ini"); } }
     public const long MaxFileSize = 2 * 1024 * 1024;
     // Historique d'usage borné : au-delà, les entrées les plus anciennes sont oubliées, pour que le fichier
@@ -107,6 +112,7 @@ static class Settings
                     lines = reader.ReadToEnd().Split('\n');
             }
             if (!lines.Any(line => line.Trim() == "HideIcons=0" || line.Trim() == "HideIcons=1")) return false;
+            RecentsSince = 0;  // absent d'un ancien INI : tous les récents de ce fichier s'affichent (Q30-05)
             ScreenName = "";   // un INI d'avant 3.8 n'a pas ce nom : celui de la configuration précédente ne doit pas rester (Q26-05)
             foreach (string line in lines)
             {
@@ -160,6 +166,7 @@ static class Settings
                     case "ArchiveDays": if (int.TryParse(v, out n)) ArchiveDays = n; break;
                     case "LastUpdateCheck": if (long.TryParse(v, out ln) && ln >= 0 && ln <= DateTime.Now.Ticks) LastUpdateCheck = ln; break;
                     case "LastArchive": if (long.TryParse(v, out ln)) LastArchive = ln; break;
+                    case "RecentsSince": if (long.TryParse(v, out ln) && ln >= 0 && ln <= DateTime.Now.Ticks) RecentsSince = ln; break;
                     case "ArchiveName": if (FileOps.IsValidName(v)) ArchiveName = v; break;
                     case "UpdateRepo": UpdateRepo = v; break;
                     case "WeatherOn": WeatherOn = b; break;
@@ -352,7 +359,7 @@ static class Settings
                 "ThemeMode=" + ThemeMode, "Language=" + Language, "Delay=" + Delay, "PanelWidth=" + PanelWidth,
                 "EdgeZone=" + EdgeZone, "ScreenIdx=" + ScreenIdx, "ScreenName=" + ScreenName, "HotMods=" + HotMods, "HotKey=" + HotKey,
                 "WebEngine=" + WebEngine, "NewDays=" + NewDays, "ArchiveDays=" + ArchiveDays,
-                "LastUpdateCheck=" + LastUpdateCheck, "LastArchive=" + LastArchive,
+                "LastUpdateCheck=" + LastUpdateCheck, "LastArchive=" + LastArchive, "RecentsSince=" + RecentsSince,
                 "ArchiveName=" + ArchiveName, "UpdateRepo=" + UpdateRepo,
                 "WeatherOn=" + B(WeatherOn), "WeatherPlace=" + WeatherPlace,
                 "WeatherLat=" + (double.IsNaN(WeatherLat) ? "" : WeatherLat.ToString("R", CultureInfo.InvariantCulture)),
@@ -388,7 +395,15 @@ static class Settings
 
     public static void Restore(Snap s)
     {
-        Favorites = s.Fav; Order = s.Order; CatOverride = s.Cat; Usage = s.Usage;
+        // Un usage enregistré depuis l'instantané (fichier rouvert entre-temps) est gardé : il protège le fichier du
+        // rangement automatique, et annuler un changement d'organisation ne doit pas le retirer (Q30-07)
+        Dictionary<string, long[]> restored = new Dictionary<string, long[]>(s.Usage, StringComparer.OrdinalIgnoreCase);
+        foreach (KeyValuePair<string, long[]> kv in Usage)
+        {
+            long[] old;
+            if (restored.TryGetValue(kv.Key, out old) && kv.Value[1] > old[1]) restored[kv.Key] = kv.Value;
+        }
+        Favorites = s.Fav; Order = s.Order; CatOverride = s.Cat; Usage = restored;
         SaveQuiet();
     }
 
@@ -404,6 +419,14 @@ static class Settings
     public static CustomCat FindCat(string name)
     {
         return CustomCats.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Efface l'historique visible sans retirer la protection des fichiers utilisés récemment
+    public static void ClearRecents()
+    {
+        // Nouveaux tableaux : les instantanés d'annulation (Snapshot) partagent les anciens
+        foreach (string k in Usage.Keys.ToList()) Usage[k] = new long[] { 0, Usage[k][1] };
+        RecentsSince = DateTime.Now.Ticks;
     }
 
     public static void RecordUse(string key)

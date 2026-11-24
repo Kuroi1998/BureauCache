@@ -95,6 +95,12 @@ class Toggle : FlatControl
     protected override void OnKeyDown(KeyEventArgs e)
     {
         if (e.KeyCode == Keys.Space) { e.SuppressKeyPress = true; OnClick(EventArgs.Empty); }
+        // Gauche : désactivé, Droite : activé (les flèches étaient capturées sans effet, Q30-02)
+        else if (SettingsKeyboard && (e.KeyCode == Keys.Left || e.KeyCode == Keys.Right))
+        {
+            e.SuppressKeyPress = true;
+            if (Checked != (e.KeyCode == Keys.Right)) OnClick(EventArgs.Empty);
+        }
         base.OnKeyDown(e);
     }
 

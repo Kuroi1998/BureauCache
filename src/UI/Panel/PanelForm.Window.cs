@@ -54,15 +54,16 @@ partial class PanelForm
 
     bool liveBlurActive, excludedFromCapture, layoutRightSide;
 
+    uint appliedAffinity = uint.MaxValue;   // dernière affinité donnée à Windows pour ce handle
+
     void ApplyCaptureSettings()
     {
-        excludedFromCapture = false;
-        if (IsHandleCreated)
-        {
-            uint affinity = Settings.HidePanelInCapture ? Native.WDA_EXCLUDEFROMCAPTURE : Native.WDA_NONE;
-            bool applied = Native.SetWindowDisplayAffinity(Handle, affinity);
-            excludedFromCapture = applied && Settings.HidePanelInCapture && Native.CaptureExclusionSupported;
-        }
+        uint affinity = Settings.HidePanelInCapture ? Native.WDA_EXCLUDEFROMCAPTURE : Native.WDA_NONE;
+        // Panneau caché : l'affinité n'est pas touchée. La retoucher sur une fenêtre cachée faisait réapparaître
+        // son image figée à l'écran après un changement de réglage (QA-30) ; elle est appliquée à l'affichage.
+        if (IsHandleCreated && Visible && affinity != appliedAffinity)
+            appliedAffinity = Native.SetWindowDisplayAffinity(Handle, affinity) ? affinity : uint.MaxValue;
+        excludedFromCapture = appliedAffinity == Native.WDA_EXCLUDEFROMCAPTURE && Native.CaptureExclusionSupported;
         liveBlurActive = excludedFromCapture && Settings.Glass && Settings.LiveBlur && !appbar;
         blurTimer.Enabled = Visible && liveBlurActive;
         if (!Settings.Glass) SetGlass(null);
@@ -141,7 +142,9 @@ partial class PanelForm
         if (search.Text.Length > 0) search.Text = "";
         else Rebuild(true);
         Left = Settings.Animations ? ClosedLeft : openLeft;
-        Opacity = Settings.Animations ? 0 : 1;
+        // Toujours transparent au moment de Show : le masquage en capture n'est appliqué qu'à une fenêtre affichée,
+        // et le panneau ne doit pas être visible avant (Q30-01). StartAnim le rend opaque juste après.
+        Opacity = 0;
         Show();
         ApplyCaptureSettings();
         UpdateWidgetTimer(true);
@@ -178,6 +181,10 @@ partial class PanelForm
     void Finish()
     {
         Hide();
+        // Rangé hors de tous les écrans : si le compositeur de Windows garde une image de la fenêtre cachée,
+        // elle n'est plus visible sur le bord (QA-30). ShowPanel replace la fenêtre avant de l'afficher.
+        Rectangle all = SystemInformation.VirtualScreen;
+        Location = new Point(all.Left - Width - S(200), Top);
         widgetTimer.Stop();
         blurTimer.Stop();
     }
