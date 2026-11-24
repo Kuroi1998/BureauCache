@@ -22,11 +22,11 @@ BureauCache cache les icônes du bureau Windows et les réaffiche dans un pannea
 | Dossier | Responsabilité | Types principaux | Dépend de |
 |---|---|---|---|
 | `src/App` | Point d'entrée, instance unique, surveillance, cycle de vie, icône de notification, raccourci global | `Program`, `App` (partial : `App.cs`, `App.Tray.cs`), `HotkeyWindow` | Core, UI |
-| `src/Core` | Réglages, installation et démarrage, mises à jour, rangement automatique, langue, Win32, utilitaires | `Settings`, `Installer`, `Startup`, `Updater`, `Archiver`, `L`, `Native`, `Paths`, `FileOps`, `Dialogs`, `Background` | — |
+| `src/Core` | Réglages, installation et démarrage, mises à jour, rangement automatique, langue, Win32, utilitaires | `Settings`, `SettingsBackup`, `Installer`, `Startup`, `Updater`, `Archiver`, `L`, `Native`, `Paths`, `FileOps`, `Dialogs`, `Background` | — |
 | `src/Data` | Modèle des éléments, chargement du bureau, des applications et des récents, catalogue système | `DesktopItem`, `ItemKind`, `Catalog`, `Group`, `VRow`, `Loader`, `SystemCatalog` | Core, Shell |
 | `src/Search` | Recherche tolérante aux fautes, calculatrice | `Search`, `Calc` (+ `Calc.Parser`) | Data, Core (`L.Culture`) |
 | `src/Shell` | Icônes, miniatures et cache, verbes et raccourcis du shell ; fil STA dédié aux verbes de « Plus d'options » | `Icons`, `IconCache`, `ShellUtil`, `ShellWorker` | Core |
-| `src/UI` | Thème et dessin, glyphes, dialogues, visite guidée | `Theme`, `Ui`, `Menus`, `Glyphs`, `ThemedDialog`, `WelcomeForm` | Core |
+| `src/UI` | Thème et dessin, glyphes, dialogues, visite guidée | `Theme`, `Ui`, `Menus`, `Glyphs`, `ThemedDialog`, `BackupDialog`, `WelcomeForm` | Core |
 | `src/UI/Controls` | Contrôles dessinés à la main | `Toggle`, `Segmented`, `Slider`, `Swatches`, `HotkeyBox`, `FlatButton`, `SideNav`… | UI |
 | `src/UI/Panel` | Panneau principal | `PanelForm` (partial : `.cs`, `.Window`, `.Data`, `.Actions`, `.Input`), `ItemsView` (partial : `.cs`, `.Input`), `PreviewForm`, `ToastControl` | Data, Search, Shell, UI |
 | `src/UI/Settings` | Fenêtre de paramètres et disposition des six rubriques | `SettingsForm` (partial : `.cs`, `.Pages`, `.Values`, `.Advanced`, `.Layout`), `SettingsNavigation`, `SettingsActions` | Core, UI |
@@ -36,6 +36,7 @@ BureauCache cache les icônes du bureau Windows et les réaffiche dans un pannea
 
 - Une classe par responsabilité. Les grandes fenêtres sont découpées en `partial class` avec un fichier `Classe.Aspect.cs` par aspect.
 - Aucun fichier ne dépasse **500 lignes**. Au-delà d'environ 400 lignes, on prévoit un découpage.
+- Les réglages sont copiés une fois par jour avant leur première réécriture, dans `sauvegardes\` (7 jours, `SettingsBackup`, D-007). Restaurer ou importer met d'abord l'état actuel de côté. Les tests isolent le dossier des réglages (`Settings.DirOverride`).
 - Les tâches de fond passent par `Background` (`src/Core/Helpers.cs`). Le retour sur le fil UI se fait par `BeginInvoke`, et l'UI n'est jamais touchée depuis un autre fil.
 - Les opérations sur fichiers passent par `FileOps`. Les noms sont validés (noms réservés Windows refusés).
 - Les réglages se modifient par `Settings`. L'écriture est groupée par minuteur et atomique.

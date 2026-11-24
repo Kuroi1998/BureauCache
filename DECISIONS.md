@@ -10,6 +10,13 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 **Conséquences :** ce que ça impose ensuite.
 -->
 
+## D-007 — Sauvegarde automatique des réglages (2026-11-24) · Statut : Acceptée
+
+**Contexte :** `settings.ini` est réécrit en entier à chaque changement, et une seule écriture fautive efface tout sans retour (incident QA-32 : favoris, ordre, catégories et langue perdus).
+**Décision :** à la première sauvegarde de chaque jour, le fichier précédent, s'il est valide (mêmes critères que `Load` : taille ≤ 2 Mio, ligne `HideIcons`), est copié dans `sauvegardes\settings-AAAA-MM-JJ.ini`. On garde les 7 plus récentes. Restaurer une sauvegarde ou importer un fichier copie d'abord l'état actuel dans `sauvegardes\settings-avant-restauration.ini` (un seul emplacement), lui-même restaurable. Restauration depuis Paramètres → Avancé. Une sauvegarde qui échoue ne bloque jamais l'enregistrement. La désinstallation supprime le dossier.
+**Alternatives écartées :** une copie à chaque écriture (une rafale de mauvaises écritures écraserait les bonnes copies en quelques secondes) ; le paramètre de sauvegarde de `File.Replace` (une seule version, la précédente) ; une sauvegarde dans OneDrive (données personnelles envoyées hors du PC sans demande).
+**Conséquences :** jusqu'à 8 fichiers de 2 Mio au plus dans le dossier des réglages. Le code passe par `SettingsBackup` ; les tests utilisent le dossier isolé (`Settings.DirOverride`).
+
 ## D-001 — Compilation par csc.exe du .NET Framework, C# 5, sans dépendance (2026-11-23) · Statut : Acceptée
 
 **Contexte :** l'application doit pouvoir être compilée sur n'importe quel Windows sans rien installer (`build.cmd`).

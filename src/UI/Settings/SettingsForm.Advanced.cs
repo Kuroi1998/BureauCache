@@ -67,6 +67,9 @@ partial class SettingsForm
             Button(T("Exporter…", "Export…", "Exportar…"), false, S(130), Export), null);
         Row(T("Importer des réglages", "Import settings", "Importar configuración"), T("Remplace les réglages actuels.", "Replaces the current settings.", "Sustituye la configuración actual."),
             Button(T("Importer…", "Import…", "Importar…"), false, S(130), Import), null);
+        Row(T("Restaurer une sauvegarde", "Restore a backup", "Restaurar una copia de seguridad"),
+            T("Une copie automatique par jour, sur les " + SettingsBackup.Kept + " derniers jours.", "One automatic copy per day, for the last " + SettingsBackup.Kept + " days.", "Una copia automática al día, durante los últimos " + SettingsBackup.Kept + " días."),
+            Button(T("Restaurer…", "Restore…", "Restaurar…"), false, S(130), RestoreBackup), null);
 
         Section(T("MISES À JOUR", "UPDATES", "ACTUALIZACIONES"));
         repo = new InputBox(S(230));
@@ -110,6 +113,7 @@ partial class SettingsForm
             try
             {
                 if (!Ask(T("Remplacer tes réglages actuels par ceux de ce fichier ?", "Replace your current settings with this file?", "¿Sustituir la configuración actual por la de este archivo?"))) return;
+                SettingsBackup.KeepCurrentBeforeRestore();   // l'import reste réversible (D-007)
                 if (!Settings.Load(d.FileName))
                     throw new IOException(T("Fichier de réglages invalide ou trop volumineux.", "Invalid or oversized settings file.", "Archivo de configuración no válido o demasiado grande."));
                 L.Refresh();
@@ -118,6 +122,14 @@ partial class SettingsForm
             }
             catch (Exception ex) { Dialogs.Info(this, ex.Message); }
         }
+    }
+
+    void RestoreBackup()
+    {
+        if (!BackupDialog.Run(this)) return;
+        L.Refresh();
+        Settings.Notify();
+        Dialogs.Info(this, T("Réglages restaurés.", "Settings restored.", "Configuración restaurada."));
     }
 
     void ResetUpdateButton()

@@ -310,6 +310,7 @@ static class Settings
                 return false;
             }
             File.WriteAllLines(tmp, lines, new UTF8Encoding(false));
+            SettingsBackup.BeforeSave();   // copie du jour, avant la première réécriture (D-007)
             if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
             else File.Move(tmp, FilePath);
             return true;

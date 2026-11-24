@@ -120,6 +120,7 @@ static class Installer
         try { using (RegistryKey k = Registry.CurrentUser.OpenSubKey(UninstKey)) entryLeft = k != null; } catch { entryLeft = true; }
         if (entryLeft) left.Add(L.T("l'entrée « Applications installées »", "the \"Installed apps\" entry", "la entrada de «Aplicaciones instaladas»"));
         PanelForm.RecycleLeftovers();
+        SettingsBackup.DeleteAll();   // sauvegardes automatiques des réglages (D-007)
         try { File.Delete(Settings.FilePath); } catch { }
         if (File.Exists(Settings.FilePath)) left.Add(L.T("le fichier des réglages", "the settings file", "el archivo de configuración") + " (" + Settings.FilePath + ")");
         try { Directory.Delete(PanelForm.StashRoot); } catch { }
