@@ -1,6 +1,6 @@
 ﻿# Nouveautés
 
-## Non publié
+## 3.8 — Fiabilité et interface
 
 - Les réglages ne peuvent plus être perdus quand l'historique d'utilisation devient très long. Les éléments utilisés depuis plus de 180 jours sont oubliés en premier.
 - Quitter BureauCache juste après une mise à jour ne fait plus revenir à l'ancienne version au démarrage suivant.
@@ -18,7 +18,7 @@
 - Plus d'image figée du panneau sur le bord de l'écran après un changement de réglage.
 - Les fenêtres de dialogue se manipulent entièrement au clavier, et leurs textes ne chevauchent plus les boutons.
 - Le nettoyage rapide ne peut plus être fermé pendant la suppression.
-- Annuler le choix du lieu remet la météo à l'arrêt. Effacer l'historique des récents ne fait plus ranger des fichiers utilisés récemment.
+- La météo ne s'active qu'une fois un lieu choisi. Effacer l'historique des récents ne fait plus ranger des fichiers utilisés récemment.
 
 ## 3.7.1 — Espagnol et stabilisation du panneau
 

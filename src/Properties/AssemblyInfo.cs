@@ -15,6 +15,6 @@ using System.Runtime.CompilerServices;
 
 static class AppInfo
 {
-    public const string Version = "3.7.1";
+    public const string Version = "3.8";
     public const string Repo = "Kuroi1998/BureauCache";
 }
