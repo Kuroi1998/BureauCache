@@ -18,7 +18,35 @@ class ThemedDialog : Form
         AutoScaleMode = AutoScaleMode.None;
         ClientSize = new Size(w, h);
         BackColor = Theme.Bg;
-        Icon = Ui.MakeIcon(Settings.Accent);
+        Icon = ownedIcon = Ui.MakeIcon(Settings.Accent);
+    }
+
+    readonly Icon ownedIcon;
+
+    // L'icône est créée pour ce dialogue : libérée avec lui (handle GDI)
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        if (disposing) ownedIcon.Dispose();
+    }
+
+    // Clavier : Tab atteint chaque bouton et contrôle, Entrée ou Espace l'active, les flèches règlent les choix,
+    // et le focus est dessiné. Ce mode n'était activé que dans les Paramètres.
+    protected override void OnLoad(EventArgs e)
+    {
+        base.OnLoad(e);
+        EnableKeyboard(this);
+    }
+
+    static void EnableKeyboard(Control parent)
+    {
+        foreach (Control c in parent.Controls)
+        {
+            FlatControl flat = c as FlatControl;
+            if (flat != null && !(flat is GlyphTileControl))
+                flat.EnableSettingsKeyboard();
+            EnableKeyboard(c);
+        }
     }
 
     protected Label AddLabel(string text, int x, int y)

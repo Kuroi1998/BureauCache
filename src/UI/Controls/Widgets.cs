@@ -37,6 +37,27 @@ class GlyphPicker : FlatControl
             Ui.Fill(g, sel ? Theme.Accent : Theme.Surface, r, Ui.S(6));
             Ui.Glyph(g, glyphs[i], 11f, sel ? Color.White : Theme.Fg, r);
         }
+        DrawSettingsFocus(g);
+    }
+
+    // Flèches pour se déplacer dans la grille, Début et Fin pour la première et la dernière icône
+    protected override bool IsInputKey(Keys keyData)
+    {
+        return SettingsKeyboard && (keyData == Keys.Up || keyData == Keys.Down) || base.IsInputKey(keyData);
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        int i = Array.IndexOf(glyphs, Selected), next;
+        if (e.KeyCode == Keys.Left) next = i - 1;
+        else if (e.KeyCode == Keys.Right) next = i + 1;
+        else if (e.KeyCode == Keys.Up) next = i - Cols;
+        else if (e.KeyCode == Keys.Down) next = i + Cols;
+        else if (e.KeyCode == Keys.Home) next = 0;
+        else if (e.KeyCode == Keys.End) next = glyphs.Length - 1;
+        else { base.OnKeyDown(e); return; }
+        e.SuppressKeyPress = true;
+        if (next >= 0 && next < glyphs.Length) { Selected = glyphs[next]; Invalidate(); }
     }
 }
 

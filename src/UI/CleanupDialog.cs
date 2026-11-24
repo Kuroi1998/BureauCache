@@ -15,7 +15,7 @@ class CleanupDialog : ThemedDialog
     readonly List<Label> sizes = new List<Label>();
     readonly FlatButton bClean;
     readonly Label status;
-    bool busy;
+    bool busy, cleaning;
 
     public static void Run()
     {
@@ -28,7 +28,8 @@ class CleanupDialog : ThemedDialog
         Label intro = AddLabel(L.T("Seuls des caches et des fichiers temporaires de ton compte sont supprimés. Windows, les programmes et tes documents ne sont jamais touchés.",
             "Only caches and temporary files of your account are deleted. Windows, programs and your documents are never touched.", "Solo se borran las cachés y los archivos temporales de tu cuenta. Se conservan Windows, los programas y tus documentos."), pad, y);
         intro.MaximumSize = new Size(w, 0);
-        y = Ui.S(62);
+        // Le texte d'introduction peut prendre trois lignes (espagnol, grand zoom) : la liste commence dessous
+        y = Math.Max(Ui.S(62), y + intro.GetPreferredSize(new Size(w, 0)).Height + Ui.S(14));
         foreach (CleanCategory c in categories)
         {
             Label title = AddLabel(c.Title, pad, y);
@@ -51,6 +52,7 @@ class CleanupDialog : ThemedDialog
         }
         status = AddLabel("", pad, y + Ui.S(4));
         status.MaximumSize = new Size(w - Ui.S(250), 0);
+        ClientSize = new Size(ClientSize.Width, y + Ui.S(78));   // hauteur suivant le contenu réel
         AddButtons(DoClean, L.T("Nettoyer", "Clean up", "Limpiar"));
         bClean = Controls.OfType<FlatButton>().First(b => b.Primary);
         Controls.OfType<FlatButton>().First(b => !b.Primary).Text = L.T("Fermer", "Close", "Cerrar");
@@ -109,6 +111,7 @@ class CleanupDialog : ThemedDialog
         string list = string.Join("\n", chosen.Where(c => c.Size > 0).Select(c => "• " + c.Title + " (" + L.Size(c.Size) + ")"));
         if (!Dialogs.Ask(this, L.T("Supprimer définitivement ", "Permanently delete ", "¿Eliminar de forma permanente ") + L.Size(total) + L.T(" ?\n\n", "?\n\n", "?\n\n") + list)) return;
         SetBusy(true);
+        cleaning = true;
         status.Text = L.T("Nettoyage en cours…", "Cleaning up…", "Limpiando…");
         Background.Run(() =>
         {
@@ -116,6 +119,7 @@ class CleanupDialog : ThemedDialog
             try { r = Cleaner.Clean(chosen); } catch { }
             Done(() =>
             {
+                cleaning = false;
                 SetBusy(false);
                 Analyse();
                 if (r != null)
@@ -123,6 +127,13 @@ class CleanupDialog : ThemedDialog
                         (r.Skipped > 0 ? "\n" + r.Skipped + L.T(" fichier(s) en cours d'utilisation ont été laissés en place.", " file(s) in use were left in place.", " archivo(s) en uso se conservaron.") : ""));
             });
         });
+    }
+
+    // Pendant la suppression, la fenêtre reste ouverte : la fermer laissait le nettoyage continuer sans résultat
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        if (cleaning && e.CloseReason == CloseReason.UserClosing) e.Cancel = true;
+        base.OnFormClosing(e);
     }
 
     void Done(Action a)

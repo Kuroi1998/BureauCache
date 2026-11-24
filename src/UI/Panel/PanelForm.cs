@@ -129,6 +129,7 @@ partial class PanelForm : Form
     {
         base.OnHandleCreated(e);
         Native.SetRoundCorners(Handle);
+        appliedAffinity = uint.MaxValue;   // nouveau handle : aucune affinité encore donnée à Windows
         ApplyCaptureSettings();
     }
 

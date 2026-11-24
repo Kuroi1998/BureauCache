@@ -127,7 +127,13 @@ partial class SettingsForm
         {
             Settings.WeatherOn = v;
             if (!v) Weather.Reset();
-            if (v && !Weather.Configured) BeginInvoke(new Action(() => { WeatherPlaceDialog.Run(); UpdateTexts(); }));
+            // Aucun lieu choisi dans le dialogue : la météo repasse à l'arrêt au lieu d'afficher une tuile vide
+            if (v && !Weather.Configured) BeginInvoke(new Action(() =>
+            {
+                WeatherPlaceDialog.Run();
+                if (!Weather.Configured) { Settings.WeatherOn = false; Settings.Notify(); }
+                UpdateTexts();
+            }));
         });
         Row(T("Météo", "Weather", "Tiempo"), T("Temps et prévisions du lieu choisi (données Open-Meteo.com, CC BY 4.0).", "Weather and forecast for the chosen place (Open-Meteo.com data, CC BY 4.0).", "Tiempo y pronóstico del lugar elegido (datos de Open-Meteo.com, CC BY 4.0)."), tWeather, null);
         lWeatherPlace = Row(T("Lieu de la météo", "Weather location", "Ubicación para el tiempo"), "-", Button(T("Choisir…", "Choose…", "Elegir…"), false, S(120), () => { WeatherPlaceDialog.Run(); UpdateTexts(); }), null);
@@ -233,7 +239,7 @@ partial class SettingsForm
         Section(T("RÉINITIALISER", "RESET", "RESTABLECER"));
         Row(T("Favoris", "Favorites", "Favoritos"), null, ResetButton(T("Tout retirer", "Remove all", "Quitar todo"), () => Settings.Favorites.Clear()), null);
         Row(T("Ordre et catégories", "Order and categories", "Orden y categorías"), null, ResetButton(T("Réinitialiser", "Reset", "Restablecer"), () => { Settings.Order.Clear(); Settings.CatOverride.Clear(); }), null);
-        Row(T("Historique des récents", "Recent history", "Historial reciente"), null, ResetButton(T("Effacer", "Clear", "Borrar"), () => Settings.Usage.Clear()), null);
+        Row(T("Historique des récents", "Recent history", "Historial reciente"), null, ResetButton(T("Effacer", "Clear", "Borrar"), Settings.ClearRecents), null);
 
         Section(T("CATÉGORIES PERSONNALISÉES", "CUSTOM CATEGORIES", "CATEGORÍAS PERSONALIZADAS"));
         customCard = cur;

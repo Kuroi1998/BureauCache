@@ -24,7 +24,8 @@ class WeatherPlaceDialog : ThemedDialog
     WeatherPlaceDialog() : base(L.T("Lieu de la météo", "Weather location", "Ubicación para el tiempo"), Ui.S(480), Ui.S(430))
     {
         int pad = Ui.S(20), w = ClientSize.Width - 2 * pad;
-        AddLabel(L.T("Tape le nom de ta ville, ou laisse Windows trouver ta position.", "Type your city, or let Windows find your location.", "Escribe tu ciudad o deja que Windows detecte tu ubicación."), pad, Ui.S(16));
+        AddLabel(L.T("Tape le nom de ta ville, ou laisse Windows trouver ta position.", "Type your city, or let Windows find your location.", "Escribe tu ciudad o deja que Windows detecte tu ubicación."), pad, Ui.S(16))
+            .MaximumSize = new Size(w, Ui.S(24));
 
         query = new InputBox(w - Ui.S(130)) { Location = new Point(pad, Ui.S(44)), BackColor = Theme.Bg };
         query.Box.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; DoSearch(); } };
@@ -39,6 +40,7 @@ class WeatherPlaceDialog : ThemedDialog
             BackColor = Theme.Surface, ForeColor = Theme.Fg, Font = Ui.Font("Segoe UI", 10f), IntegralHeight = false
         };
         results.DoubleClick += (s, e) => Choose();
+        results.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; Choose(); } };
         Controls.Add(results);
 
         bLocate = new FlatButton(L.T("Détecter ma position", "Detect my location", "Detectar mi ubicación"), false) { Location = new Point(pad, Ui.S(270)), BackColor = Theme.Bg };
@@ -51,6 +53,8 @@ class WeatherPlaceDialog : ThemedDialog
             "Search sends the typed name to Open-Meteo. Detection asks Windows for the location, then sends the rounded coordinates to BigDataCloud to find the city name. Afterwards, only the chosen place's coordinates are sent to Open-Meteo when the panel opens: at most every 30 minutes (5 minutes after a failure).", "La búsqueda envía el nombre a Open-Meteo. La detección pide la ubicación a Windows y envía las coordenadas redondeadas a BigDataCloud para identificar la ciudad. Al abrir el panel, solo se envían a Open-Meteo las coordenadas del lugar elegido como máximo cada 30 minutos, o cada 5 minutos tras un error."), pad, Ui.S(318));
         privacy.MaximumSize = new Size(w, 0);
         privacy.Font = Ui.Font("Segoe UI", 8.25f);
+        // Le texte de confidentialité fait 4 à 6 lignes selon la langue : les boutons passent dessous
+        ClientSize = new Size(ClientSize.Width, privacy.Top + privacy.GetPreferredSize(new Size(w, 0)).Height + Ui.S(70));
 
         AddButtons(Choose, L.T("Choisir", "Choose", "Elegir"));
         if (!string.IsNullOrEmpty(Settings.WeatherPlace)) query.Box.Text = Settings.WeatherPlace.Split(',')[0];

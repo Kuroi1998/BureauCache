@@ -31,6 +31,9 @@ static class Settings
     public static int ThemeMode = 0, Language = 0, Delay = 120, PanelWidth = 340, EdgeZone = 0, ScreenIdx = -1,
         HotMods = 3, HotKey = (int)Keys.B, WebEngine = 0, NewDays = 3, ArchiveDays = 60;
     public static long LastUpdateCheck, LastArchive;
+    // « Effacer l'historique des récents » : les dates d'usage restent (elles protègent du rangement automatique),
+    // seuls les éléments utilisés depuis ce moment s'affichent dans « Récents » (QA-30)
+    public static long RecentsSince;
     public static string ArchiveName = "Archive du bureau", UpdateRepo = "";
     // Écran choisi, reconnu par son nom de périphérique : un indice seul change de sens quand on débranche
     // ou réordonne les écrans (R-10)
@@ -160,6 +163,7 @@ static class Settings
                     case "ArchiveDays": if (int.TryParse(v, out n)) ArchiveDays = n; break;
                     case "LastUpdateCheck": if (long.TryParse(v, out ln) && ln >= 0 && ln <= DateTime.Now.Ticks) LastUpdateCheck = ln; break;
                     case "LastArchive": if (long.TryParse(v, out ln)) LastArchive = ln; break;
+                    case "RecentsSince": if (long.TryParse(v, out ln) && ln >= 0 && ln <= DateTime.Now.Ticks) RecentsSince = ln; break;
                     case "ArchiveName": if (FileOps.IsValidName(v)) ArchiveName = v; break;
                     case "UpdateRepo": UpdateRepo = v; break;
                     case "WeatherOn": WeatherOn = b; break;
@@ -352,7 +356,7 @@ static class Settings
                 "ThemeMode=" + ThemeMode, "Language=" + Language, "Delay=" + Delay, "PanelWidth=" + PanelWidth,
                 "EdgeZone=" + EdgeZone, "ScreenIdx=" + ScreenIdx, "ScreenName=" + ScreenName, "HotMods=" + HotMods, "HotKey=" + HotKey,
                 "WebEngine=" + WebEngine, "NewDays=" + NewDays, "ArchiveDays=" + ArchiveDays,
-                "LastUpdateCheck=" + LastUpdateCheck, "LastArchive=" + LastArchive,
+                "LastUpdateCheck=" + LastUpdateCheck, "LastArchive=" + LastArchive, "RecentsSince=" + RecentsSince,
                 "ArchiveName=" + ArchiveName, "UpdateRepo=" + UpdateRepo,
                 "WeatherOn=" + B(WeatherOn), "WeatherPlace=" + WeatherPlace,
                 "WeatherLat=" + (double.IsNaN(WeatherLat) ? "" : WeatherLat.ToString("R", CultureInfo.InvariantCulture)),
@@ -404,6 +408,14 @@ static class Settings
     public static CustomCat FindCat(string name)
     {
         return CustomCats.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Efface l'historique visible sans retirer la protection des fichiers utilisés récemment
+    public static void ClearRecents()
+    {
+        // Nouveaux tableaux : les instantanés d'annulation (Snapshot) partagent les anciens
+        foreach (string k in Usage.Keys.ToList()) Usage[k] = new long[] { 0, Usage[k][1] };
+        RecentsSince = DateTime.Now.Ticks;
     }
 
     public static void RecordUse(string key)

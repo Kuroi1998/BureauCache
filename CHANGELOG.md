@@ -15,6 +15,10 @@
 - L'aperçu au survol ne disparaît plus pendant un rechargement, et la page Organisation ne fige plus la fenêtre pendant l'analyse du bureau.
 - « Plus d'options » ne fige plus le panneau sur un fichier réseau ou pris en charge par une extension lente.
 - La liste des écrans des Paramètres suit les écrans branchés ou débranchés.
+- Plus d'image figée du panneau sur le bord de l'écran après un changement de réglage.
+- Les fenêtres de dialogue se manipulent entièrement au clavier, et leurs textes ne chevauchent plus les boutons.
+- Le nettoyage rapide ne peut plus être fermé pendant la suppression.
+- Annuler le choix du lieu remet la météo à l'arrêt. Effacer l'historique des récents ne fait plus ranger des fichiers utilisés récemment.
 
 ## 3.7.1 — Espagnol et stabilisation du panneau
 
