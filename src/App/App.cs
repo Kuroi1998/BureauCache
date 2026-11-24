@@ -94,7 +94,12 @@ partial class App : ApplicationContext
                 panel.BeginInvoke(new Action(Settings.Fire));
         };
         SystemEvents.SessionEnding += delegate { Settings.Flush(); Native.RestoreDesktopIcons(); };
-        SystemEvents.DisplaySettingsChanged += delegate { screens = Screen.AllScreens; };
+        screenSignature = ScreenSignature(screens);
+        SystemEvents.DisplaySettingsChanged += delegate
+        {
+            screens = Screen.AllScreens;
+            try { panel.BeginInvoke(new Action(OnDisplaysChanged)); } catch { }
+        };
 
         ApplyIconVisibility();
         panel.RequestLoad();
@@ -144,21 +149,42 @@ partial class App : ApplicationContext
         {
             lastLanguage = L.CurrentLanguage;
             panel.ReloadNow();
-            if (settingsForm != null && !settingsForm.IsDisposed)
-            {
-                SettingsForm old2 = settingsForm;
-                panel.BeginInvoke(new Action(() =>
-                {
-                    if (old2 != settingsForm || old2.IsDisposed) return;
-                    bool vis = old2.Visible;
-                    SettingsForm replacement = new SettingsForm(Actions());
-                    replacement.RestoreWindowState(old2);
-                    settingsForm = replacement;
-                    old2.Dispose();
-                    if (vis) settingsForm.Show();
-                }));
-            }
+            RebuildSettingsForm();
         }
+    }
+
+    // Recrée la fenêtre des Paramètres ouverte en gardant sa rubrique, son défilement et sa position
+    void RebuildSettingsForm()
+    {
+        if (settingsForm == null || settingsForm.IsDisposed) return;
+        SettingsForm old2 = settingsForm;
+        panel.BeginInvoke(new Action(() =>
+        {
+            if (old2 != settingsForm || old2.IsDisposed) return;
+            bool vis = old2.Visible;
+            SettingsForm replacement = new SettingsForm(Actions());
+            replacement.RestoreWindowState(old2);
+            settingsForm = replacement;
+            old2.Dispose();
+            if (vis) settingsForm.Show();
+        }));
+    }
+
+    string screenSignature;
+
+    static string ScreenSignature(Screen[] all)
+    {
+        return string.Join("|", all.Select(s => s.DeviceName).ToArray());
+    }
+
+    // Écran branché, débranché ou réordonné : la liste « Écran » des Paramètres est reconstruite, pour que
+    // l'affichage et le choix reposent sur la même disposition (R-10)
+    void OnDisplaysChanged()
+    {
+        string signature = ScreenSignature(screens);
+        if (signature == screenSignature) return;
+        screenSignature = signature;
+        RebuildSettingsForm();
     }
 
     SettingsActions Actions()

@@ -13,6 +13,8 @@
 - L'écran choisi pour le bord est reconnu même après avoir débranché ou réordonné les écrans.
 - La visite guidée reste utilisable sur un petit écran avec un zoom élevé.
 - L'aperçu au survol ne disparaît plus pendant un rechargement, et la page Organisation ne fige plus la fenêtre pendant l'analyse du bureau.
+- « Plus d'options » ne fige plus le panneau sur un fichier réseau ou pris en charge par une extension lente.
+- La liste des écrans des Paramètres suit les écrans branchés ou débranchés.
 
 ## 3.7.1 — Espagnol et stabilisation du panneau
 
