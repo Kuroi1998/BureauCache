@@ -52,6 +52,7 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-24 · Claude · T-019 : image figée du panneau diagnostiquée sur la session réelle et corrigée, dialogues et Paramètres corrigés (QA-30). Suite : 358 réussis, 4 ignorés.
 - 2026-11-24 · Toi · T-019 : correctif de l'image figée vérifié sur le binaire compilé.
 - 2026-11-24 · Claude · T-019 : revue de QA-30 par ChatGPT, 8 constats retenus et corrigés (QA-31). Suite : 369 réussis, 5 ignorés.
+- 2026-11-24 · Claude · Incident QA-32 : un test de Claude a écrasé les vrais réglages ; tests isolés dans un dossier temporaire. Suite : 369 réussis, 5 ignorés.
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.

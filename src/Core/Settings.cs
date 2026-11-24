@@ -54,7 +54,9 @@ static class Settings
     static bool sysDark = true;
     public static bool Dark { get { return ThemeMode == 1 || (ThemeMode == 0 && sysDark); } }
 
-    public static string Dir { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BureauCache"); } }
+    // Dossier de remplacement, posé par les tests : ils ne doivent jamais écrire dans les vrais réglages (QA-32)
+    internal static string DirOverride;
+    public static string Dir { get { return DirOverride ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BureauCache"); } }
     public static string FilePath { get { return Path.Combine(Dir, "settings.ini"); } }
     public const long MaxFileSize = 2 * 1024 * 1024;
     // Historique d'usage borné : au-delà, les entrées les plus anciennes sont oubliées, pour que le fichier
