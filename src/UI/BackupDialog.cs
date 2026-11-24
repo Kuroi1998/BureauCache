@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 // =====================================================================
@@ -31,7 +32,8 @@ class BackupDialog : ThemedDialog
         list = new ListBox
         {
             Location = new Point(pad, y), Size = new Size(w, Ui.S(150)), BorderStyle = BorderStyle.None,
-            BackColor = Theme.Surface, ForeColor = Theme.Fg, Font = Ui.Font("Segoe UI", 10f), IntegralHeight = false
+            BackColor = Theme.Surface, ForeColor = Theme.Fg, Font = Ui.Font("Segoe UI", 10f), IntegralHeight = false,
+            HorizontalScrollbar = true   // libellés longs (espagnol) lisibles en entier (D007-08)
         };
         foreach (SettingsBackup.Entry e in entries) list.Items.Add(Describe(e));
         if (list.Items.Count > 0) list.SelectedIndex = 0;
@@ -47,6 +49,10 @@ class BackupDialog : ThemedDialog
         status.MaximumSize = new Size(w, 0);
         ClientSize = new Size(ClientSize.Width, list.Bottom + Ui.S(8) + Math.Max(Ui.S(20), status.GetPreferredSize(new Size(w, 0)).Height) + Ui.S(70));
         AddButtons(Restore, L.T("Restaurer", "Restore", "Restaurar"));
+        // Rien à restaurer : le bouton est grisé (D007-08)
+        FlatButton ok = Controls.OfType<FlatButton>().First(b => b.Primary);
+        ok.Enabled = list.SelectedIndex >= 0;
+        list.SelectedIndexChanged += (s, e) => ok.Enabled = list.SelectedIndex >= 0;
         Shown += (s, e) => list.Focus();
     }
 

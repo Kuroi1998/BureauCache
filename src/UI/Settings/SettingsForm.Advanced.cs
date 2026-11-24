@@ -110,17 +110,22 @@ partial class SettingsForm
         {
             d.Filter = T("Réglages BureauCache", "BureauCache settings", "Configuración de BureauCache") + " (*.ini)|*.ini";
             if (d.ShowDialog(this) != DialogResult.OK) return;
-            try
+            // Fichier vérifié avant tout ; import transactionnel et réversible, réussite annoncée seulement une fois
+            // les réglages enregistrés (D-007, D007-10)
+            if (!SettingsBackup.IsValid(d.FileName))
             {
-                if (!Ask(T("Remplacer tes réglages actuels par ceux de ce fichier ?", "Replace your current settings with this file?", "¿Sustituir la configuración actual por la de este archivo?"))) return;
-                SettingsBackup.KeepCurrentBeforeRestore();   // l'import reste réversible (D-007)
-                if (!Settings.Load(d.FileName))
-                    throw new IOException(T("Fichier de réglages invalide ou trop volumineux.", "Invalid or oversized settings file.", "Archivo de configuración no válido o demasiado grande."));
-                L.Refresh();
-                Settings.Notify();
-                Dialogs.Info(this, T("Réglages importés.", "Settings imported.", "Configuración importada."));
+                Dialogs.Warn(this, T("Fichier de réglages invalide ou trop volumineux.", "Invalid or oversized settings file.", "Archivo de configuración no válido o demasiado grande."));
+                return;
             }
-            catch (Exception ex) { Dialogs.Info(this, ex.Message); }
+            if (!Ask(T("Remplacer tes réglages actuels par ceux de ce fichier ?", "Replace your current settings with this file?", "¿Sustituir la configuración actual por la de este archivo?"))) return;
+            if (!SettingsBackup.RestoreFrom(d.FileName))
+            {
+                Dialogs.Warn(this, T("Les réglages n'ont pas pu être importés : rien n'a été changé.", "The settings couldn't be imported: nothing was changed.", "No se pudo importar la configuración: no se ha cambiado nada."));
+                return;
+            }
+            L.Refresh();
+            Settings.Notify();
+            Dialogs.Info(this, T("Réglages importés. Tes réglages précédents sont dans « Restaurer une sauvegarde… ».", "Settings imported. Your previous settings are in \"Restore a backup…\".", "Configuración importada. La anterior está en «Restaurar una copia de seguridad…»."));
         }
     }
 

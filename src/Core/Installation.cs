@@ -126,7 +126,8 @@ static class Installer
         try { Directory.Delete(PanelForm.StashRoot); } catch { }
         try { Directory.Delete(Settings.Dir); } catch { }
         if (Directory.Exists(PanelForm.StashRoot)) left.Add(L.T("des éléments mis de côté", "set-aside items", "elementos apartados") + " (" + PanelForm.StashRoot + ")");
-        else if (Directory.Exists(Settings.Dir)) left.Add(L.T("le dossier des réglages", "the settings folder", "la carpeta de configuración") + " (" + Settings.Dir + ")");
+        if (Directory.Exists(SettingsBackup.Folder)) left.Add(L.T("les sauvegardes des réglages", "the settings backups", "las copias de seguridad de la configuración") + " (" + SettingsBackup.Folder + ")");
+        else if (!Directory.Exists(PanelForm.StashRoot) && Directory.Exists(Settings.Dir)) left.Add(L.T("le dossier des réglages", "the settings folder", "la carpeta de configuración") + " (" + Settings.Dir + ")");
         // Garde-fou : on ne supprime que le dossier d'installation attendu. La suppression part à la toute fin du
         // processus (StartFolderRemoval), après le dernier dialogue : l'exe encore ouvert la bloquerait (Q26-03)
         string expected = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "BureauCache");

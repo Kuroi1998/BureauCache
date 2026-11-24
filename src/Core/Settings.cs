@@ -325,7 +325,7 @@ static class Settings
 
     // Le fichier écrit doit rester relisible : au-delà de MaxFileSize, la moitié la plus ancienne de
     // l'historique d'usage est oubliée, autant de fois que nécessaire (R-14, Q24-01)
-    static string[] Serialize()
+    internal static string[] Serialize()
     {
         PruneUsage();
         string[] lines = SerializeLines();

@@ -4,22 +4,26 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 // =====================================================================
 //  Sauvegardes automatiques des réglages (D-007)
 // =====================================================================
 // Une copie par jour de settings.ini, prise avant sa première réécriture de la journée, dans
-// <dossier des réglages>\sauvegardes. On garde les 7 plus récentes. Restaurer ou importer copie d'abord l'état
-// actuel dans un emplacement « avant restauration », lui-même restaurable. Rien ici ne doit empêcher un
-// enregistrement : chaque opération sur les copies est protégée.
+// <dossier des réglages>\sauvegardes. On garde les 7 copies lisibles les plus récentes. Restaurer ou importer est
+// transactionnel : l'état en mémoire est mis de côté, la source est chargée puis enregistrée, et le point « avant
+// restauration » n'est remplacé qu'à la fin ; au moindre échec, mémoire et disque reviennent à l'état initial.
+// La copie quotidienne, elle, ne doit jamais empêcher un enregistrement : ses erreurs sont ignorées.
 static class SettingsBackup
 {
     public const int Kept = 7;
     const string DailyPrefix = "settings-";
     const string BeforeRestoreName = "settings-avant-restauration.ini";
+    static readonly object gate = new object();   // copies et restaurations de ce processus, une à la fois
 
     public static string Folder { get { return Path.Combine(Settings.Dir, "sauvegardes"); } }
     static string BeforeRestorePath { get { return Path.Combine(Folder, BeforeRestoreName); } }
+    static string TempPath { get { return Path.Combine(Folder, Guid.NewGuid().ToString("N") + ".tmp"); } }
 
     public sealed class Entry
     {
@@ -42,32 +46,37 @@ static class SettingsBackup
         catch { return false; }
     }
 
-    // Appelé par Settings.Save juste avant de remplacer settings.ini
+    // ---------- Copie quotidienne ----------
+
+    // Appelé par Settings.Save juste avant de remplacer settings.ini. Une copie du jour absente ou illisible est
+    // (re)faite à partir d'un fichier temporaire vérifié (D007-01) ; la rotation est relancée à chaque fois, pour
+    // rattraper une suppression empêchée par un verrou (D007-04).
     public static void BeforeSave()
     {
-        try
+        lock (gate)
         {
-            string current = Settings.FilePath;
-            string today = DailyPath(DateTime.Now);
-            if (File.Exists(today) || !IsValid(current)) return;
-            Directory.CreateDirectory(Folder);
-            FileOps.CopyFile(current, today);
-            Prune();
+            try
+            {
+                string today = DailyPath(DateTime.Now);
+                if (!IsValid(today) && IsValid(Settings.FilePath))
+                {
+                    Directory.CreateDirectory(Folder);
+                    string tmp = TempPath;
+                    try
+                    {
+                        FileOps.CopyFile(Settings.FilePath, tmp);
+                        if (IsValid(tmp))
+                        {
+                            if (File.Exists(today)) File.Copy(tmp, today, true);   // copie du jour illisible
+                            else File.Move(tmp, today);
+                        }
+                    }
+                    finally { try { File.Delete(tmp); } catch { } }
+                }
+                Prune(today);
+            }
+            catch { }
         }
-        catch { }
-    }
-
-    // Avant une restauration ou un import : l'état actuel reste récupérable
-    public static void KeepCurrentBeforeRestore()
-    {
-        try
-        {
-            Settings.Flush();
-            if (!IsValid(Settings.FilePath)) return;
-            Directory.CreateDirectory(Folder);
-            FileOps.CopyFile(Settings.FilePath, BeforeRestorePath);
-        }
-        catch { }
     }
 
     static string DailyPath(DateTime day)
@@ -79,15 +88,30 @@ static class SettingsBackup
     {
         string name = Path.GetFileNameWithoutExtension(path);
         date = DateTime.MinValue;
-        return name.StartsWith(DailyPrefix, StringComparison.Ordinal) &&
+        return string.Equals(Path.GetExtension(path), ".ini", StringComparison.OrdinalIgnoreCase) &&   // pas « .inix » (D007-09)
+               name.StartsWith(DailyPrefix, StringComparison.Ordinal) &&
                DateTime.TryParseExact(name.Substring(DailyPrefix.Length), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
     }
 
-    // Garde les Kept copies quotidiennes les plus récentes
-    internal static void Prune()
+    // Garde les Kept copies quotidiennes lisibles les plus récentes ; une copie illisible ne prend pas de place
+    // (D007-03). « protect », la copie que l'on vient de faire, n'est jamais supprimée, même si l'horloge a reculé
+    // et que des copies portent une date future (D007-02). Une copie illisible plus récente que la plus ancienne
+    // gardée est laissée : elle est peut-être seulement verrouillée.
+    internal static void Prune(string protect = null)
     {
-        foreach (Entry old in Daily().Skip(Kept))
-            try { File.Delete(old.Path); } catch { }
+        List<Entry> all = Daily();
+        List<Entry> valid = all.Where(e => IsValid(e.Path)).ToList();
+        List<Entry> keep = valid.Take(Kept).ToList();
+        Entry mine = protect == null ? null : valid.FirstOrDefault(e => string.Equals(e.Path, protect, StringComparison.OrdinalIgnoreCase));
+        if (mine != null && !keep.Contains(mine)) { keep.RemoveAt(keep.Count - 1); keep.Add(mine); }
+        DateTime oldestKept = keep.Count == 0 ? DateTime.MaxValue : keep.Min(e => e.Date);
+        foreach (Entry e in all)
+        {
+            if (keep.Contains(e)) continue;
+            bool readable = valid.Contains(e);
+            if (readable || e.Date < oldestKept)
+                try { File.Delete(e.Path); } catch { }
+        }
     }
 
     static List<Entry> Daily()
@@ -101,6 +125,8 @@ static class SettingsBackup
         }
         return list.OrderByDescending(e => e.Date).ToList();
     }
+
+    // ---------- Liste ----------
 
     // Sauvegardes valides, la plus récente d'abord ; « avant restauration » en tête quand elle existe
     public static List<Entry> List()
@@ -144,25 +170,74 @@ static class SettingsBackup
         return list.Length == 0 ? 0 : list.Split('|').Count(s => s.Length > 0);
     }
 
-    // Remplace les réglages en mémoire par ceux de la sauvegarde, puis les enregistre. Faux si elle est illisible.
+    // ---------- Restauration et import ----------
+
     public static bool Restore(Entry e)
     {
-        if (e == null || !IsValid(e.Path)) return false;
-        // Copie de la sauvegarde choisie d'abord : « avant restauration » peut être elle-même la source
-        string source = Path.Combine(Folder, Guid.NewGuid().ToString("N") + ".tmp");
-        try
-        {
-            FileOps.CopyFile(e.Path, source);
-            KeepCurrentBeforeRestore();
-            if (!Settings.Load(source)) return false;
-            Settings.Save();
-            return true;
-        }
-        catch { return false; }
-        finally { try { File.Delete(source); } catch { } }
+        return e != null && RestoreFrom(e.Path);
     }
 
-    // Désinstallation : le dossier part avec les réglages
+    // Remplace les réglages par ceux du fichier, de façon transactionnelle (D007-05, D007-07, D007-10). Faux, sans
+    // rien changer, si le fichier est illisible ou si une étape échoue.
+    public static bool RestoreFrom(string path)
+    {
+        lock (gate)
+        {
+            if (!IsValid(path)) return false;
+            string source = null, undo = null;
+            try
+            {
+                Directory.CreateDirectory(Folder);
+                // Copie de la source d'abord : « avant restauration » peut être elle-même la source
+                source = TempPath;
+                FileOps.CopyFile(path, source);
+                if (!IsValid(source)) return false;
+                // L'état en mémoire (pas seulement le disque) : c'est lui qui servira à revenir en arrière
+                undo = TempPath;
+                File.WriteAllLines(undo, Settings.Serialize(), new UTF8Encoding(false));
+                if (!IsValid(undo)) return false;
+
+                if (!LoadReplacing(source) || !Settings.Save())
+                {
+                    LoadReplacing(undo);               // le disque n'a pas changé : la mémoire seulement
+                    return false;
+                }
+                try { File.Copy(undo, BeforeRestorePath, true); }
+                catch
+                {
+                    // Point de retour impossible à écrire : on ne garde pas une restauration sans retour possible
+                    LoadReplacing(undo);
+                    Settings.Save();
+                    return false;
+                }
+                return true;
+            }
+            catch { return false; }
+            finally
+            {
+                if (source != null) try { File.Delete(source); } catch { }
+                if (undo != null) try { File.Delete(undo); } catch { }
+            }
+        }
+    }
+
+    // Charge un fichier de réglages complet : les listes absentes d'une ancienne sauvegarde repartent vides au
+    // lieu de garder celles du profil courant (D007-06). Les réglages simples absents gardent leur valeur.
+    static bool LoadReplacing(string path)
+    {
+        if (!IsValid(path)) return false;
+        Settings.Favorites = new List<string>();
+        Settings.Order = new List<string>();
+        Settings.Collapsed = new HashSet<string>();
+        Settings.CatOverride = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        Settings.Usage = new Dictionary<string, long[]>(StringComparer.OrdinalIgnoreCase);
+        Settings.CustomCats = new List<CustomCat>();
+        Settings.ArchiveLog = new List<string>();
+        return Settings.Load(path);
+    }
+
+    // ---------- Désinstallation ----------
+
     public static void DeleteAll()
     {
         try { if (Directory.Exists(Folder)) Directory.Delete(Folder, true); } catch { }
