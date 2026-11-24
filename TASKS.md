@@ -7,7 +7,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 
 | ID | Titre | Statut | Porteur | Branche | Lien |
 |---|---|---|---|---|---|
-| T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel sur la 3.9 installée à faire | Claude | PR #19 | D-007, QA-32, QA-33 |
+| T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel fait sur la 3.9 installée | Claude puis Toi | PR #19 | D-007, QA-32, QA-33 |
 | T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |
 | T-018 | Verbes du shell sur un fil dédié, liste des écrans suivie (QA-28, QA-29) | Fait (3.8) ; essais manuels encore à faire | Claude | PR #16 | QA-28 |
 | T-017 | Risques ouverts du registre (QA-26, QA-27) | Fait (3.8) ; essais manuels encore à faire | Claude | PR #15 | QA-26 |
@@ -58,6 +58,7 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-24 · Claude · T-020 : sauvegarde quotidienne des réglages (7 jours), restauration réversible depuis Paramètres → Avancé, import réversible (D-007). Suite : 375 réussis, 5 ignorés.
 - 2026-11-24 · Claude · T-020 : revue de D-007 par ChatGPT, 10 constats retenus et corrigés, D007-12 écarté (QA-33). Suite : 387 réussis, 5 ignorés.
 - 2026-11-24 · Toi · Version 3.9 publiée et signée (T-020, PR #19).
+- 2026-11-24 · Toi · T-020 : essai réel sur la 3.9 installée réussi (copie du jour, restauration, retour en arrière).
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.
