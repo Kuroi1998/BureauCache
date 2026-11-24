@@ -110,6 +110,7 @@ static class Settings
                     lines = reader.ReadToEnd().Split('\n');
             }
             if (!lines.Any(line => line.Trim() == "HideIcons=0" || line.Trim() == "HideIcons=1")) return false;
+            RecentsSince = 0;  // absent d'un ancien INI : tous les récents de ce fichier s'affichent (Q30-05)
             ScreenName = "";   // un INI d'avant 3.8 n'a pas ce nom : celui de la configuration précédente ne doit pas rester (Q26-05)
             foreach (string line in lines)
             {
@@ -392,7 +393,15 @@ static class Settings
 
     public static void Restore(Snap s)
     {
-        Favorites = s.Fav; Order = s.Order; CatOverride = s.Cat; Usage = s.Usage;
+        // Un usage enregistré depuis l'instantané (fichier rouvert entre-temps) est gardé : il protège le fichier du
+        // rangement automatique, et annuler un changement d'organisation ne doit pas le retirer (Q30-07)
+        Dictionary<string, long[]> restored = new Dictionary<string, long[]>(s.Usage, StringComparer.OrdinalIgnoreCase);
+        foreach (KeyValuePair<string, long[]> kv in Usage)
+        {
+            long[] old;
+            if (restored.TryGetValue(kv.Key, out old) && kv.Value[1] > old[1]) restored[kv.Key] = kv.Value;
+        }
+        Favorites = s.Fav; Order = s.Order; CatOverride = s.Cat; Usage = restored;
         SaveQuiet();
     }
 

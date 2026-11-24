@@ -43,18 +43,30 @@ class WeatherPlaceDialog : ThemedDialog
         results.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; Choose(); } };
         Controls.Add(results);
 
-        bLocate = new FlatButton(L.T("Détecter ma position", "Detect my location", "Detectar mi ubicación"), false) { Location = new Point(pad, Ui.S(270)), BackColor = Theme.Bg };
+        bLocate = new FlatButton(L.T("Détecter ma position", "Detect my location", "Detectar mi ubicación"), false) { BackColor = Theme.Bg };
         bLocate.Click += (s, e) => DoLocate();
         Controls.Add(bLocate);
-        status = AddLabel("", pad + bLocate.Width + Ui.S(10), Ui.S(279));
-        status.MaximumSize = new Size(w - bLocate.Width - Ui.S(10), 0);
+        // Zone fixe de deux lignes pour l'état : un message d'erreur long ne recouvre plus la notice (Q30-04)
+        status = AddLabel("", 0, 0);
+        status.AutoSize = false;
+        status.AutoEllipsis = true;
+        status.Size = new Size(w - bLocate.Width - Ui.S(10), Ui.S(40));
 
         Label privacy = AddLabel(L.T("La recherche envoie le nom tapé à Open-Meteo. La détection demande la position à Windows, puis envoie les coordonnées arrondies à BigDataCloud pour trouver le nom de la ville. Ensuite, seules les coordonnées du lieu choisi sont envoyées à Open-Meteo, quand le panneau s'ouvre : au plus toutes les 30 minutes (5 minutes après un échec).",
             "Search sends the typed name to Open-Meteo. Detection asks Windows for the location, then sends the rounded coordinates to BigDataCloud to find the city name. Afterwards, only the chosen place's coordinates are sent to Open-Meteo when the panel opens: at most every 30 minutes (5 minutes after a failure).", "La búsqueda envía el nombre a Open-Meteo. La detección pide la ubicación a Windows y envía las coordenadas redondeadas a BigDataCloud para identificar la ciudad. Al abrir el panel, solo se envían a Open-Meteo las coordenadas del lugar elegido como máximo cada 30 minutos, o cada 5 minutos tras un error."), pad, Ui.S(318));
         privacy.MaximumSize = new Size(w, 0);
         privacy.Font = Ui.Font("Segoe UI", 8.25f);
-        // Le texte de confidentialité fait 4 à 6 lignes selon la langue : les boutons passent dessous
-        ClientSize = new Size(ClientSize.Width, privacy.Top + privacy.GetPreferredSize(new Size(w, 0)).Height + Ui.S(70));
+        // Le texte de confidentialité fait 4 à 6 lignes selon la langue : les boutons passent dessous. Sur un
+        // petit écran (768 px à 200 %), la liste des résultats rétrécit pour que la fenêtre tienne (Q30-04).
+        int privacyH = privacy.GetPreferredSize(new Size(w, 0)).Height;
+        int below = Ui.S(10) + Math.Max(bLocate.Height, status.Height) + Ui.S(8) + privacyH + Ui.S(70);
+        int room = Screen.FromPoint(Cursor.Position).WorkingArea.Height - (Height - ClientSize.Height) - Ui.S(16);
+        int over = results.Bottom + below - room;
+        if (over > 0) results.Height = Math.Max(Ui.S(80), results.Height - over);
+        bLocate.Location = new Point(pad, results.Bottom + Ui.S(10));
+        status.Location = new Point(pad + bLocate.Width + Ui.S(10), bLocate.Top);
+        privacy.Location = new Point(pad, Math.Max(bLocate.Bottom, status.Bottom) + Ui.S(8));
+        ClientSize = new Size(ClientSize.Width, privacy.Top + privacyH + Ui.S(70));
 
         AddButtons(Choose, L.T("Choisir", "Choose", "Elegir"));
         if (!string.IsNullOrEmpty(Settings.WeatherPlace)) query.Box.Text = Settings.WeatherPlace.Split(',')[0];

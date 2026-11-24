@@ -125,15 +125,25 @@ partial class SettingsForm
         Row(T("Widgets", "Widgets", "Widgets"), T("Heure, espace disque et corbeille en haut du panneau. Clic droit sur le disque : nettoyage rapide.", "Clock, disk space and Recycle Bin at the top. Right-click the disk: quick clean-up.", "Hora, espacio en disco y papelera en la parte superior. Haz clic derecho en el disco para abrir la limpieza rápida."), tWidgets, null);
         tWeather = NewToggle(v =>
         {
+            // Sans lieu, la météo n'est pas activée tout de suite : c'est le choix d'un lieu qui l'active. Une
+            // fenêtre fermée ou un choix annulé ne laissent donc jamais la météo active sans lieu (Q30-08).
+            if (v && !Weather.Configured)
+            {
+                if (!weatherPrompt)
+                {
+                    weatherPrompt = true;
+                    BeginInvoke(new Action(() =>
+                    {
+                        weatherPrompt = false;
+                        if (IsDisposed || Weather.Configured || Settings.WeatherOn) return;
+                        WeatherPlaceDialog.Run();   // Choisir active la météo
+                        if (!IsDisposed) UpdateTexts();
+                    }));
+                }
+                return;
+            }
             Settings.WeatherOn = v;
             if (!v) Weather.Reset();
-            // Aucun lieu choisi dans le dialogue : la météo repasse à l'arrêt au lieu d'afficher une tuile vide
-            if (v && !Weather.Configured) BeginInvoke(new Action(() =>
-            {
-                WeatherPlaceDialog.Run();
-                if (!Weather.Configured) { Settings.WeatherOn = false; Settings.Notify(); }
-                UpdateTexts();
-            }));
         });
         Row(T("Météo", "Weather", "Tiempo"), T("Temps et prévisions du lieu choisi (données Open-Meteo.com, CC BY 4.0).", "Weather and forecast for the chosen place (Open-Meteo.com data, CC BY 4.0).", "Tiempo y pronóstico del lugar elegido (datos de Open-Meteo.com, CC BY 4.0)."), tWeather, null);
         lWeatherPlace = Row(T("Lieu de la météo", "Weather location", "Ubicación para el tiempo"), "-", Button(T("Choisir…", "Choose…", "Elegir…"), false, S(120), () => { WeatherPlaceDialog.Run(); UpdateTexts(); }), null);

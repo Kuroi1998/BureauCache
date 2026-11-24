@@ -142,7 +142,9 @@ partial class PanelForm
         if (search.Text.Length > 0) search.Text = "";
         else Rebuild(true);
         Left = Settings.Animations ? ClosedLeft : openLeft;
-        Opacity = Settings.Animations ? 0 : 1;
+        // Toujours transparent au moment de Show : le masquage en capture n'est appliqué qu'à une fenêtre affichée,
+        // et le panneau ne doit pas être visible avant (Q30-01). StartAnim le rend opaque juste après.
+        Opacity = 0;
         Show();
         ApplyCaptureSettings();
         UpdateWidgetTimer(true);
