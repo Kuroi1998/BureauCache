@@ -31,6 +31,30 @@ static class Native
     [DllImport("user32.dll")] public static extern bool GetIconInfo(IntPtr hIcon, out ICONINFO info);
     public const uint WDA_NONE = 0, WDA_EXCLUDEFROMCAPTURE = 0x11;
     [DllImport("user32.dll", SetLastError = true)] public static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint affinity);
+    // Avant Windows 10 2004 (build 19041), WDA_EXCLUDEFROMCAPTURE agit comme WDA_MONITOR : l'appel réussit mais la
+    // fenêtre apparaît noire dans les captures au lieu d'en être absente (R-30)
+    public static bool CaptureExclusionSupported { get { return WindowsBuild >= 19041; } }
+
+    static int windowsBuild = -1;
+    // Numéro de build réel : Environment.OSVersion est plafonné sans manifeste de compatibilité
+    public static int WindowsBuild
+    {
+        get
+        {
+            if (windowsBuild < 0)
+            {
+                int build = 0;
+                try
+                {
+                    using (var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion"))
+                        if (key != null) int.TryParse(key.GetValue("CurrentBuildNumber") as string, out build);
+                }
+                catch { }
+                windowsBuild = build;
+            }
+            return windowsBuild;
+        }
+    }
     [DllImport("user32.dll")] public static extern bool LockWorkStation();
     [DllImport("user32.dll")] public static extern bool ExitWindowsEx(uint flags, uint reason);
     [DllImport("gdi32.dll")] public static extern bool DeleteObject(IntPtr h);

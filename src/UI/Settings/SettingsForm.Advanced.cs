@@ -145,13 +145,16 @@ partial class SettingsForm
         Background.Run(() =>
         {
             Updater.Release release = Updater.Check();
+            // Le résultat est retenu tout de suite, avant l'affichage : une fenêtre détruite entre-temps
+            // (changement de langue) ne le perd plus, et l'icône ou la fenêtre suivante l'affichent (R-32, Q24-09)
+            bool accepted = Updater.AcceptCheck(release);
             try
             {
                 BeginInvoke(new Action(() =>
                 {
                     bCheck.Enabled = true;
                     ResetUpdateButton();
-                    if (!Updater.AcceptCheck(release)) { ResetUpdateButton(); UpdateTexts(); return; }
+                    if (!accepted) { ResetUpdateButton(); UpdateTexts(); return; }
                     if (release.Available)
                     {
                         lUpdate.Text = T("Version ", "Version ", "Versión ") + release.Version + T(" disponible.", " is available.", " está disponible.");

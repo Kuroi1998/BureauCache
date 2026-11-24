@@ -66,17 +66,17 @@ static class Updater
                 if (status >= 300 && status < 400)
                 {
                     string location = response.Headers[HttpResponseHeader.Location];
-                    if (string.IsNullOrEmpty(location)) throw new IOException("Missing redirect location.");
+                    if (string.IsNullOrEmpty(location)) throw new IOException(L.T("Redirection sans adresse.", "Missing redirect location.", "Redirección sin dirección."));
                     url = new Uri(request.RequestUri, location).AbsoluteUri;
                     continue;
                 }
                 if (status != 200 || response.ContentLength > maximum)
-                    throw new IOException("Unexpected download response or file size.");
+                    throw new IOException(L.T("Réponse ou taille de téléchargement inattendue.", "Unexpected download response or file size.", "Respuesta o tamaño de descarga inesperados."));
                 using (Stream input = response.GetResponseStream()) CopyLimited(input, output, maximum);
                 return;
             }
         }
-        throw new IOException("Too many download redirects.");
+        throw new IOException(L.T("Trop de redirections pendant le téléchargement.", "Too many download redirects.", "Demasiadas redirecciones durante la descarga."));
     }
 
     internal static void CopyLimited(Stream input, Stream output, long maximum)
@@ -87,7 +87,7 @@ static class Updater
         while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
         {
             total += read;
-            if (total > maximum) throw new IOException("Download size limit exceeded.");
+            if (total > maximum) throw new IOException(L.T("Le téléchargement dépasse la taille autorisée.", "Download size limit exceeded.", "La descarga supera el tamaño permitido."));
             output.Write(buffer, 0, read);
         }
     }
@@ -318,12 +318,24 @@ static class Updater
         if (File.Exists(marker))
         {
             try { RollBack(exe); return StartState.RolledBack; }
-            catch { return StartState.Trial; }   // retour impossible : on retente la nouvelle version
+            catch { RememberTrialExe(exe); return StartState.Trial; }   // retour impossible : on retente la nouvelle version
         }
         // Sans marqueur, un plantage ne serait pas détecté : pas d'essai, « .old » est simplement gardé (revue QA-21)
         try { File.WriteAllText(marker, DateTime.Now.ToString("o")); }
         catch { return StartState.Normal; }
+        RememberTrialExe(exe);
         return StartState.Trial;
+    }
+
+    // Empreinte de l'exe qui a commencé l'essai : si une autre mise à jour l'a remplacé depuis (et que son
+    // marqueur « .trial » n'a pas pu être effacé), ce processus ne confirme pas l'essai de la suivante (Q24-03)
+    static long trialLength = -1;
+    static DateTime trialWrite;
+
+    static void RememberTrialExe(string exe)
+    {
+        try { FileInfo f = new FileInfo(exe); trialLength = f.Length; trialWrite = f.LastWriteTimeUtc; }
+        catch { trialLength = -1; }
     }
 
     // L'exe en cours d'exécution peut être renommé (pas supprimé) : la version fautive devient « .bad ».
@@ -350,6 +362,11 @@ static class Updater
     internal static void ConfirmStart(string exe)
     {
         if (!File.Exists(exe + ".trial")) return;
+        if (trialLength >= 0)
+        {
+            FileInfo f = new FileInfo(exe);
+            if (!f.Exists || f.Length != trialLength || f.LastWriteTimeUtc != trialWrite) return;
+        }
         TryDelete(exe + ".old");
         TryDelete(exe + ".trial");
     }

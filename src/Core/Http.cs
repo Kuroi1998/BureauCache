@@ -35,11 +35,11 @@ static class Http
                 if (status >= 300 && status < 400)
                 {
                     string location = response.Headers[HttpResponseHeader.Location];
-                    if (string.IsNullOrEmpty(location)) throw new IOException("Missing redirect location.");
+                    if (string.IsNullOrEmpty(location)) throw new IOException(L.T("Redirection sans adresse.", "Missing redirect location.", "Redirección sin dirección."));
                     url = new Uri(u, location).AbsoluteUri;
                     continue;
                 }
-                if (status != 200 || response.ContentLength > maximum) throw new IOException("Unexpected response.");
+                if (status != 200 || response.ContentLength > maximum) throw new IOException(L.T("Réponse inattendue du serveur.", "Unexpected server response.", "Respuesta inesperada del servidor."));
                 using (Stream input = response.GetResponseStream())
                 using (MemoryStream output = new MemoryStream())
                 {
@@ -48,6 +48,6 @@ static class Http
                 }
             }
         }
-        throw new IOException("Too many redirects.");
+        throw new IOException(L.T("Trop de redirections.", "Too many redirects.", "Demasiadas redirecciones."));
     }
 }

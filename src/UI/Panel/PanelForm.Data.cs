@@ -59,6 +59,8 @@ partial class PanelForm
         RefreshCatalog();
         ApplyCaptureSettings();
         ApplyPanelGeometry();
+        // Effet verre activé panneau ouvert, en flou statique : la photo du fond est prise tout de suite (R-31)
+        if (IsOpen && glass == null && !liveBlurActive) RefreshStaticGlass();
         UpdateWidgetTimer(IsOpen);
         ApplyTheme();
         if (Dirty) RequestLoad();

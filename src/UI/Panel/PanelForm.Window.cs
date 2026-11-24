@@ -61,7 +61,7 @@ partial class PanelForm
         {
             uint affinity = Settings.HidePanelInCapture ? Native.WDA_EXCLUDEFROMCAPTURE : Native.WDA_NONE;
             bool applied = Native.SetWindowDisplayAffinity(Handle, affinity);
-            excludedFromCapture = applied && Settings.HidePanelInCapture;
+            excludedFromCapture = applied && Settings.HidePanelInCapture && Native.CaptureExclusionSupported;
         }
         liveBlurActive = excludedFromCapture && Settings.Glass && Settings.LiveBlur && !appbar;
         blurTimer.Enabled = Visible && liveBlurActive;
