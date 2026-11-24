@@ -7,10 +7,10 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 
 | ID | Titre | Statut | Porteur | Branche | Lien |
 |---|---|---|---|---|---|
-| T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Revue (369 tests réussis ; image figée corrigée, vérifiée sur le binaire) | Claude puis Toi | `fix/T-019-interface` | QA-30 |
-| T-018 | Verbes du shell sur un fil dédié, liste des écrans suivie (QA-28, QA-29) | Revue (356 tests réussis ; essais réels à faire) | Claude | `fix/T-018-shell-ecrans` | QA-28 |
-| T-017 | Risques ouverts du registre (QA-26, QA-27) | Revue (347 tests réussis ; essais réels à faire) | Claude | `fix/T-017-risques-ouverts` | QA-26 |
-| T-016 | Corrections de la revue globale 3.7.1 (QA-24, QA-25) | Revue (342 tests réussis ; essais réels à faire) | Claude | `fix/T-016-revue-globale` | QA-24 |
+| T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |
+| T-018 | Verbes du shell sur un fil dédié, liste des écrans suivie (QA-28, QA-29) | Fait (3.8) ; essais manuels encore à faire | Claude | PR #16 | QA-28 |
+| T-017 | Risques ouverts du registre (QA-26, QA-27) | Fait (3.8) ; essais manuels encore à faire | Claude | PR #15 | QA-26 |
+| T-016 | Corrections de la revue globale 3.7.1 (QA-24, QA-25) | Fait (3.8) ; essais manuels encore à faire | Claude | PR #14 | QA-24 |
 | T-015 | Espagnol et visibilité du panneau en partage d’écran | Revue (310 tests réussis, 6 tests de jonctions ignorés, bascule contrôlée dans une capture Windows) | ChatGPT | - | D-006, tests de localisation et de capture |
 | T-014 | Refonte de la fenêtre Paramètres | Revue (navigation, défilement, clavier, contraste et changement de langue couverts par des tests ciblés) | ChatGPT | — | `src/UI/Settings`, `SettingsUiTests.cs` |
 | T-001 | Mettre en place le projet de tests (`tests/`) | Fait (3.4) | Claude | PR #5 | D-002 |
@@ -53,6 +53,7 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-24 · Toi · T-019 : correctif de l'image figée vérifié sur le binaire compilé.
 - 2026-11-24 · Claude · T-019 : revue de QA-30 par ChatGPT, 8 constats retenus et corrigés (QA-31). Suite : 369 réussis, 5 ignorés.
 - 2026-11-24 · Claude · Incident QA-32 : un test de Claude a écrasé les vrais réglages ; tests isolés dans un dossier temporaire. Suite : 369 réussis, 5 ignorés.
+- 2026-11-24 · Toi · Version 3.8 publiée et signée (T-016 à T-019, PR #14 à #17).
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.
