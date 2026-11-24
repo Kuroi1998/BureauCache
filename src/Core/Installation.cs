@@ -120,12 +120,14 @@ static class Installer
         try { using (RegistryKey k = Registry.CurrentUser.OpenSubKey(UninstKey)) entryLeft = k != null; } catch { entryLeft = true; }
         if (entryLeft) left.Add(L.T("l'entrée « Applications installées »", "the \"Installed apps\" entry", "la entrada de «Aplicaciones instaladas»"));
         PanelForm.RecycleLeftovers();
+        SettingsBackup.DeleteAll();   // sauvegardes automatiques des réglages (D-007)
         try { File.Delete(Settings.FilePath); } catch { }
         if (File.Exists(Settings.FilePath)) left.Add(L.T("le fichier des réglages", "the settings file", "el archivo de configuración") + " (" + Settings.FilePath + ")");
         try { Directory.Delete(PanelForm.StashRoot); } catch { }
         try { Directory.Delete(Settings.Dir); } catch { }
         if (Directory.Exists(PanelForm.StashRoot)) left.Add(L.T("des éléments mis de côté", "set-aside items", "elementos apartados") + " (" + PanelForm.StashRoot + ")");
-        else if (Directory.Exists(Settings.Dir)) left.Add(L.T("le dossier des réglages", "the settings folder", "la carpeta de configuración") + " (" + Settings.Dir + ")");
+        if (Directory.Exists(SettingsBackup.Folder)) left.Add(L.T("les sauvegardes des réglages", "the settings backups", "las copias de seguridad de la configuración") + " (" + SettingsBackup.Folder + ")");
+        else if (!Directory.Exists(PanelForm.StashRoot) && Directory.Exists(Settings.Dir)) left.Add(L.T("le dossier des réglages", "the settings folder", "la carpeta de configuración") + " (" + Settings.Dir + ")");
         // Garde-fou : on ne supprime que le dossier d'installation attendu. La suppression part à la toute fin du
         // processus (StartFolderRemoval), après le dernier dialogue : l'exe encore ouvert la bloquerait (Q26-03)
         string expected = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "BureauCache");

@@ -67,6 +67,9 @@ partial class SettingsForm
             Button(T("Exporter…", "Export…", "Exportar…"), false, S(130), Export), null);
         Row(T("Importer des réglages", "Import settings", "Importar configuración"), T("Remplace les réglages actuels.", "Replaces the current settings.", "Sustituye la configuración actual."),
             Button(T("Importer…", "Import…", "Importar…"), false, S(130), Import), null);
+        Row(T("Restaurer une sauvegarde", "Restore a backup", "Restaurar una copia de seguridad"),
+            T("Une copie automatique par jour, sur les " + SettingsBackup.Kept + " derniers jours.", "One automatic copy per day, for the last " + SettingsBackup.Kept + " days.", "Una copia automática al día, durante los últimos " + SettingsBackup.Kept + " días."),
+            Button(T("Restaurer…", "Restore…", "Restaurar…"), false, S(130), RestoreBackup), null);
 
         Section(T("MISES À JOUR", "UPDATES", "ACTUALIZACIONES"));
         repo = new InputBox(S(230));
@@ -107,17 +110,31 @@ partial class SettingsForm
         {
             d.Filter = T("Réglages BureauCache", "BureauCache settings", "Configuración de BureauCache") + " (*.ini)|*.ini";
             if (d.ShowDialog(this) != DialogResult.OK) return;
-            try
+            // Fichier vérifié avant tout ; import transactionnel et réversible, réussite annoncée seulement une fois
+            // les réglages enregistrés (D-007, D007-10)
+            if (!SettingsBackup.IsValid(d.FileName))
             {
-                if (!Ask(T("Remplacer tes réglages actuels par ceux de ce fichier ?", "Replace your current settings with this file?", "¿Sustituir la configuración actual por la de este archivo?"))) return;
-                if (!Settings.Load(d.FileName))
-                    throw new IOException(T("Fichier de réglages invalide ou trop volumineux.", "Invalid or oversized settings file.", "Archivo de configuración no válido o demasiado grande."));
-                L.Refresh();
-                Settings.Notify();
-                Dialogs.Info(this, T("Réglages importés.", "Settings imported.", "Configuración importada."));
+                Dialogs.Warn(this, T("Fichier de réglages invalide ou trop volumineux.", "Invalid or oversized settings file.", "Archivo de configuración no válido o demasiado grande."));
+                return;
             }
-            catch (Exception ex) { Dialogs.Info(this, ex.Message); }
+            if (!Ask(T("Remplacer tes réglages actuels par ceux de ce fichier ?", "Replace your current settings with this file?", "¿Sustituir la configuración actual por la de este archivo?"))) return;
+            if (!SettingsBackup.RestoreFrom(d.FileName))
+            {
+                Dialogs.Warn(this, T("Les réglages n'ont pas pu être importés : rien n'a été changé.", "The settings couldn't be imported: nothing was changed.", "No se pudo importar la configuración: no se ha cambiado nada."));
+                return;
+            }
+            L.Refresh();
+            Settings.Notify();
+            Dialogs.Info(this, T("Réglages importés. Tes réglages précédents sont dans « Restaurer une sauvegarde… ».", "Settings imported. Your previous settings are in \"Restore a backup…\".", "Configuración importada. La anterior está en «Restaurar una copia de seguridad…»."));
         }
+    }
+
+    void RestoreBackup()
+    {
+        if (!BackupDialog.Run(this)) return;
+        L.Refresh();
+        Settings.Notify();
+        Dialogs.Info(this, T("Réglages restaurés.", "Settings restored.", "Configuración restaurada."));
     }
 
     void ResetUpdateButton()

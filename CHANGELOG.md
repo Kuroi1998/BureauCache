@@ -1,5 +1,9 @@
 ﻿# Nouveautés
 
+## Non publié
+
+- Sauvegarde automatique des réglages : une copie par jour, sur les 7 derniers jours. Paramètres → Avancé → « Restaurer une sauvegarde… ». Restaurer ou importer met d'abord les réglages actuels de côté, pour pouvoir revenir en arrière.
+
 ## 3.8 — Fiabilité et interface
 
 - Les réglages ne peuvent plus être perdus quand l'historique d'utilisation devient très long. Les éléments utilisés depuis plus de 180 jours sont oubliés en premier.

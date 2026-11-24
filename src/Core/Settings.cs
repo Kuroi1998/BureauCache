@@ -310,6 +310,7 @@ static class Settings
                 return false;
             }
             File.WriteAllLines(tmp, lines, new UTF8Encoding(false));
+            SettingsBackup.BeforeSave();   // copie du jour, avant la première réécriture (D-007)
             if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
             else File.Move(tmp, FilePath);
             return true;
@@ -324,7 +325,7 @@ static class Settings
 
     // Le fichier écrit doit rester relisible : au-delà de MaxFileSize, la moitié la plus ancienne de
     // l'historique d'usage est oubliée, autant de fois que nécessaire (R-14, Q24-01)
-    static string[] Serialize()
+    internal static string[] Serialize()
     {
         PruneUsage();
         string[] lines = SerializeLines();
