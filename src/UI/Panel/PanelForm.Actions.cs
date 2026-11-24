@@ -126,7 +126,7 @@ partial class PanelForm
                             for (int i = 0; i < names.Count; i++)
                             {
                                 int index = i;
-                                more.DropDownItems.Add(new ToolStripMenuItem(names[i], null, (s2, e2) => { HidePanel(); ShellWorker.Invoke(menuId, index); Dirty = true; }));
+                                more.DropDownItems.Add(new ToolStripMenuItem(names[i], null, (s2, e2) => { HidePanel(); ShellWorker.Invoke(menuId, index, () => Post(() => Dirty = true)); Dirty = true; }));
                             }
                             if (names.Count == 0) more.DropDownItems.Add(new ToolStripMenuItem(L.T("Aucune option", "No options", "Sin opciones")) { Enabled = false });
                         }));
@@ -134,6 +134,9 @@ partial class PanelForm
                     catch { }
                 });
             };
+            // Sous-menu refermé avant la réponse : elle ne le remplit plus. Le choix déjà fait n'en dépend pas,
+            // il porte le numéro de menu du fil du shell (Q28-04)
+            more.DropDownClosed += (s, e) => verbMenu++;
             menu.Items.Add(more);
         }
         ShowPanelMenu(View, pt);

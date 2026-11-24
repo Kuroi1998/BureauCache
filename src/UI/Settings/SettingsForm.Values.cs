@@ -155,6 +155,13 @@ partial class SettingsForm
     {
         FormWindowState state = previous.WindowState;
         Rectangle bounds = state == FormWindowState.Normal ? previous.Bounds : previous.RestoreBounds;
+        // Écran débranché : la fenêtre revient sur un écran connecté au lieu de rester hors de vue (Q28-06)
+        if (!Screen.AllScreens.Any(s => s.WorkingArea.IntersectsWith(bounds)))
+        {
+            Rectangle work = Screen.FromPoint(Cursor.Position).WorkingArea;
+            int w = Math.Min(bounds.Width, work.Width), h = Math.Min(bounds.Height, work.Height);
+            bounds = new Rectangle(work.Left + (work.Width - w) / 2, work.Top + (work.Height - h) / 2, w, h);
+        }
         StartPosition = FormStartPosition.Manual;
         Bounds = bounds;
         WindowState = state;
@@ -162,6 +169,14 @@ partial class SettingsForm
         Point scroll = previous.restoredScroll ?? previous.pages[previous.CurrentPage].AutoScrollPosition;
         restoredScroll = previous.restoredScroll ?? new Point(-scroll.X, -scroll.Y);
         RestorePageScroll();
+        // Saisie du dépôt non validée : texte, sélection et focus passent dans la nouvelle fenêtre (Q28-05)
+        TextBox oldBox = previous.repo.Box, box = repo.Box;
+        if (oldBox.Text != Settings.UpdateRepo || oldBox.Focused)
+        {
+            box.Text = oldBox.Text;
+            box.Select(oldBox.SelectionStart, oldBox.SelectionLength);
+            if (oldBox.Focused) ActiveControl = box;
+        }
     }
 
     protected override void OnVisibleChanged(EventArgs e)
