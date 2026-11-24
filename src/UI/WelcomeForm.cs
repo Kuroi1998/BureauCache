@@ -46,6 +46,10 @@ class WelcomeForm : Form
     {
         this.onFinish = onFinish;
         W = S(620); H = S(580); IllusH = S(220);
+        // Petite zone de travail (zoom de 150 % sur un écran de 768 px) : l'illustration rétrécit pour que les
+        // boutons du bas restent visibles (R-17)
+        int over = H + S(40) - Screen.FromPoint(Cursor.Position).WorkingArea.Height;
+        if (over > 0) { int cut = Math.Min(over, IllusH - S(80)); IllusH -= cut; H -= cut; }
         Text = "BureauCache";
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false; MinimizeBox = false;
@@ -128,6 +132,12 @@ class WelcomeForm : Form
         g.SmoothingMode = SmoothingMode.AntiAlias;
         Rectangle ill = new Rectangle(0, 0, W, IllusH);
         using (LinearGradientBrush b = new LinearGradientBrush(ill, Theme.Accent, Theme.Mix(Theme.Accent, Color.Black, 0.55f), 35f)) g.FillRectangle(b, ill);
+        // Bandeau réduit sur une petite zone de travail (R-17) : les dessins, prévus pour S(220), sont mis à
+        // l'échelle et centrés pour ne pas déborder sur le titre (Q26-09)
+        float k = Math.Min(1f, IllusH / (float)S(220));
+        g.SetClip(ill);
+        g.TranslateTransform(W * (1 - k) / 2, 0);
+        g.ScaleTransform(k, k);
         switch (page)
         {
             case 0: DrawScreen(g); break;
@@ -135,6 +145,8 @@ class WelcomeForm : Form
             case 2: DrawSearch(g); break;
             case 3: DrawTiles(g); break;
         }
+        g.ResetTransform();
+        g.ResetClip();
         TextRenderer.DrawText(g, Titles[page], fTitle, new Point(S(38), IllusH + S(26)), Theme.Fg, TextFormatFlags.NoPrefix);
         TextRenderer.DrawText(g, Texts[page], fText, new Rectangle(S(40), IllusH + S(68), W - S(80), S(60)), Theme.FgDim,
             TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);

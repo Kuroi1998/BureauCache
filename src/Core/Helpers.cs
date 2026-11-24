@@ -47,6 +47,12 @@ static class FileOps
         else VbFs.DeleteFile(path, ui, VbRecycle.SendToRecycleBin);
     }
 
+    // Copie silencieuse d'un fichier de l'application (export des réglages, installation), remplace la cible
+    public static void CopyFile(string src, string dest)
+    {
+        File.Copy(src, dest, true);
+    }
+
     // Copie ou déplace vers dest avec les fenêtres de Windows (conflits de noms, progression)
     public static void CopyOrMove(string src, string dest, bool move)
     {

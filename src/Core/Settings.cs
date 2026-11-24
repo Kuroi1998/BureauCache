@@ -32,6 +32,9 @@ static class Settings
         HotMods = 3, HotKey = (int)Keys.B, WebEngine = 0, NewDays = 3, ArchiveDays = 60;
     public static long LastUpdateCheck, LastArchive;
     public static string ArchiveName = "Archive du bureau", UpdateRepo = "";
+    // Écran choisi, reconnu par son nom de périphérique : un indice seul change de sens quand on débranche
+    // ou réordonne les écrans (R-10)
+    public static string ScreenName = "";
     // Météo (D-005) : désactivée tant qu'aucun lieu n'est choisi
     public static bool WeatherOn = false;
     public static string WeatherPlace = "";
@@ -104,6 +107,7 @@ static class Settings
                     lines = reader.ReadToEnd().Split('\n');
             }
             if (!lines.Any(line => line.Trim() == "HideIcons=0" || line.Trim() == "HideIcons=1")) return false;
+            ScreenName = "";   // un INI d'avant 3.8 n'a pas ce nom : celui de la configuration précédente ne doit pas rester (Q26-05)
             foreach (string line in lines)
             {
                 int i = line.IndexOf('=');
@@ -148,6 +152,7 @@ static class Settings
                     case "PanelWidth": if (int.TryParse(v, out n)) PanelWidth = n; break;
                     case "EdgeZone": if (int.TryParse(v, out n)) EdgeZone = n; break;
                     case "ScreenIdx": if (int.TryParse(v, out n)) ScreenIdx = n; break;
+                    case "ScreenName": ScreenName = v.Length > 100 ? "" : v; break;
                     case "HotMods": if (int.TryParse(v, out n)) HotMods = n; break;
                     case "HotKey": if (int.TryParse(v, out n)) HotKey = n; break;
                     case "WebEngine": if (int.TryParse(v, out n)) WebEngine = n; break;
@@ -214,11 +219,27 @@ static class Settings
         // que demandé (R-33). Au-delà du plus long choix, c'est ce dernier.
         NewDays = RoundUp(NewDaysChoices, NewDays);
         ArchiveDays = RoundUp(ArchiveDaysChoices, ArchiveDays);
+        // Ancien réglage par indice : converti en nom d'écran avec la disposition actuelle (Q26-05)
+        if (ScreenIdx >= 0 && ScreenName.Length == 0)
+            try { Screen[] all = Screen.AllScreens; if (ScreenIdx < all.Length) ScreenName = all[ScreenIdx].DeviceName; } catch { }
         return true;
     }
 
     public static readonly int[] NewDaysChoices = { 1, 3, 7 };
     public static readonly int[] ArchiveDaysChoices = { 30, 60, 90, 180 };
+
+    // Indice dans « all » de l'écran choisi, ou -1 pour tous les écrans. Un écran choisi mais débranché
+    // rend le bord actif partout plutôt que sur l'écran qui a pris son indice (R-10).
+    public static int ChosenScreen(Screen[] all)
+    {
+        if (ScreenIdx < 0) return -1;
+        if (!string.IsNullOrEmpty(ScreenName))
+        {
+            for (int i = 0; i < all.Length; i++) if (all[i].DeviceName == ScreenName) return i;
+            return -1;
+        }
+        return ScreenIdx < all.Length ? ScreenIdx : -1;
+    }
 
     internal static int RoundUp(int[] choices, int value)
     {
@@ -264,8 +285,11 @@ static class Settings
         if (saveTimer != null) saveTimer.Stop();
     }
 
+    public static bool SaveBlocked;   // posé par la désinstallation (Q26-03)
+
     public static bool Save()
     {
+        if (SaveBlocked) return false;
         string tmp = null;
         try
         {
@@ -326,7 +350,7 @@ static class Settings
                 "HoverPreview=" + B(HoverPreview), "Widgets=" + B(Widgets), "AutoUpdate=" + B(AutoUpdate),
                 "Pinned=" + B(Pinned), "QuietStart=" + B(QuietStart), "TrayHintShown=" + B(TrayHintShown), "LastVersion=" + LastVersion, "ArchiveLog=" + string.Join("|", ArchiveLog),
                 "ThemeMode=" + ThemeMode, "Language=" + Language, "Delay=" + Delay, "PanelWidth=" + PanelWidth,
-                "EdgeZone=" + EdgeZone, "ScreenIdx=" + ScreenIdx, "HotMods=" + HotMods, "HotKey=" + HotKey,
+                "EdgeZone=" + EdgeZone, "ScreenIdx=" + ScreenIdx, "ScreenName=" + ScreenName, "HotMods=" + HotMods, "HotKey=" + HotKey,
                 "WebEngine=" + WebEngine, "NewDays=" + NewDays, "ArchiveDays=" + ArchiveDays,
                 "LastUpdateCheck=" + LastUpdateCheck, "LastArchive=" + LastArchive,
                 "ArchiveName=" + ArchiveName, "UpdateRepo=" + UpdateRepo,
