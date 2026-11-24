@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 // L'application repose sur un état statique (L.CurrentLanguage, Settings…) : les tests ne tournent jamais en parallèle.
@@ -6,8 +7,9 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace BureauCache.Tests
 {
     /// <summary>
-    /// Isole les réglages : toute sauvegarde des tests va dans un dossier temporaire, jamais dans
-    /// %APPDATA%\BureauCache (un test avait écrasé les vrais réglages, QA-32).
+    /// Bac à sable de la suite (QA-32, QA-34) : réglages et bureau dans un dossier temporaire, et tout effet de bord
+    /// réel (registre, menu Démarrer, installation, vrais réglages) lève une exception qui fait échouer le test.
+    /// En fin de suite, une fenêtre restée ouverte fait échouer le lancement.
     /// </summary>
     [TestClass]
     public static class TestEnvironment
@@ -19,14 +21,44 @@ namespace BureauCache.Tests
         {
             folder = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "BureauCache.Tests-" + System.Guid.NewGuid().ToString("N"));
             System.IO.Directory.CreateDirectory(folder);
-            global::Settings.DirOverride = folder;
+            string desktop = System.IO.Path.Combine(folder, "Bureau");
+            System.IO.Directory.CreateDirectory(desktop);
+            global::Settings.DirOverride = System.IO.Path.Combine(folder, "Reglages");
+            global::Paths.DesktopOverride = desktop;
+            global::Sandbox.Active = true;
             System.Windows.Forms.Application.SetUnhandledExceptionMode(System.Windows.Forms.UnhandledExceptionMode.ThrowException);
         }
 
         [AssemblyCleanup]
         public static void Cleanup()
         {
+            string leaked = string.Join(", ", System.Windows.Forms.Application.OpenForms.Cast<System.Windows.Forms.Form>()
+                .Select(f => f.GetType().Name + " « " + f.Text + " » (détruite : " + f.IsDisposed + ", handle : " + f.IsHandleCreated + ")").ToArray());
             try { System.IO.Directory.Delete(folder, true); } catch { }
+            if (leaked.Length > 0) Assert.Fail("Fenêtre(s) restée(s) ouverte(s) après la suite de tests : " + leaked);
+        }
+    }
+
+    /// <summary>Le bac à sable est actif et bloque les effets de bord réels.</summary>
+    [TestClass]
+    public class SandboxTests
+    {
+        [TestMethod]
+        public void RealSideEffectsAreBlocked()
+        {
+            Assert.IsTrue(global::Sandbox.Active);
+            StringAssert.StartsWith(global::Paths.Desktop, System.IO.Path.GetTempPath());
+            StringAssert.StartsWith(global::Settings.Dir, System.IO.Path.GetTempPath());
+            Assert.ThrowsException<System.InvalidOperationException>(() => global::Startup.Set(true));
+            Assert.ThrowsException<System.InvalidOperationException>(() => global::Installer.RegisterVersion());
+            Assert.ThrowsException<System.InvalidOperationException>(() => global::Installer.Uninstall());
+            string previous = global::Settings.DirOverride;
+            try
+            {
+                global::Settings.DirOverride = null;
+                Assert.ThrowsException<System.InvalidOperationException>(() => global::Settings.Save(), "Sauvegarde sans dossier isolé.");
+            }
+            finally { global::Settings.DirOverride = previous; }
         }
     }
 

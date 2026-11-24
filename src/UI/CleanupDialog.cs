@@ -16,6 +16,7 @@ class CleanupDialog : ThemedDialog
     readonly FlatButton bClean;
     readonly Label status;
     bool busy, cleaning;
+    string lastResult = "";   // bilan du dernier nettoyage, affiché devant le total
 
     public static void Run()
     {
@@ -114,7 +115,7 @@ class CleanupDialog : ThemedDialog
         if (busy) return;
         long total = categories.Where(c => c.Checked).Sum(c => c.Size);
         List<string> running = categories.Where(c => c.Checked).SelectMany(c => c.Running).Distinct().ToList();
-        status.Text = L.T("À libérer : ", "To free: ", "Espacio recuperable: ") + L.Size(total) +
+        status.Text = lastResult + L.T("À libérer : ", "To free: ", "Espacio recuperable: ") + L.Size(total) +
             (running.Count > 0 ? L.T("\n* Ferme ", "\n* Close ", "\n* Cierra ") + string.Join(", ", running) + L.T(" pour nettoyer son cache.", " to clean its cache.", " para limpiar su caché.") : "");
     }
 
@@ -136,11 +137,12 @@ class CleanupDialog : ThemedDialog
             Done(() =>
             {
                 cleaning = false;
+                // Bilan affiché dans la fenêtre, devant le nouveau total, sans boîte à valider (Gemini A10)
+                if (r != null)
+                    lastResult = "✓ " + L.Size(r.Freed) + L.T(" libérés", " freed", " liberados") +
+                        (r.Skipped > 0 ? " (" + r.Skipped + L.T(" en cours d'utilisation, laissés en place)", " in use, left in place)", " en uso, conservados)") : "") + " · ";
                 SetBusy(false);
                 Analyse();
-                if (r != null)
-                    Dialogs.Info(this, L.Size(r.Freed) + L.T(" libérés.", " freed.", " liberados.") +
-                        (r.Skipped > 0 ? "\n" + r.Skipped + L.T(" fichier(s) en cours d'utilisation ont été laissés en place.", " file(s) in use were left in place.", " archivo(s) en uso se conservaron.") : ""));
             });
         });
     }

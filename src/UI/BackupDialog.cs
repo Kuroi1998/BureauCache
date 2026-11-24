@@ -72,8 +72,7 @@ class BackupDialog : ThemedDialog
     {
         int i = list.SelectedIndex;
         if (i < 0 || i >= entries.Count) return;
-        if (!Dialogs.Ask(this, L.T("Remplacer tes réglages actuels par cette sauvegarde ?\n\n", "Replace your current settings with this backup?\n\n", "¿Sustituir tu configuración actual por esta copia?\n\n") + list.Items[i]))
-            return;
+        // Pas de seconde confirmation : la restauration est réversible (« Avant la dernière restauration ») (Gemini A1)
         if (!SettingsBackup.Restore(entries[i]))
         {
             Dialogs.Warn(this, L.T("Cette sauvegarde n'a pas pu être restaurée.", "This backup could not be restored.", "No se pudo restaurar esta copia."));

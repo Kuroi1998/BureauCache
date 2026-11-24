@@ -106,6 +106,7 @@ public class InterfaceReviewTests
             using (var toggle = new Toggle())
             {
                 dialog.Controls.Add(toggle);
+                IntPtr handle = dialog.Handle;   // cycle de vie normal : sans handle, WinForms ne retire jamais la fenêtre de OpenForms
                 Call(dialog, "OnLoad", EventArgs.Empty);
                 int changed = 0;
                 toggle.Changed += (sender, args) => changed++;

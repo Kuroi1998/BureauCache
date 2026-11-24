@@ -59,8 +59,11 @@ class ToastControl : FlatControl
     {
         Exception error = TryUndo();
         if (error == null) return;
-        Dialogs.Info(owner.Visible ? owner : null, error.Message);
-        if (undo == null) return;
+        // L'échec s'affiche dans le bandeau lui-même, sans boîte à valider (Gemini A7). Si l'annulation peut être
+        // retentée, le bouton reste ; sinon, le message s'affiche seul quelques secondes.
+        string message = L.T("Annulation impossible : ", "Undo failed: ", "No se pudo deshacer: ") + error.Message;
+        if (undo == null) { if (owner.Visible) Show(message, null, null); else Dialogs.Info(null, error.Message); return; }
+        text = message;
         start = DateTime.Now;
         until = start.AddSeconds(7);
         timer.Start();

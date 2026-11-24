@@ -26,6 +26,7 @@ static class Startup
 
     public static void Set(bool on, string exe = null)
     {
+        Sandbox.Guard("démarrage avec Windows (HKCU\\" + RunKey + ")");
         using (RegistryKey k = Registry.CurrentUser.CreateSubKey(RunKey))
         {
             if (on) k.SetValue(Name, "\"" + (exe ?? Application.ExecutablePath) + "\"");
@@ -70,6 +71,7 @@ static class Installer
 
     public static void Install()
     {
+        Sandbox.Guard("installation");
         Directory.CreateDirectory(Dir);
         if (!RunningFromInstall) FileOps.CopyFile(Application.ExecutablePath, Exe);
         ShellUtil.CreateShortcut(StartMenuLnk, Exe, L.T("Ton bureau, rangé sur le côté de l'écran", "Your desktop, tucked at the edge of the screen", "Tu escritorio, al borde de la pantalla"));
@@ -79,6 +81,7 @@ static class Installer
 
     public static void RegisterVersion()
     {
+        Sandbox.Guard("entrée « Applications installées »");
         using (RegistryKey k = Registry.CurrentUser.CreateSubKey(UninstKey))
         {
             k.SetValue("DisplayName", "BureauCache");
@@ -106,6 +109,7 @@ static class Installer
     // d'annoncer une désinstallation complète. Le dossier du programme est supprimé quelques secondes plus tard.
     public static List<string> Uninstall()
     {
+        Sandbox.Guard("désinstallation");
         var left = new List<string>();
         Settings.SaveBlocked = true;     // plus aucune sauvegarde jusqu'à la sortie : elle recréerait le dossier (Q26-03)
         Settings.CancelPendingSave(); // sinon un enregistrement différé recréerait le dossier des réglages

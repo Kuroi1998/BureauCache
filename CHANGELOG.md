@@ -1,5 +1,10 @@
 ﻿# Nouveautés
 
+## Non publié
+
+- Moins de fenêtres à valider : restaurer une sauvegarde ou importer des réglages ne redemande plus de confirmation (c'est réversible), et les résultats (export, import, restauration, rangement, nettoyage) s'affichent directement dans la fenêtre.
+- Un échec d'annulation s'affiche dans le bandeau du panneau.
+
 ## 3.9 — Sauvegarde des réglages
 
 - Sauvegarde automatique des réglages : une copie par jour, sur les 7 derniers jours. Paramètres → Avancé → « Restaurer une sauvegarde… ». Restaurer ou importer met d'abord les réglages actuels de côté, pour pouvoir revenir en arrière.

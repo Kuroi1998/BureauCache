@@ -9,9 +9,23 @@ using VbFs = Microsoft.VisualBasic.FileIO.FileSystem;
 using VbUi = Microsoft.VisualBasic.FileIO.UIOption;
 using VbRecycle = Microsoft.VisualBasic.FileIO.RecycleOption;
 
+// Bac à sable des tests (QA-34) : pendant les tests, aucun effet de bord réel. Le bureau et les réglages pointent
+// vers des dossiers temporaires, et ce qui toucherait au registre, au menu Démarrer ou à l'installation lève une
+// exception qui fait échouer le test au lieu de modifier le PC.
+static class Sandbox
+{
+    internal static bool Active;
+
+    public static void Guard(string what)
+    {
+        if (Active) throw new InvalidOperationException("Effet de bord bloqué pendant les tests : " + what);
+    }
+}
+
 static class Paths
 {
-    public static string Desktop { get { return Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory); } }
+    internal static string DesktopOverride;   // posé par les tests (Sandbox)
+    public static string Desktop { get { return DesktopOverride ?? Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory); } }
     public static string CommonDesktop { get { return Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory); } }
     public static string[] Desktops { get { return new[] { Desktop, CommonDesktop }.Where(d => !string.IsNullOrEmpty(d) && Directory.Exists(d)).ToArray(); } }
 
