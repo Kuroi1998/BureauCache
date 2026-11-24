@@ -1,6 +1,6 @@
 ﻿# Nouveautés
 
-## Non publié
+## 3.9 — Sauvegarde des réglages
 
 - Sauvegarde automatique des réglages : une copie par jour, sur les 7 derniers jours. Paramètres → Avancé → « Restaurer une sauvegarde… ». Restaurer ou importer met d'abord les réglages actuels de côté, pour pouvoir revenir en arrière.
 
