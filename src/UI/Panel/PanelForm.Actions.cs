@@ -8,6 +8,8 @@ using System.Windows.Forms;
 
 partial class PanelForm
 {
+    int verbMenu;   // dernier sous-menu « Plus d'options » ouvert (R-12)
+
     // ---------- Actions ----------
     void Launch(DesktopItem it, string verb)
     {
@@ -106,15 +108,31 @@ partial class PanelForm
             menu.Items.Add(Menus.Item(L.T("Propriétés", "Properties", "Propiedades"), Glyphs.Info, () => { HidePanel(); ShellUtil.Properties(it.Target); }));
             ToolStripMenuItem more = Menus.Sub(menu, L.T("Plus d'options", "More options", "Más opciones"), Glyphs.More);
             more.DropDownItems.Add(new ToolStripMenuItem(L.T("Chargement…", "Loading…", "Cargando…")) { Enabled = false });
+            // Les verbes sont énumérés et exécutés sur le fil du shell (R-12) : le panneau reste utilisable pendant
+            // qu'une extension lente répond. Seul le dernier sous-menu ouvert est rempli.
             more.DropDownOpening += (s, e) =>
             {
+                int gen = ++verbMenu;
                 Menus.Clear(more.DropDownItems);
-                foreach (KeyValuePair<string, object> v in ShellUtil.Verbs(it.Target))
+                more.DropDownItems.Add(new ToolStripMenuItem(L.T("Chargement…", "Loading…", "Cargando…")) { Enabled = false });
+                ShellWorker.LoadVerbs(it.Target, (menuId, names) =>
                 {
-                    object verb = v.Value;
-                    more.DropDownItems.Add(new ToolStripMenuItem(v.Key, null, (s2, e2) => { HidePanel(); ShellUtil.InvokeVerb(verb); Dirty = true; }));
-                }
-                if (more.DropDownItems.Count == 0) more.DropDownItems.Add(new ToolStripMenuItem(L.T("Aucune option", "No options", "Sin opciones")) { Enabled = false });
+                    try
+                    {
+                        BeginInvoke(new Action(() =>
+                        {
+                            if (gen != verbMenu || more.IsDisposed) return;
+                            Menus.Clear(more.DropDownItems);
+                            for (int i = 0; i < names.Count; i++)
+                            {
+                                int index = i;
+                                more.DropDownItems.Add(new ToolStripMenuItem(names[i], null, (s2, e2) => { HidePanel(); ShellWorker.Invoke(menuId, index); Dirty = true; }));
+                            }
+                            if (names.Count == 0) more.DropDownItems.Add(new ToolStripMenuItem(L.T("Aucune option", "No options", "Sin opciones")) { Enabled = false });
+                        }));
+                    }
+                    catch { }
+                });
             };
             menu.Items.Add(more);
         }

@@ -7,6 +7,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 
 | ID | Titre | Statut | Porteur | Branche | Lien |
 |---|---|---|---|---|---|
+| T-018 | Verbes du shell sur un fil dédié, liste des écrans suivie (QA-28) | Revue (350 tests réussis ; essais réels à faire) | Claude | `fix/T-018-shell-ecrans` | QA-28 |
 | T-017 | Risques ouverts du registre (QA-26, QA-27) | Revue (347 tests réussis ; essais réels à faire) | Claude | `fix/T-017-risques-ouverts` | QA-26 |
 | T-016 | Corrections de la revue globale 3.7.1 (QA-24, QA-25) | Revue (342 tests réussis ; essais réels à faire) | Claude | `fix/T-016-revue-globale` | QA-24 |
 | T-015 | Espagnol et visibilité du panneau en partage d’écran | Revue (310 tests réussis, 6 tests de jonctions ignorés, bascule contrôlée dans une capture Windows) | ChatGPT | - | D-006, tests de localisation et de capture |
@@ -25,7 +26,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-013 | Nettoyage rapide : catégories à cocher, analyse, confirmation, depuis la tuile Disque | Revue (revue ChatGPT faite, QA-23 ; premier nettoyage réel à faire) | Gemini, ChatGPT, Claude | `feat/meteo-nettoyage` | D-005, QA-23 |
 | T-010 | Vérifier sur un dépôt de test qu'une installation 3.4 refuse une version non signée ou mal signée | À faire | Toi puis Claude | — | QA-20 |
 
-Les autres risques ouverts (R-10 et R-23 en partie, R-12, R-22, R-24, R-25) restent dans [AUDIT_QA_BureauCache.md](AUDIT_QA_BureauCache.md) jusqu'à leur planification.
+Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent dans [AUDIT_QA_BureauCache.md](AUDIT_QA_BureauCache.md) jusqu'à leur planification.
 
 ---
 
@@ -45,6 +46,7 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-12, R-22, R-24, R-25) rest
 - 2026-11-24 · Claude · T-016 : revue de QA-24 par ChatGPT, 8 constats retenus et corrigés, Q24-05 écarté (QA-25). Suite : 342 réussis, 2 ignorés.
 - 2026-11-24 · Claude · T-017 : risques R-05, R-06, R-08, R-11, R-13, R-15, R-17, R-18 corrigés, R-10 et R-23 en partie (QA-26). R-12 laissé ouvert. Suite : 345 réussis, 2 ignorés.
 - 2026-11-24 · Claude · T-017 : revue de QA-26 par ChatGPT, 9 constats retenus et corrigés, Q26-10 et Q26-11 écartés (QA-27). Suite : 347 réussis, 3 ignorés.
+- 2026-11-24 · Claude · T-018 : R-12 corrigé (fil STA dédié aux verbes du shell), R-10 complété (liste des écrans suivie) (QA-28). Suite : 350 réussis, 3 ignorés.
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.
