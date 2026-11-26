@@ -10,6 +10,27 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 **Conséquences :** ce que ça impose ensuite.
 -->
 
+## D-009 — Règles de rangement (2026-11-27) · Statut : Proposée
+
+**Contexte :** le rangement automatique (D-005, `Archiver`) ne regarde que l'ancienneté : tout élément inutilisé depuis N jours part dans un seul dossier d'archive. On veut aussi pouvoir dire « les captures d'écran vont dans Images après 7 jours » ou « les .zip partent dans Archives ».
+**Décision proposée :**
+- Une **règle** = un nom, un **filtre** (extensions, par exemple `png jpg`, ou un mot contenu dans le nom, par exemple `Capture`), un **âge minimal** en jours (0 = dès que le fichier est là depuis une heure) et une **destination**.
+- **Destinations permises** : un sous-dossier du dossier d'archive, ou un dossier connu de l'utilisateur (Images, Documents, Téléchargements, Vidéos, Musique), éventuellement avec un sous-dossier. Pas de chemin libre : on ne déplace jamais vers un lecteur réseau, un dossier système ou un dossier synchronisé inconnu.
+- **Fichiers seulement** (pas les dossiers), posés directement sur le bureau, avec les mêmes protections que le rangement actuel : jamais les favoris, les raccourcis, les fichiers cachés ou système, ni un fichier utilisé ou modifié depuis l'âge de la règle ; évaluation juste avant chaque déplacement ; pas pendant une opération en cours dans le panneau.
+- **Ordre** : les règles passent avant le rangement par ancienneté, dans l'ordre de la liste ; la première qui correspond l'emporte.
+- **Annulation** : chaque passage est journalisé comme aujourd'hui (`ArchiveLog`) et « Annuler le dernier rangement » remet tout en place, règles comprises.
+- **Interface** : Paramètres → Organisation → « Règles de rangement » : liste (nom, filtre, âge, destination), boutons Ajouter, Modifier, Supprimer, et un dialogue d'édition avec un **aperçu** (« 3 fichiers du bureau correspondent maintenant »).
+- **Activation** : les règles ne s'appliquent que si le rangement automatique est activé (même interrupteur, même confirmation), et « Ranger maintenant » les applique aussi.
+**Alternatives écartées :** chemin de destination libre (risque de déplacer vers un endroit inattendu ou partagé) ; expressions régulières (trop techniques pour la plupart des utilisateurs) ; règles sur les dossiers (un dossier contient des fichiers d'âges différents, déjà traité par le rangement par ancienneté).
+**Conséquences :** nouveau réglage `Settings.ArchiveRules` sérialisé dans `settings.ini` (donc sauvegardé et restaurable, D-007) ; `Archiver` gagne une étape de règles avant l'ancienneté ; les tests passent par le bureau et les dossiers isolés du bac à sable.
+
+## D-008 — Échelle par écran (DPI par moniteur) (2026-11-27) · Statut : Proposée, reportée
+
+**Contexte :** l'application est « DPI système » : l'échelle (`Ui.Scale`) est lue au démarrage et vaut pour toutes les fenêtres. Sur deux écrans de zoom différent, Windows étire l'image sur l'un d'eux, ce qui la rend floue (R-10).
+**Décision proposée :** passer en DPI par moniteur V2 (`SetProcessDpiAwarenessContext`) ; remplacer l'échelle globale par une échelle propre à chaque fenêtre (le panneau, les Paramètres, chaque dialogue), recalculée sur `WM_DPICHANGED`, avec recréation des polices et des images mises en cache à la nouvelle taille.
+**Pourquoi reportée :** tout le dessin passe par l'échelle globale `Ui.S` ; le changement touche chaque fenêtre et chaque contrôle dessiné. Le chef de projet n'a qu'un écran aujourd'hui : aucun bénéfice immédiat pour un risque élevé. À reprendre avec deux écrans de zoom différent pour l'essai (tâche T-027).
+**Alternatives écartées :** l'option `DpiAwareness` de `app.config` (WinForms 4.7+) : elle ne suffit pas pour une interface dessinée à la main avec une échelle globale.
+
 ## D-007 — Sauvegarde automatique des réglages (2026-11-24) · Statut : Acceptée
 
 **Contexte :** `settings.ini` est réécrit en entier à chaque changement, et une seule écriture fautive efface tout sans retour (incident QA-32 : favoris, ordre, catégories et langue perdus).
