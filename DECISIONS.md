@@ -10,7 +10,7 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 **Conséquences :** ce que ça impose ensuite.
 -->
 
-## D-009 — Règles de rangement (2026-11-27) · Statut : Proposée
+## D-009 — Règles de rangement (2026-11-27) · Statut : Acceptée
 
 **Contexte :** le rangement automatique (D-005, `Archiver`) ne regarde que l'ancienneté : tout élément inutilisé depuis N jours part dans un seul dossier d'archive. On veut aussi pouvoir dire « les captures d'écran vont dans Images après 7 jours » ou « les .zip partent dans Archives ».
 **Décision proposée :**

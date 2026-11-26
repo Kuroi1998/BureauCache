@@ -48,6 +48,7 @@ static partial class Settings
     public static Dictionary<string, string> CatOverride = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     public static Dictionary<string, long[]> Usage = new Dictionary<string, long[]>(StringComparer.OrdinalIgnoreCase);
     public static List<CustomCat> CustomCats = new List<CustomCat>();
+    public static List<ArchiveRule> ArchiveRules = new List<ArchiveRule>();   // règles de rangement (D-009)
     public static bool FirstRun;
     public static event Action Changed;
 

@@ -116,6 +116,14 @@ static partial class Settings
                                 Usage[e.Substring(0, j)] = new long[] { c, t };
                         }
                         break;
+                    case "ArchiveRules":
+                        ArchiveRules = new List<ArchiveRule>();
+                        foreach (string e in SplitList(v))
+                        {
+                            ArchiveRule r = ArchiveRule.Parse(e);
+                            if (r != null && ArchiveRules.Count < global::ArchiveRules.MaxRules) ArchiveRules.Add(r);
+                        }
+                        break;
                     case "CustomCats":
                         CustomCats.Clear();
                         foreach (string e in SplitList(v))
@@ -268,7 +276,8 @@ static partial class Settings
                 "Collapsed=" + string.Join("|", Collapsed),
                 "CatOverride=" + string.Join("|", CatOverride.Select(kv => kv.Key + ">" + kv.Value)),
                 "Usage=" + string.Join("|", Usage.Select(kv => kv.Key + ">" + kv.Value[0] + "," + kv.Value[1])),
-                "CustomCats=" + string.Join("|", CustomCats.Select(c => c.Name + ">" + ((int)c.Glyph[0]).ToString("X4") + ">" + Hex(c.Color)))
+                "CustomCats=" + string.Join("|", CustomCats.Select(c => c.Name + ">" + ((int)c.Glyph[0]).ToString("X4") + ">" + Hex(c.Color))),
+                "ArchiveRules=" + string.Join("|", ArchiveRules.Select(r => r.Serialize()))
             };
         }
     }

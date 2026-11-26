@@ -237,6 +237,8 @@ partial class SettingsForm
         });
         lArchiveUndo = Row(T("Annuler le dernier rangement", "Undo the last tidy-up", "Deshacer el último archivado"), T("Remet les éléments rangés à leur place sur le bureau.", "Puts the moved items back on the desktop.", "Devuelve al escritorio los elementos movidos."), bArchiveUndo, null);
 
+        BuildRulesSection();
+
         Section(T("RÉINITIALISER", "RESET", "RESTABLECER"));
         Row(T("Favoris", "Favorites", "Favoritos"), null, ResetButton(T("Tout retirer", "Remove all", "Quitar todo"), () => Settings.Favorites.Clear()), null);
         Row(T("Ordre et catégories", "Order and categories", "Orden y categorías"), null, ResetButton(T("Réinitialiser", "Reset", "Restablecer"), () => { Settings.Order.Clear(); Settings.CatOverride.Clear(); }), null);

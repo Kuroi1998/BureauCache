@@ -11,6 +11,7 @@
 - Le lieu de la météo se cherche directement dans Paramètres → Apparence, avec « Détecter ma position ».
 - Le détail de la météo ne bloque plus le bureau : il se ferme quand on clique ailleurs.
 - F6 permet d'atteindre au clavier les boutons et les tuiles du haut du panneau (Entrée pour ouvrir, touche Menu pour les options).
+- Règles de rangement (Paramètres → Organisation) : par exemple, les captures d'écran vont dans Images\Captures après 7 jours, les fichiers .zip dans Téléchargements. Un aperçu montre les fichiers concernés, et « Annuler le dernier rangement » les remet en place.
 
 ## 3.9 — Sauvegarde des réglages
 

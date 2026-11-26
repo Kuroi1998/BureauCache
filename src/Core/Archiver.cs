@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 // =====================================================================
 //  Rangement automatique du bureau
@@ -25,13 +26,24 @@ static class Archiver
         DateTime limit = Limit;
         string[] entries;
         try { entries = Directory.GetFileSystemEntries(Desk); } catch { return res; }
-        foreach (string p in entries) if (IsCandidate(p, limit)) res.Add(p);
+        List<ArchiveRule> rules = Settings.ArchiveRules.ToList();
+        foreach (string p in entries)
+        {
+            // Une règle dont le filtre correspond décide seule, avec son propre âge (D-009)
+            ArchiveRule rule = ArchiveRules.For(p, rules);
+            if (IsCandidate(p, rule != null ? rule.Limit : limit)) res.Add(p);
+        }
         return res;
     }
 
     // Décompte pour la page Organisation, sur un fil de fond (R-23) : favoris, historique, date limite et dossier
     // d'archive sont relevés ensemble sur le fil d'interface ; le parcours ne lit plus rien des réglages (Q26-08)
     public static int CountCandidates(HashSet<string> favorites, Dictionary<string, long[]> usage, DateTime limit, string folder)
+    {
+        return CountCandidates(favorites, usage, limit, folder, new List<ArchiveRule>());
+    }
+
+    public static int CountCandidates(HashSet<string> favorites, Dictionary<string, long[]> usage, DateTime limit, string folder, List<ArchiveRule> rules)
     {
         string[] entries;
         try { entries = Directory.GetFileSystemEntries(Desk); } catch { return 0; }
@@ -41,9 +53,11 @@ static class Archiver
             try
             {
                 if (favorites.Contains(p) || !PassesFilters(p, folder)) continue;
+                ArchiveRule rule = ArchiveRules.For(p, rules);
+                DateTime itemLimit = rule != null ? rule.Limit : limit;
                 long[] u;
-                if (usage.TryGetValue(p, out u) && new DateTime(u[1], DateTimeKind.Local).ToUniversalTime() >= limit) continue;
-                if (ActivityOf(p, limit, MaxScan) == Activity.Old) n++;
+                if (usage.TryGetValue(p, out u) && new DateTime(u[1], DateTimeKind.Local).ToUniversalTime() >= itemLimit) continue;
+                if (ActivityOf(p, itemLimit, MaxScan) == Activity.Old) n++;
             }
             catch { }
         }
@@ -134,22 +148,25 @@ static class Archiver
     {
         string folder = Folder;
         DateTime limit = Limit;
-        bool ready = false;
+        List<ArchiveRule> rules = Settings.ArchiveRules.ToList();
+        Dictionary<string, bool> ready = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         int n = 0;
         List<string> log = new List<string>();
         foreach (string p in items)
         {
             // Seuls les éléments posés directement sur le bureau sont rangés, quelle que soit la liste reçue (QA34-02)
             if (!Paths.SameFolder(Path.GetDirectoryName(Path.GetFullPath(p)), Desk)) continue;
-            if (!IsCandidate(p, limit)) continue;
-            if (!ready)
-            {
-                if (!PrepareFolder(folder)) break;
-                ready = true;
-            }
+            // Une règle dont le filtre correspond décide seule : son âge et sa destination (D-009). Sinon,
+            // le rangement par ancienneté vers le dossier d'archive.
+            ArchiveRule rule = ArchiveRules.For(p, rules);
+            string target = rule != null ? rule.Destination() : folder;
+            if (target == null || !IsCandidate(p, rule != null ? rule.Limit : limit)) continue;
+            bool ok;
+            if (!ready.TryGetValue(target, out ok)) ready[target] = ok = PrepareFolder(target);
+            if (!ok) continue;
             try
             {
-                string dest = Unique(Path.Combine(folder, Path.GetFileName(p)));
+                string dest = Unique(Path.Combine(target, Path.GetFileName(p)));
                 if (Directory.Exists(p)) Directory.Move(p, dest); else File.Move(p, dest);
                 Settings.RenameKey(p, dest);
                 log.Add(p + ">" + dest);
@@ -201,8 +218,9 @@ static class Archiver
                 src = Path.GetFullPath(src);
                 dest = Path.GetFullPath(dest);
                 string parent = Path.GetDirectoryName(dest);
+                // Retour seulement vers le bureau, et seulement depuis un dossier où le rangement dépose (D-009)
                 if (parent == null || !Paths.SameFolder(Path.GetDirectoryName(src), desktop) ||
-                    !Paths.SameFolder(Path.GetDirectoryName(parent), desktop)) continue;
+                    !ArchiveRules.IsAllowedDestination(parent, desktop)) continue;
                 if (!Directory.Exists(parent) || (File.GetAttributes(parent) & FileAttributes.ReparsePoint) != 0) continue;
                 if (File.Exists(src) || Directory.Exists(src)) { pending.Add(e); continue; }
                 if (Directory.Exists(dest)) Directory.Move(dest, src);
