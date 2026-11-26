@@ -75,8 +75,13 @@ partial class PanelForm
         View.Help = q == "?" ? HelpLines() : null;
         if (q == "?") q = "";
         View.ForceList = q.Length > 0;
-        View.EmptyText = q.Length > 0 ? L.T("Aucun résultat pour « ", "No results for \"", "No hay resultados para «") + q + L.T(" »", "\"", "»")
-                                      : loading && !loadedOnce ? L.T("Chargement…", "Loading…", "Cargando…") : L.T("Ton bureau est vide", "Your desktop is empty", "Tu escritorio está vacío");
+        // États vides qui disent quoi faire (Gemini B4)
+        View.EmptyText = q.Length > 0
+            ? L.T("Aucun résultat pour « ", "No results for \"", "No hay resultados para «") + q + L.T(" »", "\"", "»") +
+              (Settings.WebEngine != 3 && !q.StartsWith("?") && !q.StartsWith("=") && !q.StartsWith(">")
+                  ? L.T("\n\nLes fautes de frappe sont tolérées. « ? ", "\n\nTypos are tolerated. \"? ", "\n\nSe admiten erratas. «? ") + q + L.T(" » cherche sur le web.", "\" searches the web.", "» busca en la web.") : "")
+            : loading && !loadedOnce ? L.T("Chargement…", "Loading…", "Cargando…")
+            : L.T("Ton bureau est vide.\n\nDépose des fichiers sur ce panneau pour les ajouter au bureau.", "Your desktop is empty.\n\nDrop files on this panel to add them to the desktop.", "Tu escritorio está vacío.\n\nSuelta archivos en este panel para añadirlos al escritorio.");
         List<Group> groups = q.Length > 0 ? SearchGroups(q) : BuildGroups();
         if (q.StartsWith("=") && groups.Count == 0)
             View.EmptyText = q.Length == 1 ? L.T("Saisis un calcul après le signe =.", "Enter a calculation after the = sign.", "Introduce un cálculo después del signo =.")

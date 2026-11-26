@@ -4,6 +4,10 @@
 
 - Moins de fenêtres à valider : restaurer une sauvegarde ou importer des réglages ne redemande plus de confirmation (c'est réversible), et les résultats (export, import, restauration, rangement, nettoyage) s'affichent directement dans la fenêtre.
 - Un échec d'annulation s'affiche dans le bandeau du panneau.
+- Trois pastilles dans le champ de recherche : « = » pour calculer, « ? » pour chercher sur le web, « > » pour les commandes système.
+- Infobulles sur les boutons du haut et les tuiles. Le nettoyage rapide est aussi dans Paramètres → Avancé.
+- Messages plus utiles quand le bureau est vide ou qu'une recherche ne trouve rien. Rappel des raccourcis Ctrl+1 à 9 des favoris.
+- Les confirmations et messages ont les couleurs de BureauCache. Pour éteindre ou redémarrer, « Non » est sélectionné par défaut.
 
 ## 3.9 — Sauvegarde des réglages
 

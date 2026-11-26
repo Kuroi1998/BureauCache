@@ -71,7 +71,7 @@ partial class PanelForm : Form
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
 
         search = new TextBox { BorderStyle = BorderStyle.None, Font = Ui.Font("Segoe UI", 10.5f) };
-        search.TextChanged += (s, e) => { Rebuild(false); if (search.Text.Trim().Length > 0) View.SelectFirst(); };
+        search.TextChanged += (s, e) => { Rebuild(false); if (search.Text.Trim().Length > 0) View.SelectFirst(); Invalidate(rcSearch); };
         search.KeyDown += SearchKeyDown;
         search.HandleCreated += (s, e) => SetCue();
 
@@ -172,7 +172,8 @@ partial class PanelForm : Form
         toast.Bounds = new Rectangle(x0 + S(10), Height - S(64), cw - S(20), S(52));
         rcSearch = new Rectangle(x0 + S(12), S(58), cw - S(24), S(38));
         int th = search.PreferredHeight;
-        search.Bounds = new Rectangle(rcSearch.X + S(36), rcSearch.Y + (rcSearch.Height - th) / 2 + S(1), rcSearch.Width - S(46), th);
+        search.Bounds = new Rectangle(rcSearch.X + S(36), rcSearch.Y + (rcSearch.Height - th) / 2 + S(1), rcSearch.Width - S(46) - ChipsWidth, th);
+        LayoutChips();
         int top = S(106);
         if (Settings.Widgets)
         {
@@ -226,8 +227,9 @@ partial class PanelForm : Form
 
         Ui.Fill(g, Theme.Surface, rcSearch, S(8));
         Ui.Glyph(g, Glyphs.Search, 10f, Theme.FgDim, new Rectangle(rcSearch.X + S(6), rcSearch.Y, S(28), rcSearch.Height));
+        DrawChips(g);
 
-        if (Settings.Widgets) DrawWidgets(g);
+        if (Settings.Widgets) { DrawWidgets(g); DrawTileMenuHints(g); }
         if (Settings.WeatherOn) DrawWeather(g);
 
         int bw = hoverGrip || resizing ? S(4) : S(2);
@@ -300,6 +302,8 @@ partial class PanelForm : Form
 
     int HitButton(Point p)
     {
+        int chip = HitChip(p);
+        if (chip >= 0) return chip;
         if (rcViewBtn.Contains(p)) return 0;
         if (rcGear.Contains(p)) return 1;
         if (rcPin.Contains(p)) return 5;
@@ -346,6 +350,7 @@ partial class PanelForm : Form
         if (g != hoverGrip) { hoverGrip = g; Invalidate(); }
         int h = g ? -1 : HitButton(e.Location);
         if (h != hoverBtn) { hoverBtn = h; Invalidate(); }
+        UpdateTip(h);
         Cursor = g ? Cursors.SizeWE : h >= 0 && h != 2 ? Cursors.Hand : rcSearch.Contains(e.Location) ? Cursors.IBeam : Cursors.Default;
     }
 

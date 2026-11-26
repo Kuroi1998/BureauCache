@@ -98,21 +98,24 @@ static class FileOps
 
 static class Dialogs
 {
-    const string Title = "BureauCache";
-
-    public static bool Ask(IWin32Window owner, string msg)
+    // Boîtes aux couleurs de l'application (MessageDialog, T-022). safeDefault : « Non » sélectionné par défaut,
+    // pour une action lourde qu'un Entrée réflexe ne doit pas déclencher.
+    public static bool Ask(IWin32Window owner, string msg, bool safeDefault = false)
     {
-        return MessageBox.Show(owner, msg, Title, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
+        Sandbox.Guard("boîte de dialogue");   // un test ne doit jamais attendre une réponse
+        return MessageDialog.Show(owner, msg, MessageDialog.Kind.Question, safeDefault);
     }
 
     public static void Info(IWin32Window owner, string msg)
     {
-        MessageBox.Show(owner, msg, Title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        Sandbox.Guard("boîte de dialogue");
+        MessageDialog.Show(owner, msg, MessageDialog.Kind.Info);
     }
 
     public static void Warn(IWin32Window owner, string msg)
     {
-        MessageBox.Show(owner, msg, Title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        Sandbox.Guard("boîte de dialogue");
+        MessageDialog.Show(owner, msg, MessageDialog.Kind.Warning);
     }
 }
 

@@ -22,13 +22,15 @@ partial class PanelForm
     {
         base.OnMouseLeave(e);
         if (hoverBtn != -1 || hoverGrip) { hoverBtn = -1; hoverGrip = false; Invalidate(); }
+        UpdateTip(-1);
     }
 
     protected override void OnMouseClick(MouseEventArgs e)
     {
         base.OnMouseClick(e);
         int h = HitButton(e.Location);
-        if (h == 5 && e.Button == MouseButtons.Left) TogglePin();
+        if (h >= ChipFirst && e.Button == MouseButtons.Left) ClickChip(h);
+        else if (h == 5 && e.Button == MouseButtons.Left) TogglePin();
         else if (h == 0 && e.Button == MouseButtons.Left) { Settings.GridView = !Settings.GridView; Settings.Notify(); }
         else if (h == 1 && e.Button == MouseButtons.Left) { HidePanel(); if (SettingsRequested != null) SettingsRequested(this, EventArgs.Empty); }
         else if (h == 3 && e.Button == MouseButtons.Left) { HidePanel(); try { ShellUtil.Open("explorer.exe", "shell:MyComputerFolder"); } catch { } }

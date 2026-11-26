@@ -82,6 +82,14 @@ partial class SettingsForm
         bCheck = Button(T("Vérifier", "Check", "Comprobar"), true, S(170), CheckUpdate);
         lUpdate = Row(T("Version ", "Version ", "Versión ") + Installer.Version, "-", bCheck, null);
 
+        // Le nettoyage rapide n'était accessible que par un clic droit sur la tuile Disque (Gemini B2)
+        Section(T("ENTRETIEN", "MAINTENANCE", "MANTENIMIENTO"));
+        Row(T("Nettoyage rapide", "Quick clean-up", "Limpieza rápida"),
+            T("Caches et fichiers temporaires de ton compte, avec les tailles avant de supprimer. Aussi par clic droit sur la tuile Disque.",
+              "Caches and temporary files of your account, with sizes before deleting. Also by right-clicking the Disk tile.",
+              "Cachés y archivos temporales de tu cuenta, con los tamaños antes de borrar. También con clic derecho en el mosaico Disco."),
+            Button(T("Analyser…", "Scan…", "Analizar…"), false, S(130), () => CleanupDialog.Run()), null);
+
         Section(T("SÉCURITÉ", "SAFETY", "SEGURIDAD"));
         Note(T("Si BureauCache se ferme de façon inattendue, un petit processus de surveillance réaffiche automatiquement tes icônes du bureau.",
                "If BureauCache closes unexpectedly, a small watchdog process automatically brings your desktop icons back.", "Si BureauCache se cierra de forma inesperada, un proceso de supervisión restaura los iconos del escritorio."));

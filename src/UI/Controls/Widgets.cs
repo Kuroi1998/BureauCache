@@ -85,7 +85,8 @@ class FlatButton : FlatControl
         AccessibleRole = AccessibleRole.PushButton;
         Primary = primary;
         Font = Ui.Font("Segoe UI Semibold", 9.75f);
-        Size = new Size(width > 0 ? width : TextRenderer.MeasureText(text, Font).Width + Ui.S(32), Ui.S(36));
+        // Largeur demandée, mais jamais moins que le texte traduit : l'espagnol est 30 à 45 % plus long (Gemini B10)
+        Size = new Size(Math.Max(width, TextRenderer.MeasureText(text, Font).Width + Ui.S(32)), Ui.S(36));
     }
 
     protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }

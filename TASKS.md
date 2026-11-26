@@ -8,7 +8,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | ID | Titre | Statut | Porteur | Branche | Lien |
 |---|---|---|---|---|---|
 | T-021 | Garde-fous des tests, modales allégées, optimisations (Gemini, lot 1) | Revue (394 tests réussis) | Claude | `feat/T-021-garde-fous-ux` | QA-34, QA-35 |
-| T-022 | Gemini, lot 2 : découverte des fonctions, infobulles, états vides, confirmations système thématisées | À faire | Claude | — | QA-34 |
+| T-022 | Gemini, lot 2 : découverte des fonctions, infobulles, états vides, confirmations système thématisées | Revue (398 tests réussis) | Claude | `feat/T-022-decouverte` | QA-34, QA-36 |
 | T-023 | Gemini, lot 3 : météo intégrée aux Paramètres, détail non modal, clavier dans le panneau, DPI par écran (R-10) | À faire | Claude | — | QA-34, R-10 |
 | T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel fait sur la 3.9 installée | Claude puis Toi | PR #19 | D-007, QA-32, QA-33 |
 | T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |
@@ -65,6 +65,7 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-24 · Claude · T-021 : analyse de Gemini triée ; lot 1 appliqué (bac à sable des tests, modales allégées, cache du bord, découpage de App et Settings) (QA-34). Suite : 387 réussis.
 - 2026-11-26 · Claude · QA-32 rectifié : l'écrasement n'avait touché que la copie du bac à sable de Claude ; les vrais réglages étaient intacts (vérifié par les sauvegardes de la 3.9).
 - 2026-11-26 · Claude · T-021 : revue du lot 1 par ChatGPT, 10 constats retenus et corrigés, QA34-04 écarté (QA-35). Suite : 394 réussis.
+- 2026-11-27 · Claude · T-022 : pastilles = ? > dans la recherche, infobulles, indice de menu sur les tuiles, nettoyage dans Paramètres → Avancé, états vides utiles, rappel Ctrl+1…9, boîtes de message aux couleurs de l'application (QA-36). Suite : 398 réussis.
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.
