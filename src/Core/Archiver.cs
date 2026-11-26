@@ -65,7 +65,7 @@ static class Archiver
     }
 
     // Filtres qui ne dépendent pas des réglages : dossier d'archive, éléments cachés ou système, raccourcis
-    static bool PassesFilters(string p, string folder)
+    internal static bool PassesFilters(string p, string folder)
     {
         string name = Path.GetFileName(p);
         if (string.Equals(p, folder, StringComparison.OrdinalIgnoreCase)) return false;
@@ -152,6 +152,7 @@ static class Archiver
         Dictionary<string, bool> ready = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         int n = 0;
         List<string> log = new List<string>();
+        bool journalChecked = false;
         foreach (string p in items)
         {
             // Seuls les éléments posés directement sur le bureau sont rangés, quelle que soit la liste reçue (QA34-02)
@@ -164,12 +165,21 @@ static class Archiver
             bool ok;
             if (!ready.TryGetValue(target, out ok)) ready[target] = ok = PrepareFolder(target);
             if (!ok) continue;
+            // Un fichier encore ouvert par un programme (enregistrement, téléchargement en cours) reste en place (QA39-01)
+            if (File.Exists(p) && Native.FileInUse(p)) continue;
+            // Avant le premier déplacement, on vérifie que les réglages s'enregistrent : sans journal durable,
+            // un rangement ne pourrait plus être annulé après un redémarrage (QA39-05)
+            if (!journalChecked)
+            {
+                if (!Settings.Save()) break;
+                journalChecked = true;
+            }
             try
             {
                 string dest = Unique(Path.Combine(target, Path.GetFileName(p)));
                 if (Directory.Exists(p)) Directory.Move(p, dest); else File.Move(p, dest);
                 Settings.RenameKey(p, dest);
-                log.Add(p + ">" + dest);
+                log.Add(p + ">" + dest + ">" + Fingerprint(dest));
                 n++;
             }
             catch { }
@@ -210,9 +220,10 @@ static class Archiver
         List<string> pending = new List<string>();
         foreach (string e in journal)
         {
-            int i = e.IndexOf('>');
-            if (i <= 0) continue;
-            string src = e.Substring(0, i), dest = e.Substring(i + 1);
+            // « source>destination>empreinte » ; les journaux d'avant QA39-02 n'ont pas d'empreinte
+            string[] parts = e.Split('>');
+            if (parts.Length < 2 || parts[0].Length == 0) continue;
+            string src = parts[0], dest = parts[1], print = parts.Length > 2 ? parts[2] : null;
             try
             {
                 src = Path.GetFullPath(src);
@@ -222,6 +233,8 @@ static class Archiver
                 if (parent == null || !Paths.SameFolder(Path.GetDirectoryName(src), desktop) ||
                     !ArchiveRules.IsAllowedDestination(parent, desktop)) continue;
                 if (!Directory.Exists(parent) || (File.GetAttributes(parent) & FileAttributes.ReparsePoint) != 0) continue;
+                // Autre élément à la place de celui qui a été rangé (renommé puis remplacé) : on n'y touche pas (QA39-02)
+                if (print != null && print != Fingerprint(dest)) continue;
                 if (File.Exists(src) || Directory.Exists(src)) { pending.Add(e); continue; }
                 if (Directory.Exists(dest)) Directory.Move(dest, src);
                 else if (File.Exists(dest)) File.Move(dest, src);
@@ -234,6 +247,21 @@ static class Archiver
         journal.Clear();
         journal.AddRange(pending);
         return n;
+    }
+
+    // Empreinte conservée par un déplacement sur le même volume : taille et date de modification pour un fichier,
+    // date de création pour un dossier. Vide si l'élément n'existe pas.
+    internal static string Fingerprint(string path)
+    {
+        try
+        {
+            FileInfo f = new FileInfo(path);
+            if (f.Exists) return "f" + f.Length + "-" + f.LastWriteTimeUtc.Ticks;
+            DirectoryInfo d = new DirectoryInfo(path);
+            if (d.Exists) return "d" + d.CreationTimeUtc.Ticks;
+        }
+        catch { }
+        return "";
     }
 
     static string Unique(string path)

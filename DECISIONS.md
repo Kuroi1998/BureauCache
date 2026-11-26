@@ -10,7 +10,7 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 **Conséquences :** ce que ça impose ensuite.
 -->
 
-## D-011 — Presse-papiers et bureaux virtuels (2026-11-27) · Statut : Proposée
+## D-011 — Presse-papiers et bureaux virtuels (2026-11-27) · Statut : Acceptée
 
 **Contexte :** deux demandes du chef de projet (T-026). Windows a déjà un historique du presse-papiers (Win+V), et affiche les mêmes icônes du bureau sur tous les bureaux virtuels.
 **Décision proposée — presse-papiers :**
@@ -23,7 +23,7 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 **Alternatives écartées :** historique persistant (mots de passe et données sensibles sur le disque) ; images dans l'historique (mémoire, et Win+V le fait déjà) ; interface interne `IVirtualDesktopManagerInternal` (instable entre versions de Windows).
 **Conséquences :** nouvelle option `ClipboardOn` ; `PanelForm` gagne une source « presse-papiers » ; la fenêtre d'écoute vit sur le fil d'interface.
 
-## D-010 — Recherche dans le contenu et encombrement du bureau (2026-11-27) · Statut : Proposée
+## D-010 — Recherche dans le contenu et encombrement du bureau (2026-11-27) · Statut : Acceptée
 
 **Contexte :** la recherche du panneau ne regarde que les noms. On veut retrouver un fichier du bureau par son texte, et voir ce qui encombre le bureau (T-025).
 **Décision proposée — recherche dans le contenu :**

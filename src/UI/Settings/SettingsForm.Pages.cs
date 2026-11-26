@@ -149,6 +149,8 @@ partial class SettingsForm
         Row(T("Paramètres Windows", "Windows settings", "Configuración de Windows"), null, tSSettings, null);
         tSCmd = NewToggle(v => Settings.SearchCommands = v);
         Row(T("Commandes système", "System commands", "Comandos del sistema"), T("Verrouiller, veille, redémarrer…", "Lock, sleep, restart…", "Bloquear, suspender, reiniciar…"), tSCmd, null);
+        tSContent = NewToggle(v => Settings.SearchContent = v);
+        Row(T("Contenu des fichiers du bureau", "Desktop file contents", "Contenido de los archivos del escritorio"), T("Utilise l'index de Windows Search : trouve un document par un mot qu'il contient.", "Uses the Windows Search index: finds a document by a word it contains.", "Usa el índice de Windows Search: encuentra un documento por una palabra que contiene."), tSContent, null);
 
         Section("WEB");
         sEngine = NewSeg(v => Settings.WebEngine = v, "Google", "Bing", "DuckDuckGo", T("Aucun", "None", "Ninguno"));
@@ -213,20 +215,7 @@ partial class SettingsForm
         Row(T("Ranger les fichiers inutilisés", "Tidy up unused files", "Archivar archivos sin usar"), T("Vérifié au démarrage puis toutes les 6 heures.", "Checked at startup, then every 6 hours.", "Se comprueba al iniciar y cada 6 horas."), tArchive, null);
         sArchDays = NewSeg(v => Settings.ArchiveDays = ArchiveOpts[v], T("30 j", "30 d", "30 d"), T("60 j", "60 d", "60 d"), T("90 j", "90 d", "90 d"), T("180 j", "180 d", "180 d"));
         Row(T("Inutilisés depuis", "Unused for", "Sin usar durante"), null, sArchDays, null);
-        bArchiveNow = Button(T("Ranger maintenant", "Tidy up now", "Archivar ahora"), false, S(170), () =>
-        {
-            List<string> c = Archiver.Candidates();
-            // Résultats affichés sous les réglages, sans boîte à valider (Gemini A4, A5) ; la confirmation du déplacement reste
-            if (c.Count == 0) { lArchive.Text = T("Rien à ranger pour le moment.", "Nothing to tidy up right now.", "Por ahora no hay nada que archivar."); return; }
-            string list = string.Join("\n", c.Take(12).Select(p => "• " + Path.GetFileName(p))) + (c.Count > 12 ? "\n…" : "");
-            if (!Ask(T(c.Count + " élément(s) seront déplacés dans « " + Settings.ArchiveName + " » :\n\n", c.Count + " item(s) will be moved into \"" + Settings.ArchiveName + "\":\n\n", c.Count + " elemento(s) se moverán a «" + Settings.ArchiveName + "»:\n\n") + list)) return;
-            Begin(lArchiveUndo);
-            int n = Archiver.Run(c);
-            // Rien déplacé : le journal d'annulation reste celui du rangement précédent, on ne propose pas de l'annuler (QA34-07)
-            if (n == 0) { lArchive.Text = T("Aucun élément n'a pu être rangé (déjà déplacés ou en cours d'utilisation).", "No item could be moved (already moved or in use).", "No se pudo mover ningún elemento (ya movidos o en uso)."); return; }
-            Done(lArchiveUndo, T(n + " élément(s) rangé(s) dans « " + Settings.ArchiveName + " ». Annuler les remet sur le bureau.", n + " item(s) moved into \"" + Settings.ArchiveName + "\". Undo puts them back.", n + " elemento(s) movido(s) a «" + Settings.ArchiveName + "». Deshacer los devuelve."));
-            Settings.Fire();
-        });
+        bArchiveNow = Button(T("Ranger maintenant", "Tidy up now", "Archivar ahora"), false, S(170), TidyNow);
         lArchive = Row(T("Ranger maintenant", "Tidy up now", "Archivar ahora"), "-", bArchiveNow, null);
         bArchiveUndo = Button(T("Annuler", "Undo", "Deshacer"), false, S(170), () =>
         {
@@ -237,6 +226,7 @@ partial class SettingsForm
         });
         lArchiveUndo = Row(T("Annuler le dernier rangement", "Undo the last tidy-up", "Deshacer el último archivado"), T("Remet les éléments rangés à leur place sur le bureau.", "Puts the moved items back on the desktop.", "Devuelve al escritorio los elementos movidos."), bArchiveUndo, null);
 
+        BuildClutterSection();
         BuildRulesSection();
 
         Section(T("RÉINITIALISER", "RESET", "RESTABLECER"));

@@ -233,4 +233,16 @@ static class Native
         }
         catch { }
     }
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern Microsoft.Win32.SafeHandles.SafeFileHandle CreateFile(string path, uint access, uint share, IntPtr security, uint disposition, uint flags, IntPtr template);
+
+    // Vrai si un autre programme a le fichier ouvert (lecture, écriture ou suppression) : une ouverture en accès
+    // DELETE sans aucun partage échoue alors. Aucune donnée n'est lue, donc un fichier OneDrive « à la demande »
+    // n'est pas téléchargé (QA39-01).
+    public static bool FileInUse(string path)
+    {
+        const uint DELETE = 0x00010000, OPEN_EXISTING = 3, FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000;
+        using (Microsoft.Win32.SafeHandles.SafeFileHandle h = CreateFile(path, DELETE, 0, IntPtr.Zero, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, IntPtr.Zero))
+            return h.IsInvalid;
+    }
 }

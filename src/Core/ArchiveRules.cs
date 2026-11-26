@@ -1,4 +1,4 @@
-// BureauCache — ArchiveRule, ArchiveRules
+﻿// BureauCache — ArchiveRule, ArchiveRules
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -134,8 +134,11 @@ static class ArchiveRules
     {
         string parent = Path.GetDirectoryName(folder);
         if (parent == null) return false;
+        // Dossier du bureau, ou sous-dossier d'un dossier du bureau : le dossier d'archive et son sous-dossier de règle,
+        // même si le nom du dossier d'archive a changé depuis le rangement (QA39-03)
         if (Paths.SameFolder(parent, desktop)) return true;
-        if (Paths.SameFolder(parent, Archiver.Folder) && Paths.SameFolder(Path.GetDirectoryName(Archiver.Folder), desktop)) return true;
+        string grand = Path.GetDirectoryName(parent);
+        if (grand != null && Paths.SameFolder(grand, desktop)) return true;
         foreach (RuleTarget t in Enum.GetValues(typeof(RuleTarget)))
         {
             if (t == RuleTarget.Archive) continue;

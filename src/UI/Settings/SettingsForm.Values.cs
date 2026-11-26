@@ -45,6 +45,7 @@ partial class SettingsForm
         tSRecent.Checked = Settings.SearchRecent;
         tSSettings.Checked = Settings.SearchSettings;
         tSCmd.Checked = Settings.SearchCommands;
+        tSContent.Checked = Settings.SearchContent;
         sEngine.Selected = Settings.WebEngine;
         tGroups.Checked = Settings.GroupCats;
         tRecents.Checked = Settings.ShowRecents;
@@ -115,6 +116,7 @@ partial class SettingsForm
         string folder = Archiver.Folder;
         List<ArchiveRule> rules = Settings.ArchiveRules.ToList();
         lArchive.Text = T("Analyse du bureau…", "Checking the desktop…", "Analizando el escritorio…");
+        UpdateClutter();
         Background.Run(() =>
         {
             int n = Archiver.CountCandidates(favorites, usage, limit, folder, rules);

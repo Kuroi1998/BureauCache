@@ -216,6 +216,8 @@ partial class PanelForm
             if (Settings.SearchCommands) addGroup("s:cmd", L.T("Commandes", "Commands", "Comandos"), Glyphs.Terminal, commands, 4);
             res.AddRange(found.OrderByDescending(k => k.Value).Select(k => k.Key));
         }
+        Group inContent = ContentGroup(q, res);
+        if (inContent != null) res.Add(inContent);
         if (Settings.WebEngine != 3 && !res.Any(g => g.Key == "s:calc")) res.Add(WebGroup(q, px));
         return res;
     }

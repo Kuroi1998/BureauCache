@@ -12,6 +12,9 @@
 - Le détail de la météo ne bloque plus le bureau : il se ferme quand on clique ailleurs.
 - F6 permet d'atteindre au clavier les boutons et les tuiles du haut du panneau (Entrée pour ouvrir, touche Menu pour les options).
 - Règles de rangement (Paramètres → Organisation) : par exemple, les captures d'écran vont dans Images\Captures après 7 jours, les fichiers .zip dans Téléchargements. Un aperçu montre les fichiers concernés, et « Annuler le dernier rangement » les remet en place.
+- La recherche trouve aussi les documents du bureau par un mot qu'ils contiennent (groupe « Dans le contenu », grâce à l'index de Windows). Option dans Paramètres → Recherche.
+- Paramètres → Organisation montre l'encombrement du bureau : nombre d'éléments, place occupée, éléments inutilisés depuis 30 et 90 jours, les plus volumineux.
+- Le rangement ne déplace plus un fichier encore ouvert par un programme, et l'annulation ne prend jamais un autre fichier mis à la place de celui qui a été rangé.
 
 ## 3.9 — Sauvegarde des réglages
 

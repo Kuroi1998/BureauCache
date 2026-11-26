@@ -60,6 +60,7 @@ static partial class Settings
                     case "SearchRecent": SearchRecent = b; break;
                     case "SearchSettings": SearchSettings = b; break;
                     case "SearchCommands": SearchCommands = b; break;
+                    case "SearchContent": SearchContent = b; break;
                     case "NewBadge": NewBadge = b; break;
                     case "ArchiveOn": ArchiveOn = b; break;
                     case "HoverPreview": HoverPreview = b; break;
@@ -259,7 +260,7 @@ static partial class Settings
                 "GridView=" + B(GridView), "Glass=" + B(Glass), "LiveBlur=" + B(LiveBlur), "HidePanelInCapture=" + B(HidePanelInCapture), "Animations=" + B(Animations),
                 "NoFullscreen=" + B(NoFullscreen), "HotkeyOn=" + B(HotkeyOn),
                 "SearchApps=" + B(SearchApps), "SearchRecent=" + B(SearchRecent), "SearchSettings=" + B(SearchSettings),
-                "SearchCommands=" + B(SearchCommands), "NewBadge=" + B(NewBadge), "ArchiveOn=" + B(ArchiveOn),
+                "SearchCommands=" + B(SearchCommands), "SearchContent=" + B(SearchContent), "NewBadge=" + B(NewBadge), "ArchiveOn=" + B(ArchiveOn),
                 "HoverPreview=" + B(HoverPreview), "Widgets=" + B(Widgets), "AutoUpdate=" + B(AutoUpdate),
                 "Pinned=" + B(Pinned), "QuietStart=" + B(QuietStart), "TrayHintShown=" + B(TrayHintShown), "LastVersion=" + LastVersion, "ArchiveLog=" + string.Join("|", ArchiveLog),
                 "ThemeMode=" + ThemeMode, "Language=" + Language, "Delay=" + Delay, "PanelWidth=" + PanelWidth,

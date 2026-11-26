@@ -188,6 +188,8 @@ partial class PanelForm
         Location = new Point(all.Left - Width - S(200), Top);
         widgetTimer.Stop();
         blurTimer.Stop();
+        // La prochaine ouverture repart sans focus F6 sur la barre (QA37-03)
+        chromeFocus = -1;
     }
 
     void AnimTick(object sender, EventArgs e)

@@ -1,4 +1,4 @@
-// BureauCache — RuleDialog
+﻿// BureauCache — RuleDialog
 using System;
 using System.Drawing;
 using System.IO;
@@ -15,6 +15,7 @@ class RuleDialog : ThemedDialog
     readonly InputBox name, pattern, sub;
     readonly Segmented filter, days, target;
     readonly Label preview;
+    readonly int[] dayChoices;
     public ArchiveRule Result;
 
     public static ArchiveRule Run(IWin32Window owner, ArchiveRule existing)
@@ -41,8 +42,12 @@ class RuleDialog : ThemedDialog
         y += Ui.S(66);
 
         AddLabel(L.T("Inutilisés depuis", "Unused for", "Sin usar durante"), pad, y);
-        days = new Segmented(ArchiveRule.DayChoices.Select(d => d == 0 ? L.T("Dès l'arrivée", "On arrival", "Al llegar") : d + L.T(" j", " d", " d")).ToArray()) { Location = new Point(pad, y + Ui.S(22)), BackColor = Theme.Bg };
-        days.Selected = Math.Max(0, Array.IndexOf(ArchiveRule.DayChoices, Settings.RoundUp(ArchiveRule.DayChoices, r.Days)));
+        // Un âge enregistré hors des choix (réglages modifiés à la main) devient un choix de plus : ouvrir l'éditeur
+        // ne le change pas en silence (QA39-06)
+        dayChoices = ArchiveRule.DayChoices.Contains(r.Days) || r.Days < 0 ? ArchiveRule.DayChoices
+                   : ArchiveRule.DayChoices.Concat(new[] { r.Days }).OrderBy(d => d).ToArray();
+        days = new Segmented(dayChoices.Select(d => d == 0 ? L.T("Dès l'arrivée", "On arrival", "Al llegar") : d + L.T(" j", " d", " d")).ToArray()) { Location = new Point(pad, y + Ui.S(22)), BackColor = Theme.Bg };
+        days.Selected = Math.Max(0, Array.IndexOf(dayChoices, Settings.RoundUp(dayChoices, r.Days)));
         Controls.Add(days);
         y += Ui.S(66);
 
@@ -81,7 +86,7 @@ class RuleDialog : ThemedDialog
         return new ArchiveRule
         {
             Name = name.Box.Text.Trim(), Filter = (RuleFilter)filter.Selected, Pattern = pattern.Box.Text.Trim(),
-            Days = ArchiveRule.DayChoices[days.Selected], Target = (RuleTarget)target.Selected, Sub = sub.Box.Text.Trim()
+            Days = dayChoices[days.Selected], Target = (RuleTarget)target.Selected, Sub = sub.Box.Text.Trim()
         };
     }
 

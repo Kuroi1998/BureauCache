@@ -1,4 +1,4 @@
-// BureauCache — SettingsForm (lieu de la météo)
+﻿// BureauCache — SettingsForm (lieu de la météo)
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -67,7 +67,8 @@ partial class SettingsForm
         }
         if (found.Count > 0) placeMenu.Items.Add(new ToolStripSeparator());
         placeMenu.Items.Add(Menus.Item(T("Détecter ma position", "Detect my location", "Detectar mi ubicación"), Glyphs.Flag, DetectPlace));
-        placeMenu.Show(placeBox, new Point(0, placeBox.Height));
+        // Fenêtre fermée ou page changée pendant la recherche : pas de menu flottant seul à l'écran (QA37-01)
+        if (Visible && placeBox.Visible && WindowState != FormWindowState.Minimized) placeMenu.Show(placeBox, new Point(0, placeBox.Height));
     }
 
     void DetectPlace()

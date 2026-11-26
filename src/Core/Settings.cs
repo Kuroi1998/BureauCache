@@ -23,7 +23,7 @@ static partial class Settings
 {
     public static bool HideIcons = true, RightSide = false, AutoClose = true, ShowSystem = true, ShowRecents = true,
         GroupCats = true, GridView = false, Glass = true, LiveBlur = true, Animations = true, NoFullscreen = true, HotkeyOn = true,
-        SearchApps = true, SearchRecent = true, SearchSettings = true, SearchCommands = true,
+        SearchApps = true, SearchRecent = true, SearchSettings = true, SearchCommands = true, SearchContent = true,
         NewBadge = true, ArchiveOn = false, HoverPreview = true, Widgets = true, AutoUpdate = true, Pinned = false, QuietStart = false, TrayHintShown = false;
     public static bool HidePanelInCapture;
     public static string LastVersion = "";
