@@ -113,6 +113,8 @@ partial class PanelForm
                            .OrderByDescending(i => Settings.Usage[i.Key][1]).Take(5).ToList();
             if (rec.Items.Count > 0) res.Add(rec);
         }
+        Group clip = ClipGroup(ListPx);
+        if (clip != null) res.Add(clip);
 
         Dictionary<string, int> order = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < Settings.Order.Count; i++) order[Settings.Order[i]] = i;
@@ -213,6 +215,7 @@ partial class PanelForm
             if (Settings.SearchApps) addGroup("s:apps", L.T("Applications", "Apps", "Aplicaciones"), Glyphs.Apps, Apps.Where(a => !deskNames.Contains(a.NormName)), 8);
             if (Settings.SearchRecent) addGroup("s:recent", L.T("Fichiers récents", "Recent files", "Archivos recientes"), Glyphs.Recent, Recent, 6);
             if (Settings.SearchSettings) addGroup("s:set", L.T("Paramètres Windows", "Windows settings", "Configuración de Windows"), Glyphs.Settings, winSettings, 5);
+            if (Settings.ClipboardOn) addGroup("s:clip", L.T("Presse-papiers", "Clipboard", "Portapapeles"), Glyphs.Copy, ClipItems(px), 5);
             if (Settings.SearchCommands) addGroup("s:cmd", L.T("Commandes", "Commands", "Comandos"), Glyphs.Terminal, commands, 4);
             res.AddRange(found.OrderByDescending(k => k.Value).Select(k => k.Key));
         }
@@ -251,7 +254,7 @@ partial class PanelForm
     // ---------- Organisation par glisser-déposer ----------
     void HandleDrop(DesktopItem it, Group from, Group to, int index)
     {
-        if (to.Key == "recent" || to.IsSearch) return;
+        if (to.Key == "recent" || to.Key == "clip" || to.IsSearch) return;
         Settings.Snap snap = Settings.Snapshot();
         if (from != to)
         {

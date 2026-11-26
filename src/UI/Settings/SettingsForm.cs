@@ -27,7 +27,7 @@ partial class SettingsForm : Form
     readonly int NavW;
 
     Toggle tQuiet, tHide, tStartup, tAuto, tFull, tHot, tGlass, tLive, tCapture, tAnim, tWidgets, tWeather, tPreview, tSystem, tRecents, tGroups,
-        tSApps, tSRecent, tSSettings, tSCmd, tSContent, tNew, tArchive, tAutoUpd;
+        tSApps, tSRecent, tSSettings, tSCmd, tSContent, tClip, tNew, tArchive, tAutoUpd;
     Segmented sSide, sZone, sScreen, sTheme, sView, sLang, sEngine, sNewDays, sArchDays;
     Slider slDelay, slWidth;
     Swatches swatch;

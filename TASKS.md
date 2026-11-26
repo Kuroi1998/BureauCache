@@ -12,7 +12,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-023 | Gemini, lot 3 : météo intégrée aux Paramètres, détail non modal, clavier dans le panneau, DPI par écran (R-10) | Revue (403 tests réussis ; DPI par écran reporté en T-027) | Claude | `feat/T-023-confort` | QA-34, QA-37 |
 | T-024 | Règles de rangement (par type ou par nom, destination choisie) | Revue faite (QA-40) | Claude | `feat/T-024-regles` | D-009, QA-39, QA-40 |
 | T-025 | Recherche dans le contenu des fichiers, statistiques d'encombrement | Codée (432 tests réussis), revue à faire | Claude | `feat/T-025-contenu` | D-010, QA-41 |
-| T-026 | Historique du presse-papiers, panneau et bureaux virtuels | Conception proposée (D-011), à valider | Claude puis Toi | — | D-011 |
+| T-026 | Historique du presse-papiers, panneau sur le bureau virtuel actif | Codée (441 tests réussis), revue à faire | Claude | `feat/T-026-presse-papiers` | D-011, QA-42 |
 | T-027 | Échelle par écran (DPI par moniteur) | Reporté (un seul écran aujourd'hui) | Claude | — | D-008, R-10 |
 | T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel fait sur la 3.9 installée | Claude puis Toi | PR #19 | D-007, QA-32, QA-33 |
 | T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |
@@ -77,6 +77,7 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-27 · Toi · D-010 et D-011 validées.
 - 2026-11-27 · Claude · Revue de T-023 et T-024 par ChatGPT : 7 échecs reproduits, tous retenus et corrigés (QA-40).
 - 2026-11-27 · Claude · T-025 : recherche dans le contenu par l'index Windows (groupe « Dans le contenu »), encombrement du bureau dans Organisation (QA-41). Suite : 432 réussis.
+- 2026-11-27 · Claude · T-026 : historique du presse-papiers en mémoire (copies privées ignorées), panneau ouvert sur le bureau virtuel actif et qui suit quand il est épinglé (QA-42). Suite : 441 réussis.
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.

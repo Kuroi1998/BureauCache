@@ -15,6 +15,8 @@
 - La recherche trouve aussi les documents du bureau par un mot qu'ils contiennent (groupe « Dans le contenu », grâce à l'index de Windows). Option dans Paramètres → Recherche.
 - Paramètres → Organisation montre l'encombrement du bureau : nombre d'éléments, place occupée, éléments inutilisés depuis 30 et 90 jours, les plus volumineux.
 - Le rangement ne déplace plus un fichier encore ouvert par un programme, et l'annulation ne prend jamais un autre fichier mis à la place de celui qui a été rangé.
+- Historique du presse-papiers (à activer dans Paramètres → Recherche) : les 20 derniers textes copiés, dans le panneau ; un clic les recopie. Gardés en mémoire seulement, et les copies des gestionnaires de mots de passe sont ignorées.
+- Avec plusieurs bureaux virtuels, le panneau s'ouvre sur le bureau actif ; épinglé, il suit quand on change de bureau.
 
 ## 3.9 — Sauvegarde des réglages
 

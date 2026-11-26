@@ -40,6 +40,7 @@ static partial class Settings
     public static string ScreenName = "";
     // Météo (D-005) : désactivée tant qu'aucun lieu n'est choisi
     public static bool WeatherOn = false;
+    public static bool ClipboardOn = false;   // historique du presse-papiers, en mémoire seulement (D-011)
     public static string WeatherPlace = "";
     public static double WeatherLat = double.NaN, WeatherLon = double.NaN;
     public static Color Accent = Color.FromArgb(59, 130, 246);

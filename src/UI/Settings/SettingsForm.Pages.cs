@@ -152,6 +152,13 @@ partial class SettingsForm
         tSContent = NewToggle(v => Settings.SearchContent = v);
         Row(T("Contenu des fichiers du bureau", "Desktop file contents", "Contenido de los archivos del escritorio"), T("Utilise l'index de Windows Search : trouve un document par un mot qu'il contient.", "Uses the Windows Search index: finds a document by a word it contains.", "Usa el índice de Windows Search: encuentra un documento por una palabra que contiene."), tSContent, null);
 
+        Section(T("PRESSE-PAPIERS", "CLIPBOARD", "PORTAPAPELES"));
+        tClip = NewToggle(v => Settings.ClipboardOn = v);
+        Row(T("Historique des textes copiés", "History of copied text", "Historial de textos copiados"),
+            T("Les 20 derniers textes, dans le panneau. Gardés en mémoire seulement : rien n'est écrit sur le disque, tout disparaît à la fermeture. Les copies privées (gestionnaires de mots de passe) sont ignorées.",
+              "The last 20 texts, in the panel. Kept in memory only: nothing is written to disk, everything is gone when the app closes. Private copies (password managers) are ignored.",
+              "Los últimos 20 textos, en el panel. Solo en memoria: no se escribe nada en el disco y todo desaparece al cerrar. Se ignoran las copias privadas (gestores de contraseñas)."), tClip, null);
+
         Section("WEB");
         sEngine = NewSeg(v => Settings.WebEngine = v, "Google", "Bing", "DuckDuckGo", T("Aucun", "None", "Ninguno"));
         Row(T("Moteur de recherche", "Search engine", "Motor de búsqueda"), null, sEngine, null);

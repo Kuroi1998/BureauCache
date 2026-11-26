@@ -8,7 +8,7 @@ using System.Windows.Forms;
 // =====================================================================
 //  Win32
 // =====================================================================
-static class Native
+static partial class Native
 {
     [DllImport("user32.dll")] public static extern IntPtr FindWindow(string cls, string name);
     [DllImport("user32.dll")] public static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string name);

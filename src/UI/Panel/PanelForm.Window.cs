@@ -118,6 +118,8 @@ partial class PanelForm
     public void ShowPanel(Screen scr)
     {
         if (IsOpen) { Activate(); return; }
+        // Toujours sur le bureau virtuel actif (D-011)
+        Native.MoveToActiveDesktop(Handle);
         if (Visible)
         {
             StartAnim(true);
