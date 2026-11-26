@@ -11,6 +11,7 @@ partial class PanelForm
     const int ChipFirst = 7;   // codes de HitButton : 7, 8 et 9
     readonly Rectangle[] rcChips = new Rectangle[3];
     ToolTip tips;
+    bool chipsShown = true;
     int tipFor = -1;
 
     int ChipsWidth { get { return S(26) * 3 + S(4) * 2 + S(6); } }
@@ -73,22 +74,27 @@ partial class PanelForm
             case 4: return L.T("Clic : ouvrir la corbeille · Clic droit : la vider", "Click: open the Recycle Bin · Right-click: empty it", "Clic: abrir la papelera · Clic derecho: vaciarla");
             case 6: return L.T("Clic : prévisions sur 3 jours · Clic droit : actualiser ou changer de lieu", "Click: 3-day forecast · Right-click: refresh or change place", "Clic: previsión de 3 días · Clic derecho: actualizar o cambiar de lugar");
             case 7: return L.T("= : calculer (ex. = 12*7)", "= : calculate (e.g. = 12*7)", "= : calcular (p. ej. = 12*7)");
-            case 8: return L.T("? : chercher sur le web", "? : search the web", "? : buscar en la web");
+            case 8: return L.T("? puis un mot : chercher sur le web (« ? » seul affiche l'aide)", "? then a word: search the web (\"?\" alone shows help)", "? y una palabra: buscar en la web («?» solo muestra la ayuda)");
             case 9: return L.T("> : commandes système (verrouiller, veille…)", "> : system commands (lock, sleep…)", "> : comandos del sistema (bloquear, suspender…)");
         }
         return null;
     }
 
+    string tipShown;
+
     void UpdateTip(int h)
     {
-        if (h == tipFor) return;
+        // Le texte compte aussi : épingler sans bouger la souris change l'infobulle de l'épingle (QA36-03)
+        string text = TipText(h) ?? "";
+        if (h == tipFor && text == tipShown) return;
         tipFor = h;
+        tipShown = text;
         if (tips == null)
         {
             tips = new ToolTip { InitialDelay = 500, ReshowDelay = 200, AutoPopDelay = 8000, ShowAlways = true };
             Disposed += (s, e) => tips.Dispose();
         }
-        tips.SetToolTip(this, TipText(h) ?? "");
+        tips.SetToolTip(this, text);
     }
 
     // ---------- Clavier : F6 parcourt les pastilles, boutons et tuiles du haut (Gemini B7) ----------

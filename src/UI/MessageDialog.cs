@@ -14,8 +14,16 @@ class MessageDialog : ThemedDialog
 {
     public enum Kind { Question, Info, Warning }
 
+    readonly string message;
+
     MessageDialog(string message, Kind kind, bool safeDefault) : base("BureauCache", Ui.S(460), Ui.S(170))
     {
+        this.message = message;
+        // Bornée à la zone de travail : sur un petit écran ou à 200 %, un long message défile et les boutons restent
+        // visibles (QA36-04)
+        Rectangle work = Screen.FromPoint(Cursor.Position).WorkingArea;
+        int frameW = Width - ClientSize.Width, frameH = Height - ClientSize.Height;
+        ClientSize = new Size(Math.Min(ClientSize.Width, work.Width - frameW - Ui.S(16)), ClientSize.Height);
         int pad = Ui.S(20), textX = pad + Ui.S(40), textW = ClientSize.Width - textX - pad;
         Label icon = new Label
         {
@@ -27,8 +35,21 @@ class MessageDialog : ThemedDialog
         Label text = AddLabel(message, textX, Ui.S(22));
         text.ForeColor = Theme.Fg;
         text.UseMnemonic = false;
+        int scrollW = SystemInformation.VerticalScrollBarWidth;
+        int textAreaMax = Math.Max(Ui.S(60), work.Height - frameH - Ui.S(16) - Ui.S(22) - Ui.S(78));
         text.MaximumSize = new Size(textW, 0);
         int textH = text.GetPreferredSize(new Size(textW, 0)).Height;
+        if (textH > textAreaMax)
+        {
+            // Trop long pour l'écran : le texte passe dans une zone qui défile
+            Controls.Remove(text);
+            text.MaximumSize = new Size(textW - scrollW, 0);
+            text.Location = Point.Empty;
+            Panel scroller = new Panel { Location = new Point(textX, Ui.S(22)), Size = new Size(textW, textAreaMax), AutoScroll = true, BackColor = Theme.Bg };
+            scroller.Controls.Add(text);
+            Controls.Add(scroller);
+            textH = textAreaMax;
+        }
         ClientSize = new Size(ClientSize.Width, Math.Max(Ui.S(32), textH) + Ui.S(22) + Ui.S(78));
 
         bool question = kind == Kind.Question;
@@ -47,13 +68,30 @@ class MessageDialog : ThemedDialog
         Shown += (s, e) => { if (!first.IsDisposed) first.Focus(); };
     }
 
+    // Ctrl+C copie le message, comme les boîtes de Windows : utile pour transmettre une erreur (QA36-05)
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        if (keyData == (Keys.Control | Keys.C))
+        {
+            try { Clipboard.SetText(message); } catch { }
+            return true;
+        }
+        return base.ProcessCmdKey(ref msg, keyData);
+    }
+
     // Vrai si l'utilisateur a validé. owner peut être nul ou caché : la fenêtre est alors centrée sur l'écran.
+    // Appelée depuis un autre fil, elle s'affiche sur celui de la fenêtre propriétaire (QA36-06).
     public static bool Show(IWin32Window owner, string message, Kind kind, bool safeDefault = false)
     {
         Form parent = null;
         Control c = owner as Control;
         if (c != null) parent = c.FindForm();
         if (parent != null && (!parent.IsHandleCreated || !parent.Visible || parent.IsDisposed)) parent = null;
+        if (parent != null && parent.InvokeRequired)
+        {
+            Form target = parent;
+            return (bool)target.Invoke(new Func<bool>(() => Show(target, message, kind, safeDefault)));
+        }
         using (MessageDialog d = new MessageDialog(message, kind, safeDefault))
         {
             if (parent != null) d.StartPosition = FormStartPosition.CenterParent;

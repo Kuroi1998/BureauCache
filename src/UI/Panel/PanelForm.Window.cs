@@ -159,6 +159,7 @@ partial class PanelForm
     public void HidePanel()
     {
         View.CancelHover();
+        UpdateTip(-1);   // pas d'infobulle restée affichée après la fermeture (QA36-03)
         if (Settings.Pinned && appbar) return;
         if (!Visible || !opening) return;
         View.StopScroll();

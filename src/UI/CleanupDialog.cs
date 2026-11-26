@@ -18,9 +18,9 @@ class CleanupDialog : ThemedDialog
     bool busy, cleaning;
     string lastResult = "";   // bilan du dernier nettoyage, affiché devant le total
 
-    public static void Run()
+    public static void Run(IWin32Window owner = null)
     {
-        using (CleanupDialog d = new CleanupDialog()) d.ShowDialog();
+        using (CleanupDialog d = new CleanupDialog()) { if (owner != null) d.ShowDialog(owner); else d.ShowDialog(); }
     }
 
     CleanupDialog() : base(L.T("Nettoyage rapide", "Quick clean-up", "Limpieza rápida"), Ui.S(560), Ui.S(140) + Ui.S(64) * 6)

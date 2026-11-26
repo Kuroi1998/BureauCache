@@ -88,7 +88,7 @@ partial class SettingsForm
             T("Caches et fichiers temporaires de ton compte, avec les tailles avant de supprimer. Aussi par clic droit sur la tuile Disque.",
               "Caches and temporary files of your account, with sizes before deleting. Also by right-clicking the Disk tile.",
               "Cachés y archivos temporales de tu cuenta, con los tamaños antes de borrar. También con clic derecho en el mosaico Disco."),
-            Button(T("Analyser…", "Scan…", "Analizar…"), false, S(130), () => CleanupDialog.Run()), null);
+            Button(T("Analyser…", "Scan…", "Analizar…"), false, S(130), () => CleanupDialog.Run(this)), null);
 
         Section(T("SÉCURITÉ", "SAFETY", "SEGURIDAD"));
         Note(T("Si BureauCache se ferme de façon inattendue, un petit processus de surveillance réaffiche automatiquement tes icônes du bureau.",

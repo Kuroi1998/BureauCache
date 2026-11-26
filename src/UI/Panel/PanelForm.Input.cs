@@ -91,7 +91,9 @@ partial class PanelForm
         {
             if (View.Help != null) return true;
             int n = k >= Keys.NumPad1 ? k - Keys.NumPad1 : k - Keys.D1;
-            List<DesktopItem> favs = Settings.Favorites.Select(f => All.FirstOrDefault(i => string.Equals(i.Key, f, StringComparison.OrdinalIgnoreCase)))
+            // Même liste que l'affichage : clés sans doublon (casse ignorée), dans l'ordre (QA36-07)
+            List<DesktopItem> favs = Settings.Favorites.Distinct(StringComparer.OrdinalIgnoreCase)
+                                                       .Select(f => All.FirstOrDefault(i => string.Equals(i.Key, f, StringComparison.OrdinalIgnoreCase)))
                                                        .Where(i => i != null).ToList();
             if (n < favs.Count) Launch(favs[n], null);
             else Toast(L.T("Pas de favori n°" + (n + 1) + " : glisse un élément dans « Favoris ».", "No favorite #" + (n + 1) + ": drag an item into \"Favorites\".", "Falta el favorito n.º " + (n + 1) + ". Arrastra un elemento a «Favoritos»."), null, null);

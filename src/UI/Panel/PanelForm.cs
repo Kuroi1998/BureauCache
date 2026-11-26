@@ -71,7 +71,12 @@ partial class PanelForm : Form
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
 
         search = new TextBox { BorderStyle = BorderStyle.None, Font = Ui.Font("Segoe UI", 10.5f) };
-        search.TextChanged += (s, e) => { Rebuild(false); if (search.Text.Trim().Length > 0) View.SelectFirst(); Invalidate(rcSearch); };
+        search.TextChanged += (s, e) =>
+        {
+            bool chips = ChipsVisible;
+            if (chips != chipsShown) { chipsShown = chips; LayoutChrome(); }
+            Rebuild(false); if (search.Text.Trim().Length > 0) View.SelectFirst(); Invalidate(rcSearch);
+        };
         search.KeyDown += SearchKeyDown;
         search.HandleCreated += (s, e) => SetCue();
 
@@ -172,7 +177,8 @@ partial class PanelForm : Form
         toast.Bounds = new Rectangle(x0 + S(10), Height - S(64), cw - S(20), S(52));
         rcSearch = new Rectangle(x0 + S(12), S(58), cw - S(24), S(38));
         int th = search.PreferredHeight;
-        search.Bounds = new Rectangle(rcSearch.X + S(36), rcSearch.Y + (rcSearch.Height - th) / 2 + S(1), rcSearch.Width - S(46) - ChipsWidth, th);
+        // Les pastilles ne prennent de la place que champ vide : dès qu'on tape, le champ récupère la largeur (QA36-01)
+        search.Bounds = new Rectangle(rcSearch.X + S(36), rcSearch.Y + (rcSearch.Height - th) / 2 + S(1), rcSearch.Width - S(46) - (ChipsVisible ? ChipsWidth : 0), th);
         LayoutChips();
         int top = S(106);
         if (Settings.Widgets)
