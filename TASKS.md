@@ -11,8 +11,8 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-022 | Gemini, lot 2 : découverte des fonctions, infobulles, états vides, confirmations système thématisées | Revue (407 tests réussis, revue faite) | Claude | `feat/T-022-decouverte` | QA-34, QA-36, QA-38 |
 | T-023 | Gemini, lot 3 : météo intégrée aux Paramètres, détail non modal, clavier dans le panneau, DPI par écran (R-10) | Revue (403 tests réussis ; DPI par écran reporté en T-027) | Claude | `feat/T-023-confort` | QA-34, QA-37 |
 | T-024 | Règles de rangement (par type ou par nom, destination choisie) | Revue (412 tests réussis) | Claude | `feat/T-024-regles` | D-009, QA-39 |
-| T-025 | Recherche dans le contenu des fichiers, statistiques d'encombrement | À faire | Claude | — | — |
-| T-026 | Historique du presse-papiers, panneau et bureaux virtuels | À faire | Claude | — | — |
+| T-025 | Recherche dans le contenu des fichiers, statistiques d'encombrement | Conception proposée (D-010), à valider | Claude puis Toi | — | D-010 |
+| T-026 | Historique du presse-papiers, panneau et bureaux virtuels | Conception proposée (D-011), à valider | Claude puis Toi | — | D-011 |
 | T-027 | Échelle par écran (DPI par moniteur) | Reporté (un seul écran aujourd'hui) | Claude | — | D-008, R-10 |
 | T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel fait sur la 3.9 installée | Claude puis Toi | PR #19 | D-007, QA-32, QA-33 |
 | T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |

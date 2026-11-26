@@ -10,6 +10,31 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 **Conséquences :** ce que ça impose ensuite.
 -->
 
+## D-011 — Presse-papiers et bureaux virtuels (2026-11-27) · Statut : Proposée
+
+**Contexte :** deux demandes du chef de projet (T-026). Windows a déjà un historique du presse-papiers (Win+V), et affiche les mêmes icônes du bureau sur tous les bureaux virtuels.
+**Décision proposée — presse-papiers :**
+- Une section « Presse-papiers » dans le panneau, **désactivée par défaut** (Paramètres → Recherche), qui garde les **20 derniers textes** copiés ; un clic les recopie, un clic droit les retire.
+- **Texte seulement, en mémoire seulement** : rien n'est écrit sur le disque ni dans les sauvegardes, tout disparaît à la fermeture. Les copies que les gestionnaires de mots de passe marquent comme privées (formats `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory` à 0, `Clipboard Viewer Ignore`) sont ignorées. Textes de plus de 10 000 caractères ignorés.
+- Écoute par `AddClipboardFormatListener` (via `Native`), pas de lecture en boucle.
+**Décision proposée — bureaux virtuels :**
+- Le panneau s'ouvre **toujours sur le bureau virtuel actif** : avant l'affichage, il est déplacé sur le bureau de la fenêtre au premier plan par `IVirtualDesktopManager` (API documentée : `GetWindowDesktopId`, `MoveWindowToDesktop`). Épinglé, il suit le changement de bureau.
+- Pas de favoris propres à chaque bureau : connaître le bureau actif demanderait une interface interne de Windows, non documentée, qui change d'une version à l'autre.
+**Alternatives écartées :** historique persistant (mots de passe et données sensibles sur le disque) ; images dans l'historique (mémoire, et Win+V le fait déjà) ; interface interne `IVirtualDesktopManagerInternal` (instable entre versions de Windows).
+**Conséquences :** nouvelle option `ClipboardOn` ; `PanelForm` gagne une source « presse-papiers » ; la fenêtre d'écoute vit sur le fil d'interface.
+
+## D-010 — Recherche dans le contenu et encombrement du bureau (2026-11-27) · Statut : Proposée
+
+**Contexte :** la recherche du panneau ne regarde que les noms. On veut retrouver un fichier du bureau par son texte, et voir ce qui encombre le bureau (T-025).
+**Décision proposée — recherche dans le contenu :**
+- On interroge l'**index de recherche de Windows** (fournisseur `Search.CollatorDSO`, par ADO en COM, sans nouvelle référence d'assembly), limité au **bureau** (`SCOPE`) : `CONTAINS` sur le texte des documents que Windows sait lire (txt, PDF, Word, Excel…). Vérifié sur le PC du chef de projet : l'index répond et le bureau y est indexé.
+- Une section **« Dans le contenu »** s'ajoute aux résultats pour une recherche de 3 caractères ou plus (hors préfixes `=`, `?`, `>`), en arrière-plan, 300 ms après la dernière frappe, sans les éléments déjà trouvés par leur nom. Le terme est nettoyé avant d'entrer dans la requête (guillemets et apostrophes neutralisés).
+- Option **« Chercher aussi dans le contenu des fichiers »** (Paramètres → Recherche), activée par défaut. Si l'index est arrêté ou si le bureau n'est pas indexé, la section ne s'affiche pas.
+**Décision proposée — encombrement :**
+- Une section **« Encombrement du bureau »** dans Paramètres → Organisation, calculée en arrière-plan : nombre d'éléments et taille totale, les 5 plus volumineux, et combien sont inutilisés depuis 30 et 90 jours (même définition que le rangement). Un bouton mène à « Ranger maintenant ».
+**Alternatives écartées :** lire nous-mêmes le contenu des fichiers (PDF, Word : il faudrait des bibliothèques) ; chercher dans tout le disque (lent, et hors du rôle du panneau) ; une fenêtre de statistiques séparée (la page Organisation est l'endroit où l'on agit ensuite).
+**Conséquences :** nouvelle option `SearchContent` ; `ContentSearch` dans `src/Search`, appelée sur un fil de fond ; le bac à sable bloque l'index réel pendant les tests (la requête est testée sur sa construction et le nettoyage du terme).
+
 ## D-009 — Règles de rangement (2026-11-27) · Statut : Acceptée
 
 **Contexte :** le rangement automatique (D-005, `Archiver`) ne regarde que l'ancienneté : tout élément inutilisé depuis N jours part dans un seul dossier d'archive. On veut aussi pouvoir dire « les captures d'écran vont dans Images après 7 jours » ou « les .zip partent dans Archives ».
