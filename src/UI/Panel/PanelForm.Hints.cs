@@ -90,4 +90,76 @@ partial class PanelForm
         }
         tips.SetToolTip(this, TipText(h) ?? "");
     }
+
+    // ---------- Clavier : F6 parcourt les pastilles, boutons et tuiles du haut (Gemini B7) ----------
+    int chromeFocus = -1;
+
+    System.Collections.Generic.List<int> ChromeOrder()
+    {
+        var order = new System.Collections.Generic.List<int>();
+        if (ChipsVisible) { order.Add(7); order.Add(8); order.Add(9); }
+        order.Add(5); order.Add(0); order.Add(1);
+        if (Settings.Widgets) { order.Add(3); order.Add(4); }
+        if (Settings.WeatherOn && !rcWeather.IsEmpty) order.Add(6);
+        return order;
+    }
+
+    Rectangle HotspotRect(int code)
+    {
+        switch (code)
+        {
+            case 0: return rcViewBtn;
+            case 1: return rcGear;
+            case 3: return rcDisk;
+            case 4: return rcBin;
+            case 5: return rcPin;
+            case 6: return rcWeather;
+            case 7: case 8: case 9: return rcChips[code - ChipFirst];
+        }
+        return Rectangle.Empty;
+    }
+
+    void MoveChromeFocus(int step)
+    {
+        var order = ChromeOrder();
+        int i = order.IndexOf(chromeFocus);
+        i = i < 0 ? (step > 0 ? 0 : order.Count - 1) : (i + step + order.Count) % order.Count;
+        SetChromeFocus(order[i]);
+    }
+
+    void SetChromeFocus(int code)
+    {
+        chromeFocus = code;
+        Invalidate();
+        if (code < 0) { if (tips != null) tips.Hide(this); return; }
+        Rectangle r = HotspotRect(code);
+        UpdateTip(-1);
+        if (tips != null) tips.Show(TipText(code) ?? "", this, r.X, r.Bottom + S(4), 4000);
+    }
+
+    // Vrai si la touche est consommée. Toute autre touche rend la main au comportement normal du panneau.
+    bool HandleChromeKey(Keys k, bool shift)
+    {
+        int code = chromeFocus;
+        if (k == Keys.Left || k == Keys.Right) { MoveChromeFocus(k == Keys.Left ? -1 : 1); return true; }
+        if (k == Keys.Escape) { SetChromeFocus(-1); return true; }
+        if (k == Keys.Enter || k == Keys.Space || k == Keys.Apps || (k == Keys.F10 && shift))
+        {
+            SetChromeFocus(-1);
+            Rectangle r = HotspotRect(code);
+            MouseButtons button = k == Keys.Apps || k == Keys.F10 ? MouseButtons.Right : MouseButtons.Left;
+            OnMouseClick(new MouseEventArgs(button, 1, r.X + r.Width / 2, r.Y + r.Height / 2, 0));
+            return true;
+        }
+        SetChromeFocus(-1);
+        return false;
+    }
+
+    void DrawChromeFocus(Graphics g)
+    {
+        if (chromeFocus < 0) return;
+        Rectangle r = HotspotRect(chromeFocus);
+        if (r.IsEmpty) { chromeFocus = -1; return; }
+        using (Pen p = new Pen(Theme.Accent, S(2))) g.DrawRectangle(p, Rectangle.Inflate(r, S(1), S(1)));
+    }
 }

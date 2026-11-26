@@ -134,15 +134,20 @@ class WeatherPlaceDialog : ThemedDialog
         if (busy) return;
         int i = results.SelectedIndex;
         if (i < 0 || i >= places.Count) { status.Text = L.T("Choisis un lieu dans la liste.", "Choose a place in the list.", "Elige un lugar de la lista."); return; }
-        WeatherPlace p = places[i];
+        Apply(places[i]);
+        DialogResult = DialogResult.OK;
+        Close();
+    }
+
+    // Enregistre le lieu choisi et active la météo (dialogue, et recherche intégrée aux Paramètres)
+    public static void Apply(WeatherPlace p)
+    {
         Settings.WeatherPlace = p.Label;
         Settings.WeatherLat = Math.Round(p.Lat, 4);
         Settings.WeatherLon = Math.Round(p.Lon, 4);
         Settings.WeatherOn = true;
         Weather.Reset();
         Settings.Notify();
-        DialogResult = DialogResult.OK;
-        Close();
     }
 }
 
@@ -156,9 +161,19 @@ class WeatherDetailDialog : ThemedDialog
     readonly Font fText = Ui.Font("Segoe UI", 10f);
     readonly Font fSmall = Ui.Font("Segoe UI", 9f);
 
+    // Fenêtre non modale (Gemini A9) : elle ne bloque plus le reste du bureau et se ferme d'elle-même quand on
+    // clique ailleurs, sur Échap ou sur « Fermer ». Une seule à la fois.
+    static WeatherDetailDialog current;
+
     public static void Open(WeatherReport report)
     {
-        using (WeatherDetailDialog d = new WeatherDetailDialog(report)) d.ShowDialog();
+        if (current != null && !current.IsDisposed) current.Close();
+        WeatherDetailDialog d = new WeatherDetailDialog(report);
+        current = d;
+        d.FormClosed += (s, e) => { if (current == d) current = null; d.Dispose(); };
+        d.Deactivate += (s, e) => { try { d.BeginInvoke(new Action(d.Close)); } catch { } };
+        d.Show();
+        d.Activate();
     }
 
     WeatherDetailDialog(WeatherReport report) : base(L.T("Météo", "Weather", "Tiempo"), Ui.S(400), Ui.S(360))

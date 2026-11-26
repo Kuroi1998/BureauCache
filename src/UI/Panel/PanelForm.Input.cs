@@ -82,6 +82,9 @@ partial class PanelForm
         bool ctrl = (keyData & Keys.Control) != 0, shift = (keyData & Keys.Shift) != 0, alt = (keyData & Keys.Alt) != 0;
         DesktopItem sel = View.Help == null ? View.Selected : null;
         if (alt) return base.ProcessCmdKey(ref msg, keyData);
+        // F6 : parcours des boutons et des tuiles du haut au clavier (Gemini B7)
+        if (k == Keys.F6 && !ctrl) { MoveChromeFocus(shift ? -1 : 1); return true; }
+        if (chromeFocus >= 0 && HandleChromeKey(k, shift)) return true;
         if (k == Keys.Tab && !ctrl) { View.JumpGroup(shift ? -1 : 1); return true; }
         if (k == Keys.F1) { search.Text = search.Text == "?" ? "" : "?"; search.SelectionStart = search.Text.Length; return true; }
         if (ctrl && !shift && ((k >= Keys.D1 && k <= Keys.D9) || (k >= Keys.NumPad1 && k <= Keys.NumPad9)))
@@ -126,6 +129,7 @@ partial class PanelForm
             h("Ctrl+" + maj + "+" + ent, "Exécuter en administrateur", "Run as administrator", "Ejecutar como administrador"),
             h(maj + "+F10", "Options de l'élément (clic droit)", "Item options (right-click)", "Opciones del elemento (clic derecho)"),
             h("Ctrl+P", "Épingler / détacher le panneau", "Pin / unpin the panel", "Fijar o desfijar el panel"),
+            h("F6", "Boutons et tuiles du haut (Entrée : ouvrir, Menu : options)", "Top buttons and tiles (Enter: open, Menu key: options)", "Botones y mosaicos superiores (Intro: abrir, tecla Menú: opciones)"),
             h("Ctrl+G", "Liste ou grille", "List or grid", "Cambiar entre lista y cuadrícula"),
             h("= ? >", "Calcul, recherche web, commandes", "Math, web search, commands", "Cálculo, búsqueda web y comandos"),
             h(esc, "Effacer la recherche, puis fermer", "Clear the search, then close", "Borrar la búsqueda y luego cerrar"),

@@ -231,6 +231,7 @@ partial class PanelForm : Form
 
         if (Settings.Widgets) { DrawWidgets(g); DrawTileMenuHints(g); }
         if (Settings.WeatherOn) DrawWeather(g);
+        DrawChromeFocus(g);   // en dernier : le cadre de focus passe au-dessus des tuiles
 
         int bw = hoverGrip || resizing ? S(4) : S(2);
         using (SolidBrush b = new SolidBrush(Theme.Accent))

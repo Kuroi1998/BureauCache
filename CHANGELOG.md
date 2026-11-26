@@ -8,6 +8,9 @@
 - Infobulles sur les boutons du haut et les tuiles. Le nettoyage rapide est aussi dans Paramètres → Avancé.
 - Messages plus utiles quand le bureau est vide ou qu'une recherche ne trouve rien. Rappel des raccourcis Ctrl+1 à 9 des favoris.
 - Les confirmations et messages ont les couleurs de BureauCache. Pour éteindre ou redémarrer, « Non » est sélectionné par défaut.
+- Le lieu de la météo se cherche directement dans Paramètres → Apparence, avec « Détecter ma position ».
+- Le détail de la météo ne bloque plus le bureau : il se ferme quand on clique ailleurs.
+- F6 permet d'atteindre au clavier les boutons et les tuiles du haut du panneau (Entrée pour ouvrir, touche Menu pour les options).
 
 ## 3.9 — Sauvegarde des réglages
 
