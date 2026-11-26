@@ -139,6 +139,8 @@ static class Archiver
         List<string> log = new List<string>();
         foreach (string p in items)
         {
+            // Seuls les éléments posés directement sur le bureau sont rangés, quelle que soit la liste reçue (QA34-02)
+            if (!Paths.SameFolder(Path.GetDirectoryName(Path.GetFullPath(p)), Desk)) continue;
             if (!IsCandidate(p, limit)) continue;
             if (!ready)
             {

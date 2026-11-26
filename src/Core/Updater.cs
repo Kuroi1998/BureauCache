@@ -53,6 +53,7 @@ static class Updater
 
     static void Fetch(string url, Stream output, long maximum)
     {
+        Sandbox.Guard("accès réseau (mises à jour)");
         ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072;
         for (int redirect = 0; redirect <= 5; redirect++)
         {
@@ -292,6 +293,7 @@ static class Updater
 
     internal static void ReplaceExecutable(string staged, string exe)
     {
+        Sandbox.GuardPath(exe, "remplacement de l'exe");
         // Pendant un essai, « .old » est la dernière version sûre : la version à l'essai, remplacée à son tour,
         // part en « .replaced » (effacée au démarrage suivant) au lieu d'écraser « .old » (revue QA-21)
         bool trialRunning = File.Exists(exe + ".trial") && File.Exists(exe + ".old");
@@ -319,6 +321,7 @@ static class Updater
 
     internal static StartState BeginStart(string exe)
     {
+        Sandbox.GuardPath(exe, "essai de mise à jour");
         string old = exe + ".old", marker = exe + ".trial";
         TryDelete(exe + ".replaced");
         if (!File.Exists(old))
@@ -354,6 +357,7 @@ static class Updater
     // Reprend aussi un retour interrompu entre les deux déplacements (exe déjà parti en « .bad »).
     internal static void RollBack(string exe)
     {
+        Sandbox.GuardPath(exe, "retour arrière");
         string old = exe + ".old", bad = exe + ".bad";
         if (File.Exists(exe))
         {
@@ -373,6 +377,7 @@ static class Updater
     // d'essai en cours (par exemple une mise à jour vient de remplacer l'exe) : on ne touche à rien.
     internal static void ConfirmStart(string exe)
     {
+        Sandbox.GuardPath(exe, "confirmation de l'essai");
         if (!File.Exists(exe + ".trial")) return;
         if (trialLength >= 0)
         {

@@ -89,6 +89,7 @@ partial class SettingsForm
 
     void Export()
     {
+        Begin(lExport);
         if (!Settings.Save())
         {
             Dialogs.Warn(this, T("Impossible de sauvegarder les réglages.", "Could not save settings.", "No se pudo guardar la configuración."));
@@ -106,6 +107,7 @@ partial class SettingsForm
 
     void Import()
     {
+        Begin(lImport);
         using (OpenFileDialog d = new OpenFileDialog())
         {
             d.Filter = T("Réglages BureauCache", "BureauCache settings", "Configuración de BureauCache") + " (*.ini)|*.ini";
@@ -120,7 +122,7 @@ partial class SettingsForm
             // Pas de confirmation : l'import est réversible par « Restaurer une sauvegarde… » (Gemini A1, A6)
             if (!SettingsBackup.RestoreFrom(d.FileName))
             {
-                Dialogs.Warn(this, T("Les réglages n'ont pas pu être importés : rien n'a été changé.", "The settings couldn't be imported: nothing was changed.", "No se pudo importar la configuración: no se ha cambiado nada."));
+                Dialogs.Warn(this, T("Les réglages n'ont pas pu être importés.", "The settings couldn't be imported.", "No se pudo importar la configuración."));
                 return;
             }
             L.Refresh();
@@ -131,16 +133,28 @@ partial class SettingsForm
 
     void RestoreBackup()
     {
+        Begin(lRestore);
         if (!BackupDialog.Run(this)) return;
         L.Refresh();
         Settings.Notify();
-        if (!IsDisposed) Done(lRestore, T("Réglages restaurés. « Avant la dernière restauration » permet de revenir en arrière.", "Settings restored. \"Before the last restore\" lets you go back.", "Configuración restaurada. «Antes de la última restauración» permite volver atrás."));
+        if (!IsDisposed) Done(lRestore, T("Réglages restaurés. « Avant une restauration » permet de revenir en arrière.", "Settings restored. \"Before a restore\" lets you go back.", "Configuración restaurada. «Antes de una restauración» permite volver atrás."));
     }
 
-    // Résultat d'une action affiché sous son réglage, au lieu d'une boîte à valider (Gemini A2, A6)
-    static void Done(Label description, string text)
+    // Résultat d'une action affiché sous son réglage, au lieu d'une boîte à valider (Gemini A2, A6). Le texte
+    // d'origine est gardé, et revient au début de la tentative suivante (QA34-06).
+    readonly Dictionary<Label, string> doneOriginal = new Dictionary<Label, string>();
+
+    void Done(Label description, string text)
     {
-        if (description != null && !description.IsDisposed) description.Text = "✓ " + text;
+        if (description == null || description.IsDisposed) return;
+        if (!doneOriginal.ContainsKey(description)) doneOriginal[description] = description.Text;
+        description.Text = "✓ " + text;
+    }
+
+    void Begin(Label description)
+    {
+        string original;
+        if (description != null && !description.IsDisposed && doneOriginal.TryGetValue(description, out original)) description.Text = original;
     }
 
     void ResetUpdateButton()

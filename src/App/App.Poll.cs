@@ -26,9 +26,9 @@ partial class App
         else if (!Settings.HideIcons && !vis) Native.ShowWindow(listView, Native.SW_SHOW);
     }
 
-    bool ScreenExistsAt(Point p)
+    static bool ScreenExistsAt(Screen[] all, Point p)
     {
-        foreach (Screen s in screens) if (s.Bounds.Contains(p)) return true;
+        foreach (Screen s in all) if (s.Bounds.Contains(p)) return true;
         return false;
     }
 
@@ -43,24 +43,26 @@ partial class App
 
     bool AtEdge(Point p, out Screen scr)
     {
-        if (p == edgeAt && screens == edgeScreens && Settings.RightSide == edgeRight && Settings.EdgeZone == edgeZone &&
+        // Une seule lecture de la liste des écrans : elle peut être remplacée par DisplaySettingsChanged sur un autre
+        // fil, et le résultat doit être mémorisé avec la liste qui a servi à le calculer (QA34-10)
+        Screen[] all = screens;
+        if (p == edgeAt && all == edgeScreens && Settings.RightSide == edgeRight && Settings.EdgeZone == edgeZone &&
             Settings.ScreenIdx == edgeIdx && string.Equals(Settings.ScreenName, edgeName)) { scr = edgeScreen; return edgeResult; }
-        edgeResult = ComputeAtEdge(p, out scr);
-        edgeAt = p; edgeScreens = screens; edgeScreen = scr;
+        edgeResult = ComputeAtEdge(p, all, out scr);
+        edgeAt = p; edgeScreens = all; edgeScreen = scr;
         edgeRight = Settings.RightSide; edgeZone = Settings.EdgeZone; edgeIdx = Settings.ScreenIdx; edgeName = Settings.ScreenName;
         return edgeResult;
     }
 
-    bool ComputeAtEdge(Point p, out Screen scr)
+    static bool ComputeAtEdge(Point p, Screen[] all, out Screen scr)
     {
         scr = Screen.FromPoint(p);
-        Screen[] all = screens;
         int chosen = Settings.ChosenScreen(all);
         if (chosen >= 0 && !all[chosen].Bounds.Contains(p)) return false;
         Rectangle b = scr.Bounds;
         bool edge = Settings.RightSide
-            ? p.X >= b.Right - 1 && !ScreenExistsAt(new Point(p.X + 1, p.Y))
-            : p.X <= b.Left && !ScreenExistsAt(new Point(p.X - 1, p.Y));
+            ? p.X >= b.Right - 1 && !ScreenExistsAt(all, new Point(p.X + 1, p.Y))
+            : p.X <= b.Left && !ScreenExistsAt(all, new Point(p.X - 1, p.Y));
         if (!edge) return false;
         if (Settings.EdgeZone == 0) return true;
         int third = b.Height / 3, rel = p.Y - b.Top;

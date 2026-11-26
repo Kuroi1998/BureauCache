@@ -86,7 +86,7 @@ class CleanupDialog : ThemedDialog
     void Analyse()
     {
         SetBusy(true);
-        status.Text = L.T("Analyse en cours…", "Scanning…", "Analizando…");
+        status.Text = lastResult + L.T("Analyse en cours…", "Scanning…", "Analizando…");
         Background.Run(() =>
         {
             foreach (CleanCategory c in categories)
@@ -137,8 +137,10 @@ class CleanupDialog : ThemedDialog
             Done(() =>
             {
                 cleaning = false;
-                // Bilan affiché dans la fenêtre, devant le nouveau total, sans boîte à valider (Gemini A10)
-                if (r != null)
+                // Bilan affiché dans la fenêtre, devant le nouveau total, sans boîte à valider (Gemini A10). Il est
+                // remplacé à chaque tentative, échec compris, et reste visible pendant l'analyse qui suit (QA34-08).
+                if (r == null) lastResult = L.T("Nettoyage interrompu · ", "Clean-up interrupted · ", "Limpieza interrumpida · ");
+                else
                     lastResult = "✓ " + L.Size(r.Freed) + L.T(" libérés", " freed", " liberados") +
                         (r.Skipped > 0 ? " (" + r.Skipped + L.T(" en cours d'utilisation, laissés en place)", " in use, left in place)", " en uso, conservados)") : "") + " · ";
                 SetBusy(false);

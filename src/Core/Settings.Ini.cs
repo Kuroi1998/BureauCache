@@ -193,6 +193,7 @@ static partial class Settings
     {
         if (SaveBlocked) return false;
         if (DirOverride == null) Sandbox.Guard("écriture des vrais réglages");   // défense en profondeur (QA-32)
+        Sandbox.GuardPath(Dir, "écriture des réglages");                       // dossier isolé sous %TEMP% (QA34-01)
         string tmp = null;
         try
         {

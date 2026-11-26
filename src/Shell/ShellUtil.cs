@@ -30,6 +30,7 @@ static class ShellUtil
 
     public static void CreateShortcut(string lnk, string target, string desc)
     {
+        Sandbox.GuardPath(lnk, "raccourci");
         dynamic s = Wsh.CreateShortcut(lnk);
         s.TargetPath = target;
         string wd = Path.GetDirectoryName(target);

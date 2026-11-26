@@ -315,6 +315,7 @@ static class Cleaner
 
     public static CleanResult Clean(IEnumerable<CleanCategory> categories)
     {
+        Sandbox.Guard("nettoyage des vrais caches");
         return Clean(categories, Roots, Forbidden);
     }
 
@@ -327,6 +328,7 @@ static class Cleaner
             if (c.RecycleBin)
             {
                 long count, size;
+                Sandbox.Guard("vidage de la corbeille");
                 Native.RecycleBinInfo(out count, out size);
                 if (count > 0 && Native.EmptyRecycleBinQuietly()) { r.Freed += size; r.Deleted += (int)Math.Min(int.MaxValue, count); }
                 continue;
@@ -353,6 +355,7 @@ static class Cleaner
     // Renvoie la taille libérée, ou -1 si le fichier est laissé en place.
     static long Delete(FileInfo f, CleanTarget t, string[] roots, string[] forbidden, Dictionary<string, bool> dirOk)
     {
+        Sandbox.GuardPath(f.FullName, "suppression de cache");
         try
         {
             f.Refresh();

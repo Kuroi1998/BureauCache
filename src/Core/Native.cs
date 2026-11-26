@@ -157,6 +157,7 @@ static class Native
 
     public static void RestoreDesktopIcons()
     {
+        if (Sandbox.Active) return;   // les icônes du vrai bureau ne bougent pas pendant les tests
         IntPtr lv = FindDesktopListView();
         if (lv != IntPtr.Zero) ShowWindow(lv, SW_SHOW);
     }

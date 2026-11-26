@@ -30,9 +30,12 @@ class ToastControl : FlatControl
 
     public bool CanUndo { get { return Visible && undo != null; } }
 
+    bool undoFailed;   // le bandeau affiche l'échec d'une annulation qui peut être retentée
+
     public void Show(string message, Action undoAction, Action commitAction)
     {
         Flush();
+        undoFailed = false;
         text = message;
         undo = undoAction;
         commit = commitAction;
@@ -47,6 +50,7 @@ class ToastControl : FlatControl
     // Termine l'action (ex. : envoie vraiment le fichier à la corbeille)
     public void Flush()
     {
+        undoFailed = false;
         timer.Stop();
         Visible = false;
         undo = null;
@@ -64,6 +68,7 @@ class ToastControl : FlatControl
         string message = L.T("Annulation impossible : ", "Undo failed: ", "No se pudo deshacer: ") + error.Message;
         if (undo == null) { if (owner.Visible) Show(message, null, null); else Dialogs.Info(null, error.Message); return; }
         text = message;
+        undoFailed = true;
         start = DateTime.Now;
         until = start.AddSeconds(7);
         timer.Start();
@@ -94,7 +99,9 @@ class ToastControl : FlatControl
         base.OnMouseClick(e);
         if (e.Button != MouseButtons.Left) return;
         if (undo != null && rcUndo.Contains(e.Location)) Undo();
-        else Flush();
+        // Un clic sur le message d'échec d'une annulation ne valide pas l'opération en attente : seul le délai
+        // ou une nouvelle action la valident (QA34-09)
+        else if (!undoFailed) Flush();
     }
 
     protected override void OnPaint(PaintEventArgs e)

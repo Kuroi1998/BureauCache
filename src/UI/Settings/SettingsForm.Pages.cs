@@ -234,13 +234,17 @@ partial class SettingsForm
             if (c.Count == 0) { lArchive.Text = T("Rien à ranger pour le moment.", "Nothing to tidy up right now.", "Por ahora no hay nada que archivar."); return; }
             string list = string.Join("\n", c.Take(12).Select(p => "• " + Path.GetFileName(p))) + (c.Count > 12 ? "\n…" : "");
             if (!Ask(T(c.Count + " élément(s) seront déplacés dans « " + Settings.ArchiveName + " » :\n\n", c.Count + " item(s) will be moved into \"" + Settings.ArchiveName + "\":\n\n", c.Count + " elemento(s) se moverán a «" + Settings.ArchiveName + "»:\n\n") + list)) return;
+            Begin(lArchiveUndo);
             int n = Archiver.Run(c);
+            // Rien déplacé : le journal d'annulation reste celui du rangement précédent, on ne propose pas de l'annuler (QA34-07)
+            if (n == 0) { lArchive.Text = T("Aucun élément n'a pu être rangé (déjà déplacés ou en cours d'utilisation).", "No item could be moved (already moved or in use).", "No se pudo mover ningún elemento (ya movidos o en uso)."); return; }
             Done(lArchiveUndo, T(n + " élément(s) rangé(s) dans « " + Settings.ArchiveName + " ». Annuler les remet sur le bureau.", n + " item(s) moved into \"" + Settings.ArchiveName + "\". Undo puts them back.", n + " elemento(s) movido(s) a «" + Settings.ArchiveName + "». Deshacer los devuelve."));
             Settings.Fire();
         });
         lArchive = Row(T("Ranger maintenant", "Tidy up now", "Archivar ahora"), "-", bArchiveNow, null);
         bArchiveUndo = Button(T("Annuler", "Undo", "Deshacer"), false, S(170), () =>
         {
+            Begin(lArchiveUndo);
             int n = Archiver.Undo();
             Done(lArchiveUndo, T(n + " élément(s) remis sur le bureau.", n + " item(s) put back on the desktop.", n + " elemento(s) devuelto(s) al escritorio."));
             Settings.Fire();
