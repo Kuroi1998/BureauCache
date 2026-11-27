@@ -15,6 +15,7 @@ static class Http
         Sandbox.Guard("accès réseau");   // les tests n'appellent jamais les vrais services
         ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072; // TLS 1.2
         string firstHost = null;
+        System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();   // 30 s au total (SEC-12)
         for (int redirect = 0; redirect <= 3; redirect++)
         {
             Uri u;
@@ -44,7 +45,7 @@ static class Http
                 using (Stream input = response.GetResponseStream())
                 using (MemoryStream output = new MemoryStream())
                 {
-                    Updater.CopyLimited(input, output, maximum);
+                    Updater.CopyLimited(input, output, maximum, clock, 30000);
                     return Encoding.UTF8.GetString(output.ToArray());
                 }
             }

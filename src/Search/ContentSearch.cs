@@ -70,7 +70,8 @@ static class ContentSearch
     {
         if (string.IsNullOrEmpty(url) || !url.StartsWith("file:", StringComparison.OrdinalIgnoreCase)) return null;
         string p = Uri.UnescapeDataString(url.Substring(5).TrimStart('/')).Replace('/', '\\');
-        if (p.Length <= 2 || p[1] != ':') return null;
+        // Lecteur suivi d'une barre : « C:rapport.txt » dépendrait du dossier courant du lecteur (SEC-02)
+        if (p.Length <= 3 || p[1] != ':' || p[2] != '\\' || !char.IsLetter(p[0])) return null;
         // « .. » encodé dans l'adresse : on raisonne sur le chemin résolu (QA42-03)
         try { return Path.GetFullPath(p); } catch { return null; }
     }

@@ -48,7 +48,7 @@ static class Paths
 
 static class FileOps
 {
-    static readonly Regex Reserved = new Regex(@"^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$", RegexOptions.IgnoreCase);
+    static readonly Regex Reserved = new Regex(@"^(con|prn|aux|nul|com[0-9\u00B9\u00B2\u00B3]|lpt[0-9\u00B9\u00B2\u00B3])(\..*)?$", RegexOptions.IgnoreCase);
 
     // Nom de fichier sûr : pas de caractère interdit, pas de « .. », pas de nom réservé par Windows (CON, NUL…)
     public static bool IsValidName(string name)

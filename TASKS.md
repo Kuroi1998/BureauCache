@@ -14,7 +14,9 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-025 | Recherche dans le contenu des fichiers, statistiques d'encombrement | Fait (3.10) ; essais réels faits sur le binaire et la 3.10 installée | Claude | PR #22 | D-010, QA-41, QA-43 |
 | T-026 | Historique du presse-papiers, panneau sur le bureau virtuel actif | Fait (3.10) ; essais réels faits sur le binaire et la 3.10 installée | Claude | PR #22 | D-011, QA-42, QA-43 |
 | T-027 | Échelle par écran (DPI par moniteur) | Reporté (un seul écran aujourd'hui) | Claude | — | D-008, R-10 |
-| T-028 | Audit global : sécurité, fonctionnalités, environnement, expérience, failles (Claude, Gemini, ChatGPT) | Tri fait (3 avis) ; corrections à décider | Claude, Gemini, ChatGPT | `audit/T-028-audit-global` | QA-44, QA-45, QA-46 |
+| T-028 | Audit global : sécurité, fonctionnalités, environnement, expérience, failles (Claude, Gemini, ChatGPT) | Tri fait (3 avis) ; corrections en T-029 et T-030 | Claude, Gemini, ChatGPT | `audit/T-028-audit-global` | QA-44, QA-45, QA-46 |
+| T-029 | Durcissement de sécurité issu de l'audit (import, désinstallation, SEC-01 à 12) | Codée (457 tests réussis), revue à faire | Claude | `fix/T-029-durcissement` | QA-44, QA-46, QA-47 |
+| T-030 | Expérience issue de l'audit (Premiers pas au clavier, lecteurs d'écran, contraste, erreurs réseau) | À faire | Claude | — | QA-45 |
 | T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel fait sur la 3.9 installée | Claude puis Toi | PR #19 | D-007, QA-32, QA-33 |
 | T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |
 | T-018 | Verbes du shell sur un fil dédié, liste des écrans suivie (QA-28, QA-29) | Fait (3.8) ; essais manuels encore à faire | Claude | PR #16 | QA-28 |
@@ -85,6 +87,8 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-27 · Toi puis Claude · T-028 : audit global lancé. Premier passage de Claude : 4 constats (AUD-01 à 04, dont un dépôt de mise à jour modifiable par un fichier de réglages importé), QA-44 ; prompts de Gemini et ChatGPT fournis.
 - 2026-11-27 · Gemini puis Claude · T-028 : 14 constats de Gemini vérifiés dans le code ; 9 retenus à corriger, 2 hors code (signature Authenticode, documentation), 1 rattaché à T-027, 2 en partie, 3 écartés (QA-45).
 - 2026-11-27 · ChatGPT puis Claude · T-028 : 12 constats SEC ; 3 échecs reproduits, 7 constats retenus au total, 5 écartés faute de frontière de droits (même utilisateur), registre en lecture seule écarté (QA-46).
+- 2026-11-27 · Toi · Les deux lots de corrections de l'audit sont validés (T-029 sécurité, T-030 expérience).
+- 2026-11-27 · Claude · T-029 : l'import garde les choix sensibles de ce PC, désinstallation sans AutoRun, SEC-01 à 03, 08, 12, position météo à 1 km, nouvel essai du presse-papiers (QA-47). Suite : 457 réussis.
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.

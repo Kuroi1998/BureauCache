@@ -1,5 +1,12 @@
 ﻿# Nouveautés
 
+## Non publié
+
+- Importer des réglages ne change plus le dépôt ni la vérification des mises à jour, l'historique du presse-papiers, le rangement automatique ni le journal d'annulation : ces choix restent ceux de ton PC, et la fenêtre dit lesquels ont été gardés.
+- Une mise à jour venant d'un dépôt non officiel est signalée comme non signée, et « Non » est proposé par défaut.
+- La météo n'envoie plus qu'une position arrondie à environ 1 km.
+- Une copie faite pendant qu'une autre application occupe le presse-papiers est relue un instant plus tard au lieu d'être perdue.
+
 ## 3.10 — Règles de rangement, recherche dans le contenu, presse-papiers
 
 - Moins de fenêtres à valider : restaurer une sauvegarde ou importer des réglages ne redemande plus de confirmation (c'est réversible), et les résultats (export, import, restauration, rangement, nettoyage) s'affichent directement dans la fenêtre.

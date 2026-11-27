@@ -148,8 +148,9 @@ static class Installer
         if (!removeFolderOnExit) return;
         removeFolderOnExit = false;
         string q = "\"" + Dir + "\"";
-        ProcessStartInfo psi = new ProcessStartInfo("cmd.exe",
-            "/c for /l %i in (1,1,30) do (if exist " + q + " (ping 127.0.0.1 -n 2 > nul & rmdir /s /q " + q + " 2> nul))");
+        // Chemin complet de cmd.exe et /d : ni un cmd.exe posé ailleurs, ni les commandes AutoRun du profil (SEC-06)
+        ProcessStartInfo psi = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"),
+            "/d /c for /l %i in (1,1,30) do (if exist " + q + " (ping 127.0.0.1 -n 2 > nul & rmdir /s /q " + q + " 2> nul))");
         psi.WindowStyle = ProcessWindowStyle.Hidden;
         psi.CreateNoWindow = true;
         psi.UseShellExecute = false;

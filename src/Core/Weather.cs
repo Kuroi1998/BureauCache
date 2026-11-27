@@ -132,7 +132,7 @@ static class Weather
     {
         if (!ValidCoord(lat, 90)) throw new ArgumentOutOfRangeException("lat");
         if (!ValidCoord(lon, 180)) throw new ArgumentOutOfRangeException("lon");
-        return "https://api.open-meteo.com/v1/forecast?latitude=" + lat.ToString("0.####", Inv) + "&longitude=" + lon.ToString("0.####", Inv) +
+        return "https://api.open-meteo.com/v1/forecast?latitude=" + lat.ToString("0.##", Inv) + "&longitude=" + lon.ToString("0.##", Inv) +
             "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day" +
             "&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=3" +
             (fahrenheit ? "&temperature_unit=fahrenheit&wind_speed_unit=mph" : "");
@@ -177,8 +177,9 @@ static class Weather
         WeatherPlace p = null;
         try
         {
-            string url = "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=" + lat.ToString("0.###", Inv) +
-                "&longitude=" + lon.ToString("0.###", Inv) + "&localityLanguage=" + Lang;
+            // Environ 1 km : assez pour une ville et une prévision, sans révéler l'adresse (AUD-03)
+            string url = "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=" + lat.ToString("0.##", Inv) +
+                "&longitude=" + lon.ToString("0.##", Inv) + "&localityLanguage=" + Lang;
             p = ParseReverse(Http.FetchText(url, Hosts, MaxResponse), lat, lon);
         }
         catch { }

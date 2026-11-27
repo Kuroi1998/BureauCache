@@ -94,7 +94,7 @@ namespace BureauCache.Tests
             {
                 Thread.CurrentThread.CurrentCulture = new CultureInfo("fr-BE");
                 string url = Weather.ForecastUrl(-12.04318, -77.02824, false);
-                StringAssert.Contains(url, "latitude=-12.0432&longitude=-77.0282");
+                StringAssert.Contains(url, "latitude=-12.04&longitude=-77.03");
                 Assert.IsFalse(url.Contains("fahrenheit"));
                 StringAssert.Contains(Weather.ForecastUrl(40.7, -84.1, true), "temperature_unit=fahrenheit&wind_speed_unit=mph");
             }

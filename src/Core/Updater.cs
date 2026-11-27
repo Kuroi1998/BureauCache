@@ -51,12 +51,23 @@ static class Updater
     const long MaxDownload = 50L * 1024 * 1024;
     static readonly string[] AllowedHosts = { "api.github.com", "github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com" };
 
+    // Durée totale d'un téléchargement, redirections comprises : un serveur qui envoie au compte-gouttes ne bloque
+    // pas indéfiniment (SEC-12)
+    const long TextBudgetMs = 60000, DownloadBudgetMs = 600000;
+
     static void Fetch(string url, Stream output, long maximum)
     {
+        Fetch(url, output, maximum, maximum > 4 * 1024 * 1024 ? DownloadBudgetMs : TextBudgetMs);
+    }
+
+    static void Fetch(string url, Stream output, long maximum, long budgetMs)
+    {
         Sandbox.Guard("accès réseau (mises à jour)");
+        Stopwatch clock = Stopwatch.StartNew();
         ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072;
         for (int redirect = 0; redirect <= 5; redirect++)
         {
+            if (clock.ElapsedMilliseconds > budgetMs) throw new IOException(L.T("Le téléchargement est trop lent : réessaie plus tard.", "The download is too slow: try again later.", "La descarga es demasiado lenta. Inténtalo más tarde."));
             RequireTrustedUrl(url);
             var request = (HttpWebRequest)WebRequest.Create(url);
             request.AllowAutoRedirect = false;
@@ -75,7 +86,7 @@ static class Updater
                 }
                 if (status != 200 || response.ContentLength > maximum)
                     throw new IOException(L.T("Réponse ou taille de téléchargement inattendue.", "Unexpected download response or file size.", "Respuesta o tamaño de descarga inesperados."));
-                using (Stream input = response.GetResponseStream()) CopyLimited(input, output, maximum);
+                using (Stream input = response.GetResponseStream()) CopyLimited(input, output, maximum, clock, budgetMs);
                 return;
             }
         }
@@ -84,11 +95,18 @@ static class Updater
 
     internal static void CopyLimited(Stream input, Stream output, long maximum)
     {
+        CopyLimited(input, output, maximum, null, 0);
+    }
+
+    internal static void CopyLimited(Stream input, Stream output, long maximum, Stopwatch clock, long budgetMs)
+    {
         byte[] buffer = new byte[32768];
         long total = 0;
         int read;
         while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
         {
+            if (clock != null && clock.ElapsedMilliseconds > budgetMs)
+                throw new IOException(L.T("Le téléchargement est trop lent : réessaie plus tard.", "The download is too slow: try again later.", "La descarga es demasiado lenta. Inténtalo más tarde."));
             total += read;
             if (total > maximum) throw new IOException(L.T("Le téléchargement dépasse la taille autorisée.", "Download size limit exceeded.", "La descarga supera el tamaño permitido."));
             output.Write(buffer, 0, read);

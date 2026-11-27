@@ -270,7 +270,8 @@ partial class App : ApplicationContext
             "\n\n" + L.T("Attention : cette version vient du dépôt « " + release.Repository + " », pas du dépôt officiel. Elle n'est pas signée par l'éditeur de BureauCache.",
                          "Warning: this version comes from the \"" + release.Repository + "\" repository, not the official one. It is not signed by the BureauCache publisher.", "Atención: esta versión proviene del repositorio «" + release.Repository + "», distinto del oficial. El editor de BureauCache no la ha firmado.");
         if (!Dialogs.Ask(null, L.T("Installer BureauCache " + release.Version + " ?\nLe programme va redémarrer.", "Install BureauCache " + release.Version + "?\nThe program will restart.", "¿Instalar BureauCache " + release.Version + "?\nEl programa se reiniciará.") + origin +
-            (notes.Length > 0 ? "\n\n" + L.T("Nouveautés :", "What's new:", "Novedades:") + "\n" + notes : ""))) return;
+            (notes.Length > 0 ? "\n\n" + L.T("Nouveautés :", "What's new:", "Novedades:") + "\n" + notes : ""),
+            origin.Length > 0)) return;   // dépôt non officiel : « Non » par défaut (AUD-01)
         if (installingUpdate || Updater.AvailableRelease != release) return;
         installingUpdate = true;
         string exe = Application.ExecutablePath;
@@ -300,7 +301,8 @@ partial class App : ApplicationContext
                 if (!Updater.AcceptCheck(release)) return;
                 RefreshTray();
                 if (release.Available) Balloon(L.T("BureauCache " + release.Version + " est disponible. Clique pour l'installer.",
-                    "BureauCache " + release.Version + " is available. Click to install.", "BureauCache " + release.Version + " está disponible. Haz clic para instalarlo."), InstallUpdate);
+                    "BureauCache " + release.Version + " is available. Click to install.", "BureauCache " + release.Version + " está disponible. Haz clic para instalarlo.") +
+                    (Updater.IsOfficial(release.Repository) ? "" : " " + L.T("Dépôt non officiel, version non signée.", "Unofficial repository, unsigned version.", "Repositorio no oficial, versión sin firmar.")), InstallUpdate);
             }));
         });
     }

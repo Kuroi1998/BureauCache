@@ -70,7 +70,7 @@ partial class PanelForm : Form
         AutoScaleMode = AutoScaleMode.None;
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
 
-        search = new TextBox { BorderStyle = BorderStyle.None, Font = Ui.Font("Segoe UI", 10.5f) };
+        search = new TextBox { BorderStyle = BorderStyle.None, Font = Ui.Font("Segoe UI", 10.5f), MaxLength = 256 };   // SEC-03
         search.TextChanged += (s, e) =>
         {
             bool chips = ChipsVisible;
