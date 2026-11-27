@@ -48,6 +48,10 @@ static partial class Settings
     public static int TaskbarSize = 1;
     public static bool TaskbarCenter = false, TaskbarLabels = false, TaskbarQuick = true, TaskbarBell = true,
         TaskbarDate = true, TaskbarSeconds = false;
+    // Étape 2 : fond 0 uni, 1 verre (fond d'écran flouté), 2 teinté de la couleur d'accent ; ligne du haut ; masquage
+    // automatique ; fenêtres d'une même application regroupées ; clic du milieu qui ferme ; molette sur le volume
+    public static int TaskbarStyle = 0;
+    public static bool TaskbarLine = true, TaskbarAutoHide = false, TaskbarGroup = false, TaskbarMiddleClose = false, TaskbarWheel = true;
     public static string WeatherPlace = "", WeatherShort = "";   // libellé complet et « Ville, Pays » (QA52-05)
     public static double WeatherLat = double.NaN, WeatherLon = double.NaN;
     public static Color Accent = Color.FromArgb(59, 130, 246);

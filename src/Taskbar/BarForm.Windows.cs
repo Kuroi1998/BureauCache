@@ -65,7 +65,7 @@ partial class BarForm
     public void RebuildButtons()
     {
         if (dragging) return;   // la fin du glissement reconstruit la liste
-        buttons = TaskbarModel.Build(Settings.TaskbarPins, windows != null ? windows.Items : new List<TaskWindow>());
+        buttons = TaskbarModel.Build(Settings.TaskbarPins, windows != null ? windows.Items : new List<TaskWindow>(), Settings.TaskbarGroup);
         TaskIcons.PruneKeys(new HashSet<string>(buttons.Where(b => b.Key != null).Select(b => b.Key), StringComparer.OrdinalIgnoreCase));
         Invalidate();
     }
@@ -134,8 +134,12 @@ partial class BarForm
             // Trait sous l'icône : long et coloré pour la fenêtre active, court et gris pour une fenêtre ouverte,
             // aucun pour une épingle dont l'application est fermée
             if (b.Window == null) continue;
+            if (b.Group != null) isActive = b.Group.Any(w => w.Handle == active);
             int lw = isActive ? Ui.S(16) : Ui.S(6);
             Ui.Fill(g, isActive ? Theme.Accent : Theme.FgDim, new RectangleF(r.Left + (r.Width - lw) / 2f, r.Bottom - Ui.S(4), lw, Ui.S(3)), Ui.S(1));
+            // Plusieurs fenêtres regroupées : un second trait discret à droite, comme une pile
+            if (b.Count > 1)
+                Ui.Fill(g, Theme.FgDim, new RectangleF(r.Left + (r.Width + lw) / 2f + Ui.S(3), r.Bottom - Ui.S(4), Ui.S(4), Ui.S(3)), Ui.S(1));
         }
         if (!overflowRect.IsEmpty)
         {
@@ -227,15 +231,30 @@ partial class BarForm
         BarButton b = ButtonAtZone(zone);
         if (b == null) return false;
         HidePreview();
+        // Clic du milieu : nouvelle fenêtre comme Windows, ou fermeture de la fenêtre si l'utilisateur l'a choisi (T-043)
+        if (button == MouseButtons.Middle && Settings.TaskbarMiddleClose && b.Window != null)
+        {
+            WindowList.Close(b.Window.Handle, ReportCloseError);
+            return true;
+        }
         bool newWindow = button == MouseButtons.Middle || (button == MouseButtons.Left && (ModifierKeys & Keys.Shift) != 0);
         if (newWindow || (button == MouseButtons.Left && b.Window == null)) { Launch(b.Key); return true; }
         if (button == MouseButtons.Left)
         {
-            WindowList.Activate(b.Window.Handle, b.Window.Handle == Native.GetForegroundWindow());
+            TaskWindow target = NextInGroup(b, Native.GetForegroundWindow());
+            WindowList.Activate(target.Handle, target.Handle == Native.GetForegroundWindow());
             windows.Refresh();
         }
         else if (button == MouseButtons.Right) ShowButtonMenu(b);
         return true;
+    }
+
+    // Fenêtres regroupées : chaque clic passe à la suivante (une fenêtre seule se réduit si elle est déjà au premier plan)
+    internal static TaskWindow NextInGroup(BarButton b, IntPtr foreground)
+    {
+        if (b.Group == null || b.Group.Count < 2) return b.Window;
+        int i = b.Group.FindIndex(w => w.Handle == foreground);
+        return i < 0 ? b.Group[0] : b.Group[(i + 1) % b.Group.Count];
     }
 
     static void Launch(string key)
@@ -266,7 +285,13 @@ partial class BarForm
         {
             IntPtr h = b.Window.Handle;
             menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add(Menus.Item(L.T("Fermer la fenêtre", "Close window", "Cerrar la ventana"), Glyphs.Delete, () => WindowList.Close(h, ReportCloseError)));
+            if (b.Group != null && b.Group.Count > 1)
+            {
+                List<IntPtr> all = b.Group.Select(w => w.Handle).ToList();
+                menu.Items.Add(Menus.Item(L.T("Fermer les " + all.Count + " fenêtres", "Close all " + all.Count + " windows", "Cerrar las " + all.Count + " ventanas"), Glyphs.Delete,
+                    () => { foreach (IntPtr w in all) WindowList.Close(w, ReportCloseError); }));
+            }
+            else menu.Items.Add(Menus.Item(L.T("Fermer la fenêtre", "Close window", "Cerrar la ventana"), Glyphs.Delete, () => WindowList.Close(h, ReportCloseError)));
         }
         ShowMenu(menu);
     }

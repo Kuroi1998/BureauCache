@@ -13,7 +13,8 @@ public class TaskbarCustomizationTests
 {
     string previousDir, dir;
     int size;
-    bool center, labels, quick, bell, date, seconds, saveBlocked;
+    bool center, labels, quick, bell, date, seconds, saveBlocked, line, autoHide, group, middle, wheel;
+    int style;
 
     [TestInitialize]
     public void Isolate()
@@ -26,6 +27,8 @@ public class TaskbarCustomizationTests
         Settings.SaveBlocked = false;
         size = Settings.TaskbarSize; center = Settings.TaskbarCenter; labels = Settings.TaskbarLabels;
         quick = Settings.TaskbarQuick; bell = Settings.TaskbarBell; date = Settings.TaskbarDate; seconds = Settings.TaskbarSeconds;
+        style = Settings.TaskbarStyle; line = Settings.TaskbarLine; autoHide = Settings.TaskbarAutoHide; group = Settings.TaskbarGroup;
+        middle = Settings.TaskbarMiddleClose; wheel = Settings.TaskbarWheel;
     }
 
     [TestCleanup]
@@ -33,6 +36,8 @@ public class TaskbarCustomizationTests
     {
         Settings.TaskbarSize = size; Settings.TaskbarCenter = center; Settings.TaskbarLabels = labels;
         Settings.TaskbarQuick = quick; Settings.TaskbarBell = bell; Settings.TaskbarDate = date; Settings.TaskbarSeconds = seconds;
+        Settings.TaskbarStyle = style; Settings.TaskbarLine = line; Settings.TaskbarAutoHide = autoHide; Settings.TaskbarGroup = group;
+        Settings.TaskbarMiddleClose = middle; Settings.TaskbarWheel = wheel;
         Settings.DirOverride = previousDir;
         Settings.SaveBlocked = saveBlocked;
         try { Directory.Delete(dir, true); } catch { }
@@ -120,5 +125,114 @@ public class TaskbarCustomizationTests
                 Assert.IsTrue(z[0].Right < z[2].Left);
             }
         });
+    }
+
+    // ---- Étape 2 : apparence et comportement ----
+
+    [TestMethod]
+    public void AppearanceAndBehaviorSurviveSaveAndLoad()
+    {
+        Settings.TaskbarStyle = 1; Settings.TaskbarLine = false; Settings.TaskbarAutoHide = true;
+        Settings.TaskbarGroup = true; Settings.TaskbarMiddleClose = true; Settings.TaskbarWheel = false;
+        Assert.IsTrue(Settings.Save());
+        Settings.TaskbarStyle = 0; Settings.TaskbarLine = true; Settings.TaskbarAutoHide = false;
+        Settings.TaskbarGroup = false; Settings.TaskbarMiddleClose = false; Settings.TaskbarWheel = true;
+        Assert.IsTrue(Settings.Load(Settings.FilePath));
+        Assert.AreEqual(1, Settings.TaskbarStyle);
+        Assert.IsTrue(Settings.TaskbarAutoHide && Settings.TaskbarGroup && Settings.TaskbarMiddleClose);
+        Assert.IsFalse(Settings.TaskbarLine || Settings.TaskbarWheel);
+    }
+
+    [TestMethod]
+    public void GroupingMakesOneButtonPerApp()
+    {
+        var a1 = new TaskWindow { Handle = new IntPtr(1), AppKey = @"exe:C:\Apps\Notes.exe", Title = "Notes 1" };
+        var a2 = new TaskWindow { Handle = new IntPtr(2), AppKey = @"exe:C:\Apps\Notes.exe", Title = "Notes 2" };
+        var b1 = new TaskWindow { Handle = new IntPtr(3), AppKey = @"exe:C:\Apps\Other.exe", Title = "Other" };
+        var pins = new[] { @"exe:C:\Apps\Notes.exe>Notes" };
+        var windows = new System.Collections.Generic.List<TaskWindow> { a1, b1, a2 };
+
+        var separate = TaskbarModel.Build(pins, windows, false);
+        Assert.AreEqual(3, separate.Count, "Sans regroupement : l'épingle avec sa première fenêtre, puis une fenêtre par bouton.");
+
+        var grouped = TaskbarModel.Build(pins, windows, true);
+        Assert.AreEqual(2, grouped.Count);
+        Assert.IsTrue(grouped[0].Pinned);
+        Assert.AreEqual(2, grouped[0].Count, "Les deux fenêtres de Notes dans l'épingle.");
+        Assert.AreEqual(1, grouped[1].Count);
+        Assert.IsNull(grouped[1].Group, "Une seule fenêtre : pas de groupe.");
+
+        Assert.AreSame(a1, BarForm.NextInGroup(grouped[0], IntPtr.Zero), "Rien au premier plan : la première fenêtre.");
+        Assert.AreSame(a2, BarForm.NextInGroup(grouped[0], a1.Handle), "Un clic passe à la suivante.");
+        Assert.AreSame(a1, BarForm.NextInGroup(grouped[0], a2.Handle), "Puis revient à la première.");
+    }
+
+    [TestMethod]
+    public void UngroupedWindowsOfUnpinnedAppsAreGroupedToo()
+    {
+        var w1 = new TaskWindow { Handle = new IntPtr(1), AppKey = @"exe:C:\Apps\Edge.exe" };
+        var w2 = new TaskWindow { Handle = new IntPtr(2), AppKey = @"exe:C:\Apps\Edge.exe" };
+        var w3 = new TaskWindow { Handle = new IntPtr(3) };   // application inconnue : jamais regroupée
+        var w4 = new TaskWindow { Handle = new IntPtr(4) };
+        var grouped = TaskbarModel.Build(new string[0], new System.Collections.Generic.List<TaskWindow> { w1, w3, w2, w4 }, true);
+        Assert.AreEqual(3, grouped.Count);
+        Assert.AreEqual(2, grouped[0].Count);
+    }
+
+    [TestMethod]
+    public void WallpaperPlacementFollowsWindowsStyle()
+    {
+        Rectangle screen = new Rectangle(0, 0, 1920, 1080);
+        RectangleF fill = BarForm.WallpaperBounds(new Size(1000, 1000), screen, 0);
+        Assert.AreEqual(1920f, fill.Width, 0.5f, "Remplir : l'image couvre toute la largeur.");
+        Assert.IsTrue(fill.Top < 0 && fill.Bottom > 1080, "Et déborde en haut et en bas.");
+        RectangleF fit = BarForm.WallpaperBounds(new Size(1000, 1000), screen, 1);
+        Assert.AreEqual(1080f, fit.Height, 0.5f);
+        Assert.IsTrue(fit.Left > 0, "Ajuster : bandes sur les côtés.");
+        Assert.AreEqual((RectangleF)screen, BarForm.WallpaperBounds(new Size(10, 10), screen, 2), "Étirer.");
+        RectangleF center = BarForm.WallpaperBounds(new Size(100, 50), screen, 3);
+        Assert.AreEqual(new RectangleF(910, 515, 100, 50), center);
+    }
+
+    [TestMethod]
+    public void GlassIsMadeFromTheWallpaperUnderTheBar()
+    {
+        string file = Path.Combine(dir, "fond.png");
+        using (Bitmap wallpaper = new Bitmap(200, 100))
+        {
+            using (Graphics g = Graphics.FromImage(wallpaper))
+            {
+                g.Clear(Color.Red);
+                g.FillRectangle(Brushes.Blue, 0, 90, 200, 10);   // bas de l'image : bleu
+            }
+            wallpaper.Save(file);
+        }
+        Rectangle screen = new Rectangle(0, 0, 200, 100), area = new Rectangle(0, 90, 200, 10);
+        using (Bitmap glass = BarForm.MakeGlass(file, 2, screen, area, Color.FromArgb(0, Color.Black)))
+        {
+            Assert.IsNotNull(glass);
+            Assert.AreEqual(area.Size, glass.Size);
+            Color middle = glass.GetPixel(100, 5);
+            Assert.IsTrue(middle.B > middle.R, "La barre montre la partie du fond d'écran qu'elle cache (le bas bleu).");
+        }
+        Assert.IsNull(BarForm.MakeGlass(Path.Combine(dir, "absent.png"), 0, screen, area, Color.Black));
+        File.WriteAllText(Path.Combine(dir, "abime.png"), "pas une image");
+        Assert.IsNull(BarForm.MakeGlass(Path.Combine(dir, "abime.png"), 0, screen, area, Color.Black), "Fichier abîmé : pas d'erreur, fond uni.");
+    }
+
+    [TestMethod]
+    public void AutoHideReservesOnlyAThinEdge()
+    {
+        Settings.TaskbarAutoHide = false;
+        Assert.AreEqual(BarForm.BarHeight, BarForm.ReservedHeight);
+        Settings.TaskbarAutoHide = true;
+        Assert.AreEqual(BarForm.Edge, BarForm.ReservedHeight, "Les fenêtres agrandies descendent jusqu'au liseré.");
+        Assert.IsTrue(BarForm.Edge >= 2);
+    }
+
+    [TestMethod]
+    public void TintedBackgroundUsesTheAccent()
+    {
+        Assert.AreNotEqual(Theme.Bg.ToArgb(), BarForm.TintedBackground.ToArgb());
     }
 }

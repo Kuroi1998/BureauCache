@@ -27,6 +27,7 @@ partial class BarForm : Form
     // Échelle des icônes et du texte de la barre par rapport à la taille normale
     static float SizeScale { get { return Heights[Math.Max(0, Math.Min(2, Settings.TaskbarSize))] / 56f; } }
     int appliedHeight;
+    bool appliedAutoHide;
 
     public BarForm()
     {
@@ -40,6 +41,8 @@ partial class BarForm : Form
         Rectangle s = Screen.PrimaryScreen.Bounds;
         Bounds = new Rectangle(s.Left, s.Bottom - BarHeight, s.Width, BarHeight);
         appliedHeight = BarHeight;
+        appliedAutoHide = Settings.TaskbarAutoHide;
+        autoHide.Tick += (o, e) => AutoHideTick();
         ApplyTheme();
         previewDelay.Tick += (o, e) => { previewDelay.Stop(); OpenPreview(previewZone); };
         previewWatch.Tick += (o, e) => WatchPreview();
@@ -63,6 +66,7 @@ partial class BarForm : Form
     {
         if ((quickSettings != null && quickSettings.BackColor != Theme.Bg) || (popup != null && popup.BackColor != Theme.Bg)) ClosePanels();
         BackColor = Theme.Bg;
+        RefreshGlass();   // le voile du verre suit le thème
         Invalidate();
     }
 
@@ -80,14 +84,17 @@ partial class BarForm : Form
     // Réglages de la barre changés (T-043) : nouvelle hauteur réservée à Windows si besoin, horloge et dessin
     public void ApplyLayoutSettings()
     {
-        if (BarHeight != appliedHeight)
+        UpdateAutoHide();
+        if (BarHeight != appliedHeight || Settings.TaskbarAutoHide != appliedAutoHide)
         {
             appliedHeight = BarHeight;
+            appliedAutoHide = Settings.TaskbarAutoHide;
             ClosePanels();
             HidePreview();
             Reposition();
         }
         ScheduleClock();
+        RefreshGlass();
         Invalidate();
     }
 
@@ -95,7 +102,7 @@ partial class BarForm : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        if (!Sandbox.Active) { AppBarRegister(); StartWindows(); }
+        if (!Sandbox.Active) { AppBarRegister(); StartWindows(); UpdateAutoHide(); RefreshGlass(); }
     }
 
     protected override void OnHandleDestroyed(EventArgs e)
@@ -127,7 +134,7 @@ partial class BarForm : Form
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing) clock.Dispose();
+        if (disposing) { clock.Dispose(); DisposeBehavior(); DisposeGlass(); }
         base.Dispose(disposing); // OnHandleDestroyed arrête le suivi et ferme l'aperçu.
         if (disposing)
         {
@@ -141,25 +148,26 @@ partial class BarForm : Form
     public void Reposition()
     {
         Rectangle s = Screen.PrimaryScreen.Bounds;
-        if (!appbar) { ApplyBarBounds(new Rectangle(s.Left, s.Bottom - BarHeight, s.Width, BarHeight)); return; }
+        if (!appbar) { ApplyBarBounds(VisibleBounds(new Rectangle(s.Left, s.Bottom - ReservedHeight, s.Width, ReservedHeight))); return; }
         Native.APPBARDATA d = new Native.APPBARDATA();
         d.cbSize = Marshal.SizeOf(d);
         d.hWnd = Handle;
         d.uEdge = Native.ABE_BOTTOM;
-        d.rc = new Native.RECT { Left = s.Left, Top = s.Bottom - BarHeight, Right = s.Right, Bottom = s.Bottom };
+        d.rc = new Native.RECT { Left = s.Left, Top = s.Bottom - ReservedHeight, Right = s.Right, Bottom = s.Bottom };
         Native.SHAppBarMessage(Native.ABM_QUERYPOS, ref d);
-        d.rc.Top = d.rc.Bottom - BarHeight;
+        d.rc.Top = d.rc.Bottom - ReservedHeight;
         Rectangle requested = Rectangle.FromLTRB(d.rc.Left, d.rc.Top, d.rc.Right, d.rc.Bottom);
         if (requested == requestedBarBounds)
         {
-            ApplyBarBounds(approvedBarBounds);
+            ApplyBarBounds(VisibleBounds(approvedBarBounds));
             return;
         }
         // ABM_SETPOS déclenche ABN_POSCHANGED. Une position identique ne doit pas relancer la notification.
         requestedBarBounds = approvedBarBounds = requested;
         Native.SHAppBarMessage(Native.ABM_SETPOS, ref d);
         approvedBarBounds = Rectangle.FromLTRB(d.rc.Left, d.rc.Top, d.rc.Right, d.rc.Bottom);
-        ApplyBarBounds(approvedBarBounds);
+        ApplyBarBounds(VisibleBounds(approvedBarBounds));
+        RefreshGlass();
     }
 
     void ApplyBarBounds(Rectangle bounds)
@@ -185,6 +193,7 @@ partial class BarForm : Form
     {
         if (m.Msg == 0x21 /*WM_MOUSEACTIVATE*/) { m.Result = new IntPtr(3 /*MA_NOACTIVATE*/); return; }
         if (HandleTaskbarList(ref m)) return;   // badges et progressions des applications (D-016)
+        if (m.Msg == 0x1A /*WM_SETTINGCHANGE*/ && m.WParam.ToInt64() == Native.SPI_SETDESKWALLPAPER) RefreshGlass();
         if (appbar && m.Msg == (int)abMsg)
         {
             int code = m.WParam.ToInt32();
@@ -258,8 +267,9 @@ partial class BarForm : Form
     protected override void OnPaint(PaintEventArgs e)
     {
         Graphics g = e.Graphics;
+        if (Settings.TaskbarLine) using (Pen line = new Pen(Theme.Line)) g.DrawLine(line, 0, 0, ClientSize.Width, 0);
+        if (collapsedBar) return;   // repliée : le liseré seul, les zones gardent leur place de la barre dépliée
         Layout2();
-        using (Pen line = new Pen(Theme.Line)) g.DrawLine(line, 0, 0, ClientSize.Width, 0);
         for (int i = 0; i < zones.Length; i++)
             if (zones[i].IsEmpty) continue;
             else if (i == hot || (i == 1 && quickSettings != null) || (i == popupZone && popup != null)) Ui.Fill(g, Theme.HoverOverlay, zones[i], Ui.S(4));

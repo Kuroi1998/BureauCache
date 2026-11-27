@@ -11,6 +11,8 @@ class BarButton
     public string Key, Name;
     public bool Pinned;
     public TaskWindow Window;
+    public List<TaskWindow> Group;   // fenêtres regroupées de l'application (T-043), null quand il n'y en a qu'une
+    public int Count { get { return Group != null ? Group.Count : Window != null ? 1 : 0; } }
 }
 
 static class TaskbarModel
@@ -118,6 +120,12 @@ static class TaskbarModel
     // fenêtres de ces applications, juste après leur épingle ; enfin les fenêtres non épinglées, dans l'ordre de session
     public static List<BarButton> Build(IEnumerable<string> pins, IList<TaskWindow> windows)
     {
+        return Build(pins, windows, false);
+    }
+
+    // grouped : un seul bouton par application, ses fenêtres dans Group (T-043, D-019)
+    public static List<BarButton> Build(IEnumerable<string> pins, IList<TaskWindow> windows, bool grouped)
+    {
         List<BarButton> result = new List<BarButton>();
         HashSet<TaskWindow> placed = new HashSet<TaskWindow>();
         HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -126,15 +134,22 @@ static class TaskbarModel
             string key, name;
             if (!ParsePin(entry, out key, out name) || !seen.Add(key)) continue;
             List<TaskWindow> mine = windows.Where(w => !placed.Contains(w) && string.Equals(w.AppKey, key, StringComparison.OrdinalIgnoreCase)).ToList();
-            result.Add(new BarButton { Key = key, Name = name, Pinned = true, Window = mine.FirstOrDefault() });
+            result.Add(new BarButton { Key = key, Name = name, Pinned = true, Window = mine.FirstOrDefault(), Group = grouped && mine.Count > 1 ? mine : null });
             for (int i = 0; i < mine.Count; i++)
             {
                 placed.Add(mine[i]);
-                if (i > 0) result.Add(new BarButton { Key = key, Name = name, Window = mine[i] });
+                if (i > 0 && !grouped) result.Add(new BarButton { Key = key, Name = name, Window = mine[i] });
             }
         }
         foreach (TaskWindow w in windows)
-            if (!placed.Contains(w)) result.Add(new BarButton { Key = w.AppKey, Name = DefaultName(w.AppKey, w.Title), Window = w });
+        {
+            if (placed.Contains(w)) continue;
+            List<TaskWindow> same = grouped && w.AppKey != null
+                ? windows.Where(o => !placed.Contains(o) && string.Equals(o.AppKey, w.AppKey, StringComparison.OrdinalIgnoreCase)).ToList()
+                : new List<TaskWindow> { w };
+            foreach (TaskWindow o in same) placed.Add(o);
+            result.Add(new BarButton { Key = w.AppKey, Name = DefaultName(w.AppKey, w.Title), Window = w, Group = same.Count > 1 ? same : null });
+        }
         return result;
     }
 
