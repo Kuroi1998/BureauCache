@@ -12,7 +12,7 @@ static class Glyphs
     public const string School = "", Photo = "", Home = "", World = "", Flag = "";
     public const string Box = "", Pin = "", Pinned = "", Undo = "", Check = "";
     public const string Add = "", Terminal = "", TaskManager = "", Copy = "";
-    public const string ChevronUp = "\uE70E";   // calendrier de la barre (T-042)
+    public const string ChevronUp = "\uE70E", Dismiss = "\uE711";   // calendrier et notifications de la barre (T-042)
     public const string Help = "\uE897";   // pastille « ? » (D-012)
     public const string Wifi = "", Volume = "", Bell = "";   // barre des tâches (D-013)
     public const string Bluetooth = "\uE702", Airplane = "\uE709", Battery = "\uE850", NightLight = "\uE708";

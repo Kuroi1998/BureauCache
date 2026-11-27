@@ -3,19 +3,23 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 
-// Ouvert par l'horloge et la cloche, à la place du panneau de Windows (Windows + N). Deux cartes : notifications
-// (renvoi vers Windows tant que la lecture des notifications n'est pas confirmée, D-018), puis calendrier.
-class NotificationsForm : Form
+// Ouvert par l'horloge et la cloche, à la place du panneau de Windows (Windows + N). Deux cartes : les notifications
+// de Windows (NotificationsForm.Feed.cs), puis le calendrier.
+partial class NotificationsForm : Form
 {
     static bool collapsed;   // calendrier replié, gardé pour la session comme chez Windows
 
     readonly Label notesTitle, notesText, dayTitle, monthTitle;
-    readonly StartTile openWindows, notifySettings, collapse, previous, next;
+    readonly StartTile notesAction, clearAll, notifySettings, collapse, previous, next;
+    internal readonly NotificationList List;
     internal readonly CalendarView Calendar;
     readonly Timer midnight = new Timer { Interval = 30000 };
     Rectangle notesCard, calendarCard, anchor, area;
     DateTime shownToday;
     bool placed, launching;
+    // Ce que la carte des notifications montre. Control.Visible reste faux tant que le panneau n'est pas affiché :
+    // la mise en page ne peut pas s'y fier.
+    bool showList, showText, showAction;
 
     static int Margin2 { get { return Ui.S(10); } }
     static int Inset { get { return Ui.S(14); } }
@@ -35,18 +39,19 @@ class NotificationsForm : Form
         TopMost = true;
         DoubleBuffered = true;
         BackColor = Theme.Bg;
-        KeyPreview = true;
         Text = L.T("Notifications et calendrier", "Notifications and calendar", "Notificaciones y calendario");
         AccessibleName = Text;
 
         notesTitle = AddLabel(L.T("Notifications", "Notifications", "Notificaciones"), true);
-        notesText = AddLabel(L.T("Windows garde les notifications des applications. Ouvre-les ou choisis lesquelles s'affichent.",
-            "Windows keeps your app notifications. Open them or choose which ones appear.",
-            "Windows guarda las notificaciones de las aplicaciones. Ábrelas o elige cuáles se muestran."), false);
-        openWindows = AddTile(Glyphs.Bell, L.T("Ouvrir les notifications", "Open notifications", "Abrir notificaciones"),
-            () => Launch(null));
-        notifySettings = AddTile(Glyphs.Settings, L.T("Paramètres de notification", "Notification settings", "Configuración de notificaciones"),
-            () => Launch("ms-settings:notifications"));
+        clearAll = AddTile(Glyphs.Delete, L.T("Effacer tout", "Clear all", "Borrar todo"), ClearAll);
+        notifySettings = AddTile(Glyphs.Settings, string.Empty, () => Launch("ms-settings:notifications"));
+        notifySettings.AccessibleName = L.T("Paramètres de notification", "Notification settings", "Configuración de notificaciones");
+        notesText = AddLabel(string.Empty, false);
+        notesAction = AddTile(Glyphs.Bell, string.Empty, () => Launch(notesActionUri));
+        List = new NotificationList { Logo = LogoOf };
+        List.Dismissed += Dismiss;
+        List.Opened += OpenApp;
+        Controls.Add(List);
 
         dayTitle = AddLabel(string.Empty, true);
         collapse = AddTile(Glyphs.ChevronDown, string.Empty, ToggleCollapse);
@@ -64,8 +69,9 @@ class NotificationsForm : Form
         shownToday = DateTime.Today;
         dayTitle.Text = CalendarMonth.DayTitle(shownToday, L.Culture);
         midnight.Tick += (s, e) => CheckDate();
-        Arrange();
-        ActiveControl = calendarFirst && !collapsed ? (Control)Calendar : openWindows;
+        feed.Tick += (s, e) => ReadFeed();
+        ShowFeed(Sandbox.Active ? Native.NotificationAccess.Unavailable : (Native.NotificationAccess?)null, null);
+        ActiveControl = calendarFirst && !collapsed ? (Control)Calendar : notifySettings;
     }
 
     protected override CreateParams CreateParams
@@ -99,20 +105,40 @@ class NotificationsForm : Form
     // Place les cartes et leur contenu ; le calendrier replié ne garde que la date du jour
     void Arrange()
     {
+        SuspendLayout();
         int x = Margin2 + Inset, y = Margin2;
         notesCard = new Rectangle(Margin2, y, CardWidth, 0);
-        y += Inset;
-        notesTitle.Bounds = new Rectangle(x, y, Inner, Ui.S(27));
-        y = notesTitle.Bottom + Ui.S(2);
-        int textHeight = TextRenderer.MeasureText(notesText.Text, notesText.Font, new Size(Inner, int.MaxValue), TextFormatFlags.WordBreak).Height;
-        notesText.AutoEllipsis = false;
-        notesText.TextAlign = ContentAlignment.TopLeft;
-        notesText.Bounds = new Rectangle(x, y, Inner, textHeight + Ui.S(2));
-        y = notesText.Bottom + Gap;
-        int half = (Inner - Gap) / 2;
-        openWindows.Bounds = new Rectangle(x, y, half, ButtonHeight);
-        notifySettings.Bounds = new Rectangle(x + half + Gap, y, Inner - half - Gap, ButtonHeight);
-        y = openWindows.Bottom + Inset;
+        y += Ui.S(8);
+        notifySettings.Bounds = new Rectangle(x + Inner - IconButton, y, IconButton, IconButton);
+        int clearWidth = TextRenderer.MeasureText(clearAll.Text, clearAll.Font).Width + Ui.S(62);
+        clearAll.Bounds = new Rectangle(notifySettings.Left - Ui.S(4) - clearWidth, y, clearWidth, IconButton);
+        clearAll.Visible = showList && List.Count > 0;
+        notesTitle.Bounds = new Rectangle(x, y, (showList && List.Count > 0 ? clearAll.Left : notifySettings.Left) - Gap - x, IconButton);
+        y = notesTitle.Bottom + Ui.S(8);
+        List.Visible = showList;
+        notesText.Visible = showText;
+        notesAction.Visible = showAction;
+        if (showList)
+        {
+            List.MaxHeight = collapsed ? Ui.S(560) : Ui.S(380);
+            List.Bounds = new Rectangle(x, y, Inner, Math.Max(1, List.Height));
+            List.Height = Math.Max(1, List.PreferredHeight);
+            y = List.Bottom + Inset;
+        }
+        if (showText)
+        {
+            int textHeight = TextRenderer.MeasureText(notesText.Text, notesText.Font, new Size(Inner, int.MaxValue), TextFormatFlags.WordBreak).Height;
+            notesText.AutoEllipsis = false;
+            notesText.TextAlign = ContentAlignment.TopLeft;
+            notesText.Bounds = new Rectangle(x, y, Inner, textHeight + Ui.S(2));
+            y = notesText.Bottom + Gap;
+        }
+        if (showAction)
+        {
+            notesAction.Bounds = new Rectangle(x, y, Inner, ButtonHeight);
+            y = notesAction.Bottom + Inset;
+        }
+        else if (showText) y += Inset - Gap;
         notesCard.Height = y - notesCard.Top;
 
         y += Gap;
@@ -137,6 +163,7 @@ class NotificationsForm : Form
         }
         calendarCard.Height = y - calendarCard.Top;
         ClientSize = new Size(PanelWidth, calendarCard.Bottom + Margin2);
+        ResumeLayout(false);
         if (placed) PlaceAbove(anchor, area);
         Invalidate();
     }
@@ -170,6 +197,7 @@ class NotificationsForm : Form
         dayTitle.Text = CalendarMonth.DayTitle(shownToday, L.Culture);
         if (showingToday) Calendar.SetSelected(shownToday);
         Calendar.Invalidate();
+        List.Invalidate();   // « hier » s'affiche avec sa date
     }
 
     // Lien vers Windows : le panneau se ferme d'abord (null : panneau des notifications de Windows, Windows + N)
@@ -195,6 +223,8 @@ class NotificationsForm : Form
         if (Sandbox.Active) return;
         Native.SetRoundCorners(Handle);
         midnight.Start();
+        ReadFeed();
+        feed.Start();
     }
 
     protected override void OnDeactivate(EventArgs e)
@@ -224,7 +254,11 @@ class NotificationsForm : Form
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing) midnight.Dispose();
+        if (disposing)
+        {
+            midnight.Dispose();
+            DisposeFeed();
+        }
         base.Dispose(disposing);
     }
 }

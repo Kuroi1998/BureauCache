@@ -116,17 +116,19 @@ public class NotificationsPanelTests
                 using (scope())
                 using (NotificationsForm form = new NotificationsForm(true))
                 {
+                    form.Location = new Point(-4000, -4000);   // affiché hors écran : Visible a alors un sens
+                    form.Show();
                     bool wasCollapsed = form.Collapsed;
                     if (wasCollapsed) form.ToggleCollapse();
                     try
                     {
-                        foreach (StartTile tile in form.Controls.OfType<StartTile>())
+                        foreach (StartTile tile in form.Controls.OfType<StartTile>().Where(t => t.Visible))
                         {
                             Assert.IsTrue(form.ClientRectangle.Contains(tile.Bounds), L.CurrentLanguage + " : " + tile.Text);
                             if (!tile.GlyphOnly) Assert.IsTrue(tile.TextFits, L.CurrentLanguage + " : " + tile.Text);
                             else Assert.IsFalse(string.IsNullOrEmpty(tile.AccessibleName), "Bouton icône seule sans nom.");
                         }
-                        foreach (Label label in form.Controls.OfType<Label>())
+                        foreach (Label label in form.Controls.OfType<Label>().Where(l => l.Visible))
                         {
                             Assert.IsTrue(form.ClientRectangle.Contains(label.Bounds), label.Text);
                             Size need = TextRenderer.MeasureText(label.Text, label.Font, new Size(label.Width, int.MaxValue), TextFormatFlags.WordBreak);

@@ -10,7 +10,7 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 **Conséquences :** ce que ça impose ensuite.
 -->
 
-## D-018 — Notifications et calendrier de la barre BureauCache (2026-11-27) · Statut : Proposée (recherche Gemini en cours)
+## D-018 — Notifications et calendrier de la barre BureauCache (2026-11-27) · Statut : Proposée
 
 **Contexte :** l'horloge et la cloche de la barre BureauCache ouvrent encore le panneau de Windows (Windows + N) : style Windows, couleurs du thème Windows, ancrage prévu pour la barre d'Explorer. Le chef de projet veut un panneau assorti à la barre, comme les Paramètres rapides (D-017).
 **Décision proposée :** un panneau `NotificationsForm`, ancré à la barre comme `QuickSettingsForm` (même calcul de position, se ferme à la perte du focus, thème de BureauCache), avec deux cartes :
@@ -19,7 +19,8 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 - **Ne pas déranger et Concentration** : interrupteur seulement s'il existe une API publique et documentée ; sinon lien vers la page Paramètres de Windows correspondante.
 **Règles :** aucune modification d'Explorer (D-013), aucune API non documentée. Le contenu des notifications des autres applications est seulement affiché : jamais écrit sur disque, dans un journal ou envoyé ailleurs. Appels WinRT en arrière-plan, chargés à l'exécution comme pour D-017.
 **Alternatives écartées :** reproduire le panneau de Windows en interceptant ses notifications (injection, contraire à D-013) ; afficher seulement le calendrier et laisser la cloche ouvrir Windows (incohérent avec la barre).
-**Conséquences :** fichiers `src/Taskbar/NotificationsForm*.cs` et `src/Core/Native.Notifications.cs` ; `BarForm` ouvre le panneau au lieu d'envoyer Windows + N. La partie notifications attend la réponse de Gemini.
+**Conséquences :** fichiers `src/Taskbar/NotificationsForm*.cs`, `NotificationList.cs`, `CalendarView.cs`, `CalendarMonth.cs` et `src/Core/Native.Notifications.cs` ; `BarForm` ouvre le panneau au lieu d'envoyer Windows + N.
+**Essai du 2026-11-27 (PC du chef de projet, Windows 11 build 26300) :** un processus de bureau non empaqueté (PowerShell 5.1) obtient `GetAccessStatus` = `Allowed` et lit les notifications (application, heure, textes) sans demande d'autorisation. La liste est donc réelle : relue toutes les 3 s tant que le panneau est ouvert (pas d'événement sans tâche d'arrière-plan empaquetée), effacement par `RemoveNotification` / `ClearNotifications`, clic qui ouvre l'application par `shell:AppsFolder` (identifiants qui ressemblent à un chemin refusés). Accès refusé : renvoi vers `ms-settings:privacy-notifications` ; lecture impossible : bouton vers le panneau de Windows. La recherche Gemini reste utile pour les autres versions de Windows et pour Ne pas déranger.
 
 ## D-017 — Paramètres rapides de la barre BureauCache (2026-11-27) · Statut : Proposée
 
