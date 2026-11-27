@@ -154,7 +154,7 @@ partial class ItemsView
         }
         dropGroup = null;
         dropMark = Rectangle.Empty;
-        if (row == null || row.G.Key == "recent" || row.G.IsSearch || !dragRow.Item.IsDesktopFile && !dragRow.Item.IsSystem) return;
+        if (row == null || row.G.Key == "recent" || row.G.Key == "clip" || row.G.IsSearch || !dragRow.Item.IsDesktopFile && !dragRow.Item.IsSystem) return;
         dropGroup = row.G;
         if (row.IsHeader)
         {
@@ -162,9 +162,10 @@ partial class ItemsView
             dropMark = new Rectangle(row.R.X + S(8), row.R.Bottom - S(1), row.R.Width - S(16), S(2));
             return;
         }
-        bool before = Grid ? c.X < row.R.X + row.R.Width / 2 : c.Y < row.R.Y + row.R.Height / 2;
+        bool grid = Grid && !row.G.AsList;   // l'axe suit le mode du groupe (QA52-04)
+        bool before = grid ? c.X < row.R.X + row.R.Width / 2 : c.Y < row.R.Y + row.R.Height / 2;
         dropIndex = row.IndexInGroup + (before ? 0 : 1);
-        if (Grid)
+        if (grid)
             dropMark = new Rectangle((before ? row.R.Left : row.R.Right) - S(1), row.R.Y + S(8), S(3), row.R.Height - S(16));
         else
             dropMark = new Rectangle(row.R.X + S(8), (before ? row.R.Top : row.R.Bottom) - S(1), row.R.Width - S(16), S(3));

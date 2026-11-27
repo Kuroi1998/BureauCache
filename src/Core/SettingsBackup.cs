@@ -196,13 +196,16 @@ static class SettingsBackup
     // presse-papiers, rangement automatique et journal d'annulation (il désigne des fichiers à déplacer)
     sealed class LocalChoices
     {
-        string repo; bool autoUpdate, clipboard, archive; List<string> log;
+        string repo, archiveName; bool autoUpdate, clipboard, archive; int archiveDays; List<string> log; List<ArchiveRule> rules;
 
         public static LocalChoices Capture()
         {
             return new LocalChoices { repo = Settings.UpdateRepo, autoUpdate = Settings.AutoUpdate, clipboard = Settings.ClipboardOn,
-                                      archive = Settings.ArchiveOn, log = Settings.ArchiveLog.ToList() };
+                                      archive = Settings.ArchiveOn, log = Settings.ArchiveLog.ToList(), rules = Settings.ArchiveRules.ToList(),
+                                      archiveName = Settings.ArchiveName, archiveDays = Settings.ArchiveDays };
         }
+
+        static string Sig(List<ArchiveRule> r) { return string.Join("|", r.Select(x => x.Serialize()).ToArray()); }
 
         public void Reapply(List<string> kept)
         {
@@ -212,8 +215,15 @@ static class SettingsBackup
             if (Settings.ClipboardOn != clipboard) kept.Add(L.T("l'historique du presse-papiers", "the clipboard history", "el historial del portapapeles"));
             if (Settings.ArchiveOn != archive) kept.Add(L.T("le rangement automatique", "automatic tidy-up", "la organización automática"));
             if (Settings.ArchiveLog.Count > 0) kept.Add(L.T("le journal d'annulation du rangement", "the tidy-up undo log", "el registro para deshacer la organización"));
+            // Rangement automatique actif sur ce PC : ses règles, son dossier et son ancienneté restent les siens, sinon
+            // l'import changerait quels fichiers partent et où (QA52-01). Rangement inactif : les règles importées
+            // ne s'exécutent qu'avec « Ranger maintenant », qui liste les fichiers et demande confirmation.
+            bool keepPolicy = archive;
+            if (keepPolicy && (Sig(Settings.ArchiveRules) != Sig(rules) || Settings.ArchiveName != archiveName || Settings.ArchiveDays != archiveDays))
+                kept.Add(L.T("les règles et le dossier du rangement automatique", "the automatic tidy-up rules and folder", "las reglas y la carpeta de la organización automática"));
             Settings.UpdateRepo = repo; Settings.AutoUpdate = autoUpdate; Settings.ClipboardOn = clipboard;
             Settings.ArchiveOn = archive; Settings.ArchiveLog = log;
+            if (keepPolicy) { Settings.ArchiveRules = rules; Settings.ArchiveName = archiveName; Settings.ArchiveDays = archiveDays; }
         }
     }
 

@@ -56,7 +56,7 @@ partial class ItemsView
         Rectangle bg = new Rectangle(r.X, r.Y + S(2), r.Width, r.Height - S(4));
         Ui.Card(g, selected ? Theme.SelOverlay : hot && !dragging ? Theme.HoverOverlay : Color.FromArgb(Settings.Dark ? 14 : 10, Theme.Fg), bg, S(Ui.RadiusControl), selected || hot);
         if (selected) Ui.Fill(g, Theme.Accent, new RectangleF(bg.X, bg.Y + S(10), S(3), bg.Height - S(20)), S(2));
-        Ui.Glyph(g, Glyphs.Copy, 11f, Theme.FgDim, new Rectangle(r.X + S(10), r.Y, S(22), r.Height));
+        Ui.Glyph(g, Glyphs.Copy, 11f, Theme.SelText(selected, Theme.FgDim), new Rectangle(r.X + S(10), r.Y, S(22), r.Height));
         int tx = r.X + S(40), right = r.Right - S(10);
         if (hot && !dragging)
         {
@@ -67,9 +67,9 @@ partial class ItemsView
             TextRenderer.DrawText(g, copy, fDetail, pill, SettingsPalette.OnFill(Theme.Accent), TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
             right = pill.Left - S(8);
         }
-        TextRenderer.DrawText(g, it.Name, fItem, new Rectangle(tx, r.Y + S(3), right - tx, r.Height / 2), Theme.Fg,
+        TextRenderer.DrawText(g, it.Name, fItem, new Rectangle(tx, r.Y + S(3), right - tx, r.Height / 2), Theme.SelText(selected, Theme.Fg),
             TextFormatFlags.Bottom | TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-        TextRenderer.DrawText(g, it.Detail ?? "", fDetail, new Rectangle(tx, r.Y + r.Height / 2 + S(1), right - tx, r.Height / 2 - S(4)), Theme.FgDim,
+        TextRenderer.DrawText(g, it.Detail ?? "", fDetail, new Rectangle(tx, r.Y + r.Height / 2 + S(1), right - tx, r.Height / 2 - S(4)), Theme.SelText(selected, Theme.FgDim),
             TextFormatFlags.Top | TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
     }
 }

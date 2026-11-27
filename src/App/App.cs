@@ -91,9 +91,14 @@ partial class App : ApplicationContext
         Settings.Changed += OnSettingsChanged;
         ClipboardHistory.Changed += panel.OnClipboardChanged;
         ApplyClipboard();
+        bool lastContrast = SystemInformation.HighContrast;
         SystemEvents.UserPreferenceChanged += (s, e) =>
         {
-            if (Settings.RefreshSystemTheme() && Settings.ThemeMode == 0)
+            // Bascule du Contraste élevé : les fenêtres ouvertes reprennent leurs couleurs et leur barre de titre (QA52)
+            bool contrast = SystemInformation.HighContrast;
+            bool contrastChanged = contrast != lastContrast;
+            lastContrast = contrast;
+            if ((Settings.RefreshSystemTheme() && Settings.ThemeMode == 0) || contrastChanged)
                 panel.BeginInvoke(new Action(Settings.Fire));
         };
         SystemEvents.SessionEnding += delegate { Settings.Flush(); Native.RestoreDesktopIcons(); };

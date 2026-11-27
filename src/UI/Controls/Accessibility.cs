@@ -21,10 +21,9 @@ abstract partial class FlatControl
 
     protected override AccessibleObject CreateAccessibilityInstance() { return new FlatAccessible(this); }
 
-    // Tout changement visible passe par Invalidate : c'est là qu'on compare avec ce qui a été annoncé
-    protected override void OnInvalidated(InvalidateEventArgs e)
+    // Appelé par les contrôles quand leur valeur ou leur état change (pas à chaque image redessinée, QA52-03)
+    protected void AnnounceAccessibleChange()
     {
-        base.OnInvalidated(e);
         if (!IsHandleCreated) return;
         string v = FlatValue;
         AccessibleStates st = FlatState;

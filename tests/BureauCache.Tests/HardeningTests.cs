@@ -148,4 +148,30 @@ public class HardeningTests
         Assert.IsNotNull(d);
         return d;
     }
+
+    [TestMethod]
+    public void ImportKeepsTheActiveTidyUpPolicyButTakesRulesWhenTidyUpIsOff()
+    {
+        // Rangement inactif ici : les règles du fichier sont reprises (« Ranger maintenant » liste et demande confirmation)
+        SetLocal();
+        Settings.ArchiveRules = new List<ArchiveRule>();
+        List<string> lines = File.ReadAllLines(ForeignFile(400)).Where(l => !l.StartsWith("ArchiveRules=")).ToList();
+        lines.Add("ArchiveRules=Images>0>png>7>1>");
+        File.WriteAllLines(Path.Combine(dir, "regles.ini"), lines, new UTF8Encoding(false));
+        List<string> kept = new List<string>();
+        Assert.IsTrue(SettingsBackup.ImportFrom(Path.Combine(dir, "regles.ini"), kept));
+        Assert.AreEqual(1, Settings.ArchiveRules.Count);
+
+        // Rangement actif ici : règles, dossier et ancienneté restent ceux du PC (QA52-01)
+        SetLocal();
+        Settings.ArchiveOn = true;
+        Settings.ArchiveRules = new List<ArchiveRule>();
+        string name = Settings.ArchiveName;
+        kept = new List<string>();
+        Assert.IsTrue(SettingsBackup.ImportFrom(Path.Combine(dir, "regles.ini"), kept));
+        Assert.IsTrue(Settings.ArchiveOn);
+        Assert.AreEqual(0, Settings.ArchiveRules.Count, "QA52-01 : les règles importées ne remplacent pas celles d'un rangement actif.");
+        Assert.AreEqual(name, Settings.ArchiveName);
+        Assert.IsTrue(kept.Any(k => k.Contains("règles")), "L'utilisateur est prévenu.");
+    }
 }

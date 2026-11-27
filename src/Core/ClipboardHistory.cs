@@ -138,6 +138,7 @@ class ClipboardWatcher : NativeWindow
         {
             if (Handle != IntPtr.Zero) Native.RemoveClipboardFormatListener(Handle);
             listening = false;
+            if (retry != null) retry.Stop();   // pas de relecture après la désactivation (QA52-09)
             ClipboardHistory.Clear();
         }
     }
@@ -152,6 +153,7 @@ class ClipboardWatcher : NativeWindow
     // Presse-papiers verrouillé par l'application qui vient de copier : un seul nouvel essai, 150 ms plus tard
     void Read(bool firstTry)
     {
+        if (firstTry && retry != null) retry.Stop();   // une nouvelle copie remplace la relecture en attente (QA52-09)
         bool busy;
         try { ClipboardHistory.Capture(out busy); } catch { return; }
         if (!busy || !firstTry) return;

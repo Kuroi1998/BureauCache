@@ -18,6 +18,8 @@
 - Style plus net : cartes, widgets et icônes ont une bordure fine et un survol plus visible ; le champ de recherche s'illumine quand on y tape.
 - Paramètres : la barre de titre suit le thème même quand Windows colore les barres de titre ; boutons plus sobres (Aperçu, Quitter, Désinstaller) ; le cadre en pointillés n'apparaît plus qu'au clavier.
 - Icônes plus nettes avec la police Segoe Fluent Icons de Windows 11 ; les pastilles de la recherche sont des icônes (calculatrice, aide, commandes).
+- Importer des réglages ne change pas non plus les règles d'un rangement automatique déjà actif.
+- En mode Contraste élevé, l'élément sélectionné prend les couleurs de sélection de Windows.
 
 ## 3.10 — Règles de rangement, recherche dans le contenu, presse-papiers
 

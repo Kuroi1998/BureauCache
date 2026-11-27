@@ -35,6 +35,12 @@ class WeatherPlace
     public string Name, Admin1, Country;
     public double Lat, Lon;
 
+    // « Ville, Pays » pour le panneau, construit à partir des champs : une virgule dans le nom ne gêne pas (QA52-05)
+    public string Short
+    {
+        get { return string.IsNullOrEmpty(Country) ? (Name ?? "") : (Name ?? "") + ", " + Country; }
+    }
+
     // « Baudour, Wallonie, Belgique » ; la région est omise si elle répète le nom
     public string Label
     {
@@ -188,8 +194,9 @@ static class Weather
 
     // ---------- Lecture des réponses JSON (analyseur strict Json, revue QA-23) ----------
     // Texte destiné à l'affichage : caractères de contrôle (\t, \n, \b, \f…) remplacés par des espaces
-    // « Saint-Ghislain, Région wallonne, Belgique » → « Saint-Ghislain, Belgique » : la ville et le pays suffisent
-    // dans le panneau (D-012). Fonctionne aussi avec un lieu enregistré par une version précédente.
+    // Lieu enregistré par une version précédente, sans forme courte : premier et dernier morceaux du libellé
+    // (« Saint-Ghislain, wallonne, Région, Belgique » → « Saint-Ghislain, Belgique »). Les lieux choisis depuis la
+    // 3.10.1 ont leur forme courte enregistrée (WeatherShort), construite à partir des champs (QA52-05).
     public static string ShortPlace(string label)
     {
         if (string.IsNullOrEmpty(label)) return label ?? "";

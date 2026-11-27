@@ -39,7 +39,9 @@ static class Theme
     public static Color EdgeHot { get { return HighContrast ? SystemColors.Highlight : Settings.Dark ? Color.FromArgb(46, 255, 255, 255) : Color.FromArgb(40, 0, 0, 0); } }
     public static Color Accent { get { return H(SystemColors.Highlight, Settings.Accent); } }
     public static Color HoverOverlay { get { return Settings.Dark ? Color.FromArgb(26, 255, 255, 255) : Color.FromArgb(16, 0, 0, 0); } }
-    public static Color SelOverlay { get { return Settings.Dark ? Color.FromArgb(44, 255, 255, 255) : Color.FromArgb(28, 0, 0, 0); } }
+    // Contraste élevé : la sélection prend la paire Highlight / HighlightText choisie par l'utilisateur (QA52-07)
+    public static Color SelOverlay { get { return HighContrast ? SystemColors.Highlight : Settings.Dark ? Color.FromArgb(44, 255, 255, 255) : Color.FromArgb(28, 0, 0, 0); } }
+    public static Color SelText(bool selected, Color normal) { return selected && HighContrast ? SystemColors.HighlightText : normal; }
 
     public static Color Mix(Color a, Color b, float t)
     {

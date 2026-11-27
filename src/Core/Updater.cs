@@ -53,7 +53,7 @@ static class Updater
 
     // Durée totale d'un téléchargement, redirections comprises : un serveur qui envoie au compte-gouttes ne bloque
     // pas indéfiniment (SEC-12)
-    const long TextBudgetMs = 60000, DownloadBudgetMs = 600000;
+    const long TextBudgetMs = 60000, DownloadBudgetMs = 1800000;   // 30 min : 50 Mo à environ 28 Ko/s (QA52-06)
 
     static void Fetch(string url, Stream output, long maximum)
     {
@@ -111,6 +111,9 @@ static class Updater
             if (total > maximum) throw new IOException(L.T("Le téléchargement dépasse la taille autorisée.", "Download size limit exceeded.", "La descarga supera el tamaño permitido."));
             output.Write(buffer, 0, read);
         }
+        // Fin du flux atteinte après l'échéance : ce n'est pas un succès (QA52-06)
+        if (clock != null && clock.ElapsedMilliseconds > budgetMs)
+            throw new IOException(L.T("Le téléchargement est trop lent : réessaie plus tard.", "The download is too slow: try again later.", "La descarga es demasiado lenta. Inténtalo más tarde."));
     }
 
     static string FetchText(string url, long maximum)

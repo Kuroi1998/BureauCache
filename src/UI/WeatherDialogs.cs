@@ -143,6 +143,7 @@ class WeatherPlaceDialog : ThemedDialog
     public static void Apply(WeatherPlace p)
     {
         Settings.WeatherPlace = p.Label;
+        Settings.WeatherShort = p.Short;
         Settings.WeatherLat = Math.Round(p.Lat, 4);
         Settings.WeatherLon = Math.Round(p.Lon, 4);
         Settings.WeatherOn = true;
