@@ -338,3 +338,35 @@ Suite : 582 réussis, 6 ignorés. Restent à essayer en vrai : changement d'éch
 | CDX-29 · Chaque version d'un fichier modifié gardait son image en mémoire | Basse | L'ancienne version sort du cache et n'est libérée qu'après la publication des nouvelles listes | Test |
 
 Les défauts CDX-20, 23, 25, 28 et 29 sont établis par la lecture du code : leurs tests utilisent des fonctions nouvelles et ne peuvent pas tourner sur l'ancien binaire. Suite : 603 réussis, 6 ignorés. Restent à essayer en vrai : supprimer puis restaurer depuis la Corbeille, annuler un rangement vers OneDrive.
+
+## QA-69 · Relecture et optimisation du code ajouté depuis la 3.10.2 (Claude)
+
+La revue de Codex n'a pas pu tourner (quota ChatGPT épuisé jusqu'à 15 h 34). Relecture par Claude du menu Démarrer, de la visite guidée, des Paramètres rapides (écrits par ChatGPT) et des badges.
+
+| Constat | Correction | Vérification |
+|---|---|---|
+| **Plantage possible** : la description d'un badge, fournie par une autre application en mémoire partagée, était lue jusqu'au premier caractère nul ; un bloc mal formé faisait lire hors de la mémoire, erreur que .NET ne rattrape pas | Lecture bornée à la région projetée (`VirtualQuery`) et à 512 caractères | 2 tests (texte sans caractère nul, texte de 2 000 caractères) |
+| **Performance** : chaque événement de fenêtre (infobulle, menu, contrôle, titre qui change chaque seconde chez un lecteur de musique ou un navigateur) relançait l'énumération de toutes les fenêtres du système | Seuls les événements d'une fenêtre listée ou qui peut l'être relancent l'énumération ; un titre qui change est mis à jour sur place ; actualisation de sûreté toutes les 5 s | 3 tests sur doubles (compteur d'énumérations) |
+| **Performance** : panneau des Paramètres rapides ouvert, le volume était relu 4 fois par seconde (objets COM recréés) et la luminosité plus d'une fois par seconde par WMI | Relecture de veille : 1 s pour le son, 3 s pour la luminosité ; un réglage au curseur part toujours tout de suite | Relu |
+
+**Relu sans défaut** : objets COM, handles Wi-Fi et mémoire des Paramètres rapides libérés dans des `finally` ; appels WinRT et WMI en arrière-plan ; profil Wi-Fi construit par un générateur XML (échappement) et mot de passe contrôlé ; fermeture du panneau pendant une recherche Wi-Fi ou Bluetooth correctement annulée ; restauration de `TaskbandHWND` après redémarrage d'Explorer. **Reste à faire avant publication** : retirer le journal temporaire des badges (`LogTaskbarMessage`). Suite : 633 réussis, 6 ignorés.
+
+## QA-70 · Revue Codex du code ajouté depuis la 3.10.2 (CDX-40 à CDX-50)
+
+Revue en lecture seule par Codex (D-015) sur `.ai/diff-chatgpt.patch`, avec consigne de ne pas remonter les points de QA-69. Onze constats ; chacun vérifié dans le code par Claude.
+
+| Constat | Tri | Correction | Vérification |
+|---|---|---|---|
+| CDX-40 · Le Gestionnaire des tâches et le Panneau de configuration étaient lancés par leur seul nom : le Shell cherche d'abord dans le dossier courant, un `taskmgr.exe` homonyme posé à côté de BureauCache aurait été lancé | Retenu, élargi au catalogue des outils Windows (`.msc`, `.cpl`, `rundll32.exe`) | `ShellUtil.SystemPath` : chemin complet dans System32 quand l'outil y existe | 1 test |
+| CDX-41 · Une restauration de `TaskbandHWND` refusée par Explorer, puis une réinstallation (barre recréée), réécrivait le journal avec notre ancienne fenêtre comme « valeur d'origine » ; la surveillance ne retentait pas la restauration des badges | Retenu | `Install` s'arrête si la restauration n'est pas constatée ; la surveillance retente barre et badges séparément pendant 2 minutes | 1 test sur doubles (recompilation de `TaskbandRoute.cs`) |
+| CDX-42 · Barre sur un moniteur externe d'un portable : le curseur de luminosité réglait la dalle interne (WMI) | Retenu | L'écran de la barre est d'abord interrogé en DDC/CI (une dalle interne n'y répond pas), WMI ensuite. Limite : un moniteur externe sans DDC/CI retombe sur la dalle interne | Relu ; essai réel à faire |
+| CDX-43 · Appairage Bluetooth lancé même sans fenêtre propriétaire, donc sans confirmation possible de Windows | Retenu en partie | Sans fenêtre propriétaire, pas d'appairage : message « ouvre les paramètres Windows ». Le constat « API non prise en charge sur le Bureau » n'est pas tranché sans essai réel (l'API est appelée avec `IInitializeWithWindow`) | Relu ; essai réel à faire |
+| CDX-44 · Fermer puis rouvrir le panneau pendant une connexion Wi-Fi permet une deuxième demande | Écarté | Une nouvelle demande `WlanConnect` remplace celle en cours sur la carte : aucun dommage, seul l'affichage du premier résultat est perdu | — |
+| CDX-45 · Opération WinRT annulée (lecture multimédia trop lente, sortie de la vue Bluetooth) jamais fermée par `Close` | Retenu | Fermeture en arrière-plan dès que l'opération s'arrête (5 s au plus) | Relu |
+| CDX-46 · Dernière position du curseur gardée en attente quand on ouvre la vue Wi-Fi ou Bluetooth (le minuteur s'arrête) | Retenu ; la partie « écritures en rafale » écartée : une seule écriture à la fois, avec la dernière valeur | Envoi de la valeur à l'ouverture de la sous-vue ; `FlushLevel` consomme la demande (un « Couper » envoyé deux fois s'annulerait) | 1 test |
+| CDX-47 · Mot de passe Wi-Fi laissé dans le champ quand on passe à une autre application | Retenu ; la partie « chaîne gardée en mémoire » écartée : une chaîne .NET ne peut pas être effacée, elle vit le temps de la connexion | Champ vidé à la perte du focus, la liste reste | 1 test |
+| CDX-48 · Visite ouverte et barre rétablie depuis son menu : l'interrupteur de la visite restait coché, il fallait deux clics | Retenu | L'interrupteur suit `Settings.Changed`, sans question ni réécriture ; désabonnement à la fermeture | 1 test |
+| CDX-49 · Clé WPA2 brute (64 chiffres hexadécimaux) tronquée à 63 caractères | Retenu | Champ à 64 ; clé brute acceptée pour WPA2 (`networkKey`), refusée pour WPA3 ; message dans les trois langues | 1 test |
+| CDX-50 · Journal temporaire des badges dans le code | Écarté pour l'instant | Déjà consigné (QA-69) : il sert à l'essai de diagnostic des badges, reporté par le chef de projet ; à retirer avant publication | — |
+
+Suite : 639 réussis, 6 ignorés.

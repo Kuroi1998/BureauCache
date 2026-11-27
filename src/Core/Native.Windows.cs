@@ -27,6 +27,7 @@ static partial class Native
     [DllImport("user32.dll")] public static extern bool UnhookWinEvent(IntPtr hook);
     [DllImport("user32.dll")] public static extern bool RegisterShellHookWindow(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern bool DeregisterShellHookWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] static extern bool FlashWindowEx(ref FLASHWINFO info);
     [DllImport("user32.dll")] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
     [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out int value, int size);
     [DllImport("kernel32.dll")] static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
@@ -42,7 +43,29 @@ static partial class Native
     public const uint EVENT_OBJECT_NAMECHANGE = 0x800C, EVENT_OBJECT_CLOAKED = 0x8017, EVENT_OBJECT_UNCLOAKED = 0x8018;
     public const int HSHELL_WINDOWACTIVATED = 4, HSHELL_RUDEAPPACTIVATED = 0x8004, HSHELL_FLASH = 0x8006;
     public const int WM_CLOSE = 0x10, WM_GETICON = 0x7F, ICON_BIG = 1, ICON_SMALL2 = 2;
-    public const int SW_MINIMIZE = 6, SW_RESTORE = 9;
+    public const int SW_MINIMIZE = 6, SW_RESTORE = 9, SW_SHOWMAXIMIZED = 3;
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct FLASHWINFO { public uint size; public IntPtr window; public uint flags, count, timeout; }
+
+    public static void StopTaskbarFlash(IntPtr window)
+    {
+        FLASHWINFO info = new FLASHWINFO { size = (uint)Marshal.SizeOf(typeof(FLASHWINFO)), window = window };
+        FlashWindowEx(ref info);  // FLASHW_STOP (0)
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct WINDOWPLACEMENT { public int length, flags, showCmd, minX, minY, maxX, maxY; public RECT normal; }
+    [DllImport("user32.dll")] static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT placement);
+
+    // Vrai si la fenêtre réduite était agrandie avant (WPF_RESTORETOMAXIMIZED) : elle doit revenir en plein écran.
+    // GetWindowPlacement lit l'état de la fenêtre sans lui envoyer de message : sans risque avec une application figée.
+    public static bool RestoresToMaximized(IntPtr h)
+    {
+        WINDOWPLACEMENT p = new WINDOWPLACEMENT();
+        p.length = Marshal.SizeOf(p);
+        return GetWindowPlacement(h, ref p) && (p.flags & 0x2) != 0;
+    }
 
     public static long WindowStyle(IntPtr h, int index)
     {

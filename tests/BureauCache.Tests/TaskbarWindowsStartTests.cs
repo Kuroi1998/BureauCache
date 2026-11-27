@@ -102,7 +102,7 @@ public class TaskbarWindowsStartTests
         using (StartMenuForm menu = new StartMenuForm())
         {
             StartTile[] tiles = menu.Controls.OfType<StartTile>().ToArray();
-            Assert.AreEqual(11, tiles.Length, "6 raccourcis, 2 actions de compte, 3 d'alimentation.");
+            Assert.AreEqual(14, tiles.Length, "3 BureauCache, 6 Windows, 2 de session, 3 d'alimentation.");
             string[] names = tiles.Select(t => t.Text).ToArray();
             foreach (string expected in new[] { L.T("Verrouiller", "Lock", "Bloquear"), L.T("Se déconnecter", "Sign out", "Cerrar sesión"),
                                                 L.T("Mettre en veille", "Sleep", "Suspender") })
@@ -110,6 +110,40 @@ public class TaskbarWindowsStartTests
             Assert.IsTrue(names.Any(n => n.Contains(L.T("redémarrer", "restart", "reiniciar")) || n == L.T("Redémarrer", "Restart", "Reiniciar")));
             Assert.IsTrue(tiles.All(t => t.TabStop), "Chaque tuile est atteignable au clavier.");
             Assert.IsTrue(tiles.All(t => t.AccessibilityObject.Role == AccessibleRole.PushButton), "Lue comme un bouton.");
+        }
+    }
+
+    // T-039 : on voit tout de suite ce qui relève de BureauCache et ce qui ouvre un outil de Windows
+    [TestMethod]
+    public void StartMenuSeparatesBureauCacheFromWindows()
+    {
+        using (BureauCache.Tests.LanguageScope.French())
+        using (StartMenuForm menu = new StartMenuForm())
+        {
+            string[] labels = menu.Controls.OfType<Label>().Select(l => l.Text).ToArray();
+            foreach (string section in new[] { "BUREAUCACHE", "WINDOWS", "SESSION WINDOWS", "ALIMENTATION" })
+                CollectionAssert.Contains(labels, section);
+            string[] names = menu.Controls.OfType<StartTile>().Select(t => t.Text).ToArray();
+            CollectionAssert.Contains(names, "Paramètres de BureauCache");
+            CollectionAssert.Contains(names, "Paramètres Windows");
+            Assert.IsFalse(names.Contains("Paramètres"), "Plus de « Paramètres » ambigu.");
+        }
+    }
+
+    [TestMethod]
+    public void BureauCacheTilesOpenSettingsAndTour()
+    {
+        using (BureauCache.Tests.LanguageScope.French())
+        {
+            foreach (string name in new[] { "Paramètres de BureauCache", "Visite guidée" })
+                using (StartMenuForm menu = new StartMenuForm())
+                {
+                    string opened = null;
+                    menu.OpenSettings += () => opened = "réglages";
+                    menu.OpenTour += () => opened = "visite";
+                    menu.Controls.OfType<StartTile>().Single(t => t.Text == name).AccessibilityObject.DoDefaultAction();
+                    Assert.AreEqual(name == "Visite guidée" ? "visite" : "réglages", opened, name);
+                }
         }
     }
 

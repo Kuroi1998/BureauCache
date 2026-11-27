@@ -14,4 +14,7 @@ static class Glyphs
     public const string Add = "", Terminal = "", TaskManager = "", Copy = "";
     public const string Help = "\uE897";   // pastille « ? » (D-012)
     public const string Wifi = "", Volume = "", Bell = "";   // barre des tâches (D-013)
+    public const string Bluetooth = "\uE702", Airplane = "\uE709", Battery = "\uE850", NightLight = "\uE708";
+    public const string Accessibility = "\uE776", Brightness = "\uE706", Music = "\uE8D6";
+    public const string Previous = "\uE892", Play = "\uE768", Pause = "\uE769", Next = "\uE893";
 }

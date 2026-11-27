@@ -29,10 +29,18 @@ static class Native {
         return new IntPtr(a);
     }
     public static bool UnhookWinEvent(IntPtr h) {return true;}
-    public static bool TwoWindows, Cloaked, Iconic;
+    public const uint EVENT_OBJECT_DESTROY=32769;
+    public static int FlashStops;
+    public static void StopTaskbarFlash(IntPtr h){FlashStops++;}
+    public static bool TwoWindows, Cloaked, Iconic, Maximized;
+    public static bool RestoresToMaximized(IntPtr h){return Maximized;}
+    public const int SW_SHOWMAXIMIZED=3;
     public static int SyncShows, AsyncShows, LastShow;
     public static IntPtr BorrowedIcon;
+    public static int EnumCount;
+    public static string Title = ""X"";
     public static bool EnumWindows(Func<IntPtr,IntPtr,bool> cb, IntPtr p) {
+        EnumCount++;
         if (EnumerationFails) return false;
         return cb(new IntPtr(1),p) && (!TwoWindows || cb(new IntPtr(2),p));
     }
@@ -47,7 +55,7 @@ static class Native {
     public static long WindowStyle(IntPtr h,int i){return 0;}
     public static IntPtr GetWindow(IntPtr h,int cmd){return IntPtr.Zero;}
     public static int GetWindowTextLength(IntPtr h){return 1;}
-    public static string WindowTitle(IntPtr h){return ""X"";}
+    public static string WindowTitle(IntPtr h){return Title;}
     public static string WindowClass(IntPtr h){return ""Window"";}
     public static string AppUserModelId(IntPtr h){return null;}
     public static IntPtr WindowIcon(IntPtr h,bool big){return BorrowedIcon;}
@@ -222,6 +230,19 @@ static class Icons {
         Assert.AreEqual(2, native.GetField("AsyncShows").GetValue(null));
     }
 
+    // T-038 : une fenêtre réduite depuis le plein écran revient en plein écran, sans repasser par SwitchToThisWindow
+    [TestMethod]
+    public void T038_MinimizedMaximizedWindowComesBackMaximized()
+    {
+        IntPtr hwnd = new IntPtr(1);
+        MethodInfo activate = listType.GetMethod("Activate");
+        native.GetField("Iconic").SetValue(null, true);
+        native.GetField("Maximized").SetValue(null, true);
+        activate.Invoke(null, new object[] { hwnd, false });
+        Assert.AreEqual(3, native.GetField("LastShow").GetValue(null), "SW_SHOWMAXIMIZED, pas SW_RESTORE.");
+        Assert.AreEqual(1, native.GetField("AsyncShows").GetValue(null));
+    }
+
     [TestMethod]
     public void CDX07_OnlyTheIconCopyIsConsumed()
     {
@@ -273,5 +294,54 @@ static class Icons {
 
         Assert.ThrowsException<ArgumentException>(() => removed.GetPixel(0, 0), "Image libérée.");
         Assert.AreEqual(16, retained.Width, "Image encore utilisée : gardée.");
+    }
+
+    // QA-69 ------------------------------------------------------------------------------------------------------------
+
+    bool FullRefreshNeeded(uint ev, IntPtr hwnd)
+    {
+        return (bool)listType.GetMethod("NeedsFullRefresh", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(list, new object[] { ev, hwnd });
+    }
+
+    uint Event(string name) { return (uint)native.GetField(name).GetValue(null); }
+
+    [TestMethod]
+    public void QA69_TitleChangeUpdatesInPlaceWithoutEnumeratingEveryWindow()
+    {
+        listType.GetMethod("Refresh").Invoke(list, null);
+        int changes = 0;
+        listType.GetEvent("Changed").AddEventHandler(list, (Action)(() => changes++));
+        int before = (int)native.GetField("EnumCount").GetValue(null);
+        native.GetField("Title").SetValue(null, "Nouveau titre");
+        Assert.IsFalse(FullRefreshNeeded(Event("EVENT_OBJECT_NAMECHANGE"), new IntPtr(1)), "Titre d'une fenêtre listée : pas d'énumération complète.");
+        Assert.AreEqual(before, (int)native.GetField("EnumCount").GetValue(null));
+        Assert.AreEqual(1, changes, "La barre est prévenue du nouveau titre.");
+        System.Collections.IList items = (System.Collections.IList)listType.GetField("Items").GetValue(list);
+        Assert.AreEqual("Nouveau titre", items[0].GetType().GetField("Title").GetValue(items[0]));
+        Assert.IsFalse(FullRefreshNeeded(Event("EVENT_OBJECT_NAMECHANGE"), new IntPtr(1)), "Même titre : rien.");
+        Assert.AreEqual(1, changes);
+    }
+
+    [TestMethod]
+    public void QA69_EventsOfUnrelatedWindowsAreIgnored()
+    {
+        listType.GetMethod("Refresh").Invoke(list, null);
+        IntPtr unknown = new IntPtr(77);
+        Assert.IsFalse(FullRefreshNeeded(Event("EVENT_OBJECT_HIDE"), unknown), "Une infobulle qui disparaît ne concerne pas la barre.");
+        Assert.IsFalse(FullRefreshNeeded(Event("EVENT_OBJECT_DESTROY"), unknown));
+        Assert.IsFalse(FullRefreshNeeded(Event("EVENT_OBJECT_CLOAKED"), unknown));
+        Assert.IsTrue(FullRefreshNeeded(Event("EVENT_OBJECT_HIDE"), new IntPtr(1)), "Une fenêtre listée qui disparaît : actualisation.");
+        Assert.IsTrue(FullRefreshNeeded(Event("EVENT_OBJECT_CREATE"), unknown), "Nouvelle fenêtre qui a sa place dans la barre.");
+        Assert.IsTrue(FullRefreshNeeded(Event("EVENT_SYSTEM_FOREGROUND"), unknown));
+    }
+
+    [TestMethod]
+    public void QA69_SafetyRefreshRunsEveryFiveTicks()
+    {
+        listType.GetMethod("Refresh").Invoke(list, null);   // les crochets sont posés, plus de nouvel essai en attente
+        if ((bool)listType.GetProperty("NeedsRefresh").GetValue(list, null)) listType.GetMethod("Refresh").Invoke(list, null);
+        int before = (int)native.GetField("EnumCount").GetValue(null);
+        for (int i = 0; i < 10; i++) listType.GetMethod("Tick").Invoke(list, null);
+        Assert.AreEqual(before + 2, (int)native.GetField("EnumCount").GetValue(null), "10 secondes : 2 actualisations de sûreté.");
     }
 }

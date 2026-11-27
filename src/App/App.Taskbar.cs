@@ -87,6 +87,8 @@ partial class App
         if (bar == null) return;
         startMenu = new StartMenuForm();
         startMenu.OpenPanel += () => { OpenManually(Screen.PrimaryScreen); Native.SetForegroundWindow(panel.Handle); };
+        startMenu.OpenSettings += ShowSettings;
+        startMenu.OpenTour += ShowWelcome;
         startMenu.SearchRequested += text =>
         {
             OpenManually(Screen.PrimaryScreen);
@@ -148,6 +150,7 @@ partial class App
         sessionEnding = true;
         try { Settings.Flush(); } catch { }
         try { Native.RestoreDesktopIcons(); } catch { }
+        try { TaskbandRoute.Restore(); } catch { }
         try { WindowsBar.Restore(); } catch { }
     }
 }

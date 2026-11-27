@@ -282,13 +282,17 @@ partial class SettingsForm
         base.OnFormClosing(e);
     }
 
+    FormWindowState shownState = FormWindowState.Normal;   // dernier état visible : normal ou agrandi
+
     protected override void OnResize(EventArgs e)
     {
         base.OnResize(e);
-        if (WindowState == FormWindowState.Minimized && Visible)
+        if (WindowState != FormWindowState.Minimized) shownState = WindowState;
+        else if (Visible)
         {
             HideToTray();
-            WindowState = FormWindowState.Normal; // prête à réapparaître normalement au prochain clic sur l'icône
+            // Prête à réapparaître comme elle était (agrandie ou non) au prochain clic sur l'icône (T-038)
+            WindowState = shownState;
         }
     }
 

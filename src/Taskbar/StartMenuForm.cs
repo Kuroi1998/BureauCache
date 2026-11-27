@@ -3,11 +3,11 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 
-// Recherche (envoyée au panneau), session, raccourcis, compte (verrouiller, se déconnecter) et alimentation
-// (veille, redémarrer, arrêter). Il se ferme dès qu'il perd le focus, ou avec Échap.
+// Recherche (envoyée au panneau), session, puis quatre sections : BureauCache (panneau, réglages, visite), Windows
+// (outils du système), session Windows (verrouiller, se déconnecter) et alimentation (veille, redémarrer, arrêter). Il se ferme dès qu'il perd le focus, ou avec Échap.
 class StartMenuForm : Form
 {
-    public event Action OpenPanel;
+    public event Action OpenPanel, OpenSettings, OpenTour;
     public event Action<string> SearchRequested;
     static readonly System.Diagnostics.Stopwatch sinceClosed = new System.Diagnostics.Stopwatch();
     public static bool JustClosed { get { return sinceClosed.IsRunning && sinceClosed.ElapsedMilliseconds < 250; } }
@@ -64,26 +64,37 @@ class StartMenuForm : Form
         headerRect = new Rectangle(Pad, y, inner, Ui.S(56));
         y = headerRect.Bottom + Ui.S(16);
 
-        int third = (inner - 2 * Gap) / 3, half = (inner - Gap) / 2, tileH = Ui.S(88);
-        y = SectionLabel(L.T("RACCOURCIS", "SHORTCUTS", "ACCESOS"), y);
-        AddTile(Glyphs.Search, L.T("Applications et recherche", "Apps and search", "Aplicaciones y búsqueda"), Cell(0, y, third, tileH), true, () =>
-            Finish(() => { if (OpenPanel != null) OpenPanel(); }));
-        AddTile(Glyphs.Settings, L.T("Paramètres", "Settings", "Configuración"), Cell(1, y, third, tileH), true, () => Launch("ms-settings:"));
-        AddTile(Glyphs.Folder, L.T("Explorateur", "File Explorer", "Explorador"), Cell(2, y, third, tileH), true, () => Launch("explorer.exe"));
-        y += tileH + Gap;
-        AddTile(Glyphs.Page, L.T("Documents", "Documents", "Documentos"), Cell(0, y, third, tileH), true, () => Launch("shell:Personal"));
-        AddTile(Glyphs.Download, L.T("Téléchargements", "Downloads", "Descargas"), Cell(1, y, third, tileH), true, () => Launch("shell:Downloads"));
-        AddTile(Glyphs.TaskManager, L.T("Gestionnaire des tâches", "Task Manager", "Administrador de tareas"), Cell(2, y, third, tileH), true, () => Launch("taskmgr.exe"));
-        y += tileH + Ui.S(16);
+        // Sections étiquetées : ce qui appartient à BureauCache, et ce qui ouvre un outil de Windows (T-039)
+        int third = (inner - 2 * Gap) / 3, half = (inner - Gap) / 2, tileH = Ui.S(88), shortH = Ui.S(52);
+        y = SectionLabel(L.T("BUREAUCACHE", "BUREAUCACHE", "BUREAUCACHE"),
+            L.T("le panneau et ses réglages", "the panel and its settings", "el panel y su configuración"), y);
+        AddTile(Glyphs.Search, L.T("Applications et recherche", "Apps and search", "Aplicaciones y búsqueda"), Cell(0, y, third, shortH), false,
+            () => Finish(() => { if (OpenPanel != null) OpenPanel(); }));
+        AddTile(Glyphs.Settings, L.T("Paramètres de BureauCache", "BureauCache settings", "Configuración de BureauCache"), Cell(1, y, third, shortH), false,
+            () => Finish(() => { if (OpenSettings != null) OpenSettings(); }));
+        AddTile(Glyphs.School, L.T("Visite guidée", "Guided tour", "Visita guiada"), Cell(2, y, third, shortH), false,
+            () => Finish(() => { if (OpenTour != null) OpenTour(); }));
+        y += shortH + Ui.S(16);
+
+        y = SectionLabel("WINDOWS", L.T("ouvre les outils de Windows", "opens Windows tools", "abre las herramientas de Windows"), y);
+        AddTile(Glyphs.Settings, L.T("Paramètres Windows", "Windows Settings", "Configuración de Windows"), Cell(0, y, third, shortH), false, () => Launch("ms-settings:"));
+        AddTile(Glyphs.Folder, L.T("Explorateur de fichiers", "File Explorer", "Explorador de archivos"), Cell(1, y, third, shortH), false, () => Launch("explorer.exe"));
+        AddTile(Glyphs.TaskManager, L.T("Gestionnaire des tâches", "Task Manager", "Administrador de tareas"), Cell(2, y, third, shortH), false, () => Launch("taskmgr.exe"));
+        y += shortH + Gap;
+        AddTile(Glyphs.Page, L.T("Documents", "Documents", "Documentos"), Cell(0, y, third, shortH), false, () => Launch("shell:Personal"));
+        AddTile(Glyphs.Download, L.T("Téléchargements", "Downloads", "Descargas"), Cell(1, y, third, shortH), false, () => Launch("shell:Downloads"));
+        AddTile(Glyphs.Box, L.T("Panneau de configuration", "Control Panel", "Panel de control"), Cell(2, y, third, shortH), false, () => Launch("control.exe"));
+        y += shortH + Ui.S(16);
 
         int rowH = Ui.S(48);
-        y = SectionLabel(L.T("COMPTE", "ACCOUNT", "CUENTA"), y);
+        y = SectionLabel(L.T("SESSION WINDOWS", "WINDOWS SESSION", "SESIÓN DE WINDOWS"),
+            L.T("ton compte reste ouvert ou se ferme", "keeps your account open or signs it out", "mantiene tu cuenta abierta o la cierra"), y);
         AddTile(Glyphs.Lock, L.T("Verrouiller", "Lock", "Bloquear"), new Rectangle(Pad, y, half, rowH), false, () => Run(SessionActions.Lock));
         AddTile(Glyphs.User, L.T("Se déconnecter", "Sign out", "Cerrar sesión"), new Rectangle(Pad + half + Gap, y, half, rowH), false, () => Run(SessionActions.SignOut));
         y += rowH + Ui.S(16);
 
         bool updates = SessionActions.UpdatesPending;
-        y = SectionLabel(L.T("ALIMENTATION", "POWER", "ENERGÍA"), y);
+        y = SectionLabel(L.T("ALIMENTATION", "POWER", "ENERGÍA"), L.T("met en veille, redémarre ou éteint le PC", "sleeps, restarts or shuts down the PC", "suspende, reinicia o apaga el PC"), y);
         AddTile(Glyphs.Sleep, L.T("Mettre en veille", "Sleep", "Suspender"), Cell(0, y, third, tileH), true, () => Run(SessionActions.Sleep));
         AddTile(Glyphs.Restart, updates ? L.T("Mettre à jour et redémarrer", "Update and restart", "Actualizar y reiniciar") : L.T("Redémarrer", "Restart", "Reiniciar"),
             Cell(1, y, third, tileH), true, () => Run(() => SessionActions.Restart()));
@@ -117,11 +128,17 @@ class StartMenuForm : Form
         Invalidate();
     }
 
-    int SectionLabel(string text, int y)
+    // Titre de section en capitales, suivi d'une légende plus discrète qui dit ce que la section ouvre
+    int SectionLabel(string title, string hint, int y)
     {
-        Label l = new Label { Text = text, AutoSize = false, ForeColor = Theme.FgDim, BackColor = Theme.Bg, Font = Ui.Font("Segoe UI Semibold", 9f),
-                              Bounds = new Rectangle(Pad, y, MenuWidth - 2 * Pad, Ui.S(20)) };
+        Font bold = Ui.Font("Segoe UI Semibold", 9f), light = Ui.Font("Segoe UI", 9f);
+        int titleW = TextRenderer.MeasureText(title, bold).Width;
+        Label l = new Label { Text = title, AutoSize = false, ForeColor = Theme.Fg, BackColor = Theme.Bg, Font = bold,
+                              Bounds = new Rectangle(Pad, y, titleW + Ui.S(4), Ui.S(20)) };
+        Label h = new Label { Text = "· " + hint, AutoSize = false, ForeColor = Theme.FgDim, BackColor = Theme.Bg, Font = light, AutoEllipsis = true,
+                              Bounds = new Rectangle(l.Right + Ui.S(4), y, MenuWidth - 2 * Pad - titleW - Ui.S(8), Ui.S(20)) };
         Controls.Add(l);
+        Controls.Add(h);
         return y + Ui.S(24);
     }
 
@@ -132,7 +149,7 @@ class StartMenuForm : Form
         Controls.Add(t);
     }
 
-    void Launch(string target) { Finish(() => ShellUtil.Open(target, null)); }
+    void Launch(string target) { Finish(() => ShellUtil.Open(ShellUtil.SystemPath(target), null)); }
 
     // L'action part après la fermeture du menu (verrouiller ou se mettre en veille avec le menu ouvert le laisserait au retour)
     void Run(Action action) { Finish(action); }
@@ -229,7 +246,7 @@ class StartMenuForm : Form
 // Tuile du menu : icône et texte, au clavier (Tab, Entrée, Espace) et lue par les lecteurs d'écran comme un bouton
 class StartTile : FlatControl
 {
-    readonly string glyph;
+    string glyph;
     readonly bool stacked;   // icône au-dessus du texte, sinon à gauche
     bool hover;
 
@@ -244,6 +261,13 @@ class StartTile : FlatControl
         Font = Ui.Font("Segoe UI", 10f);
         BackColor = Theme.Bg;
         EnableSettingsKeyboard();
+    }
+
+    public void SetGlyph(string value)
+    {
+        if (glyph == value) return;
+        glyph = value;
+        Invalidate();
     }
 
     protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
@@ -261,16 +285,18 @@ class StartTile : FlatControl
     {
         Graphics g = Prep(e);
         RectangleF r = new RectangleF(0, 0, Width - 1, Height - 1);
-        Ui.Fill(g, hover || Focused ? Theme.Hover : Theme.Surface, r, Ui.S(Ui.RadiusControl));
+        bool highlight = Enabled && (hover || Focused);
+        Color text = Enabled ? Theme.SelText(highlight, Theme.Fg) : Theme.FgDim;
+        Ui.Fill(g, highlight ? Theme.Hover : Theme.Surface, r, Ui.S(Ui.RadiusControl));
         if (stacked)
         {
-            Ui.Glyph(g, glyph, 17f, Theme.Fg, GlyphArea);
-            TextRenderer.DrawText(g, Text, Font, TextArea, Theme.Fg, TextFlags | TextFormatFlags.HorizontalCenter);
+            Ui.Glyph(g, glyph, 17f, text, GlyphArea);
+            TextRenderer.DrawText(g, Text, Font, TextArea, text, TextFlags | TextFormatFlags.HorizontalCenter);
         }
         else
         {
-            Ui.Glyph(g, glyph, 14f, Theme.Fg, new Rectangle(Ui.S(10), 0, Ui.S(30), Height));
-            TextRenderer.DrawText(g, Text, Font, TextArea, Theme.Fg, TextFlags | TextFormatFlags.VerticalCenter);
+            Ui.Glyph(g, glyph, 14f, text, new Rectangle(Ui.S(10), 0, Ui.S(30), Height));
+            TextRenderer.DrawText(g, Text, Font, TextArea, text, TextFlags | TextFormatFlags.VerticalCenter);
         }
         DrawSettingsFocus(g);
     }

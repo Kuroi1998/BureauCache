@@ -19,7 +19,7 @@ partial class BarForm : Form
     bool appbar;
     Rectangle requestedBarBounds, approvedBarBounds;
     int hot = -1;   // zone survolée : 0 Démarrer, 1 Paramètres rapides, 2 horloge, Overflow, WindowZone + indice
-    Rectangle[] zones = new Rectangle[3];
+    readonly Rectangle[] zones = new Rectangle[4];   // Démarrer, réseau/son, horloge, notifications
 
     public static int BarHeight { get { return Ui.S(56); } }   // 48 px à l'essai : icônes jugées trop petites (QA-58)
 
@@ -55,6 +55,7 @@ partial class BarForm : Form
 
     public void ApplyTheme()
     {
+        if (quickSettings != null && quickSettings.BackColor != Theme.Bg) CloseQuickSettings();
         BackColor = Theme.Bg;
         Invalidate();
     }
@@ -77,6 +78,7 @@ partial class BarForm : Form
 
     protected override void OnHandleDestroyed(EventArgs e)
     {
+        CloseQuickSettings();
         StopWindows();
         AppBarRemove();
         base.OnHandleDestroyed(e);
@@ -117,7 +119,7 @@ partial class BarForm : Form
     public void Reposition()
     {
         Rectangle s = Screen.PrimaryScreen.Bounds;
-        if (!appbar) { Bounds = new Rectangle(s.Left, s.Bottom - BarHeight, s.Width, BarHeight); return; }
+        if (!appbar) { ApplyBarBounds(new Rectangle(s.Left, s.Bottom - BarHeight, s.Width, BarHeight)); return; }
         Native.APPBARDATA d = new Native.APPBARDATA();
         d.cbSize = Marshal.SizeOf(d);
         d.hWnd = Handle;
@@ -128,14 +130,22 @@ partial class BarForm : Form
         Rectangle requested = Rectangle.FromLTRB(d.rc.Left, d.rc.Top, d.rc.Right, d.rc.Bottom);
         if (requested == requestedBarBounds)
         {
-            if (Bounds != approvedBarBounds) Bounds = approvedBarBounds;
+            ApplyBarBounds(approvedBarBounds);
             return;
         }
         // ABM_SETPOS déclenche ABN_POSCHANGED. Une position identique ne doit pas relancer la notification.
         requestedBarBounds = approvedBarBounds = requested;
         Native.SHAppBarMessage(Native.ABM_SETPOS, ref d);
         approvedBarBounds = Rectangle.FromLTRB(d.rc.Left, d.rc.Top, d.rc.Right, d.rc.Bottom);
-        Bounds = approvedBarBounds;
+        ApplyBarBounds(approvedBarBounds);
+    }
+
+    void ApplyBarBounds(Rectangle bounds)
+    {
+        // Windows peut notifier la position alors que la barre n'a pas bougé.
+        if (Bounds == bounds) return;
+        CloseQuickSettings();
+        Bounds = bounds;
     }
 
     void AppBarRemove()
@@ -152,6 +162,7 @@ partial class BarForm : Form
     protected override void WndProc(ref Message m)
     {
         if (m.Msg == 0x21 /*WM_MOUSEACTIVATE*/) { m.Result = new IntPtr(3 /*MA_NOACTIVATE*/); return; }
+        if (HandleTaskbarList(ref m)) return;   // badges et progressions des applications (D-016)
         if (appbar && m.Msg == (int)abMsg)
         {
             int code = m.WParam.ToInt32();
@@ -167,7 +178,7 @@ partial class BarForm : Form
             AppBarRemove();
             requestedBarBounds = Rectangle.Empty;
             AppBarRegister();
-            if (windows != null) Native.RegisterShellHookWindow(Handle);
+            if (windows != null) { Native.RegisterShellHookWindow(Handle); StartBadges(); }   // nouvelle barre d'Explorer : routage à reposer
             if (ExplorerRestarted != null) ExplorerRestarted();
         }
         base.WndProc(ref m);
@@ -177,6 +188,7 @@ partial class BarForm : Form
     void OnFullscreen(bool entering)
     {
         if (!entering) { TopMost = true; return; }
+        CloseQuickSettings();
         HidePreview();
         TopMost = false;
         Native.SetWindowPos(Handle, Native.HWND_BOTTOM, 0, 0, 0, 0, Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
@@ -191,7 +203,8 @@ partial class BarForm : Form
         string time, date; ClockText(out time, out date);
         int clockW = Math.Max(TextRenderer.MeasureText(time, ClockFont).Width, TextRenderer.MeasureText(date, ClockFont).Width) + Ui.S(20);
         zones[2] = new Rectangle(ClientSize.Width - Ui.S(8) - clockW, pad, clockW, btn);
-        zones[1] = new Rectangle(zones[2].Left - Ui.S(4) - Ui.S(96), pad, Ui.S(96), btn);
+        zones[3] = new Rectangle(zones[2].Left - Ui.S(4) - Ui.S(32), pad, Ui.S(32), btn);
+        zones[1] = new Rectangle(zones[3].Left - Ui.S(4) - Ui.S(64), pad, Ui.S(64), btn);
         LayoutWindows(zones[0].Right + Ui.S(6), zones[1].Left - Ui.S(12), pad, btn);
     }
 
@@ -210,7 +223,7 @@ partial class BarForm : Form
         Layout2();
         using (Pen line = new Pen(Theme.Line)) g.DrawLine(line, 0, 0, ClientSize.Width, 0);
         for (int i = 0; i < zones.Length; i++)
-            if (i == hot) Ui.Fill(g, Theme.HoverOverlay, zones[i], Ui.S(4));
+            if (i == hot || (i == 1 && quickSettings != null)) Ui.Fill(g, Theme.HoverOverlay, zones[i], Ui.S(4));
 
         int logo = Ui.S(34);
         Rectangle z = zones[0];
@@ -218,10 +231,10 @@ partial class BarForm : Form
         PaintWindows(g);
 
         z = zones[1];
-        int third = z.Width / 3;
-        Ui.Glyph(g, Glyphs.Wifi, 13f, Theme.Fg, new Rectangle(z.Left, z.Top, third, z.Height));
-        Ui.Glyph(g, Glyphs.Volume, 13f, Theme.Fg, new Rectangle(z.Left + third, z.Top, third, z.Height));
-        Ui.Glyph(g, Glyphs.Bell, 13f, Theme.Fg, new Rectangle(z.Left + 2 * third, z.Top, third, z.Height));
+        int halfWidth = z.Width / 2;
+        Ui.Glyph(g, Glyphs.Wifi, 13f, Theme.Fg, new Rectangle(z.Left, z.Top, halfWidth, z.Height));
+        Ui.Glyph(g, Glyphs.Volume, 13f, Theme.Fg, new Rectangle(z.Left + halfWidth, z.Top, z.Width - halfWidth, z.Height));
+        Ui.Glyph(g, Glyphs.Bell, 13f, Theme.Fg, zones[3]);
 
         string time, date; ClockText(out time, out date);
         z = zones[2];
@@ -242,7 +255,7 @@ partial class BarForm : Form
         base.OnMouseMove(e);
         if (DragMove(e.Location)) return;
         int z = ZoneAt(e.Location);
-        if (z != hot) { hot = z; Invalidate(); ShowWindowTip(z); }
+        if (z != hot) { hot = z; Invalidate(); ShowWindowTip(quickSettings == null ? z : -1); }
     }
 
     protected override void OnMouseLeave(EventArgs e)
@@ -262,11 +275,12 @@ partial class BarForm : Form
             pressZone = NoZone;
             if (DragEnd() || changed || !sameZone) return;
         }
+        if (z != 1 || e.Button != MouseButtons.Left) CloseQuickSettings();
         if (WindowMouseUp(z, e.Button)) return;
         if (e.Button == MouseButtons.Right) { if (MenuRequested != null) MenuRequested(); return; }
         if (e.Button != MouseButtons.Left) return;
+        if (z == 1) { ToggleQuickSettings(); return; }
         if (z == 0 && StartClicked != null) StartClicked();
-        else if (z == 1) Native.PressWinKey(0x41);   // Windows + A : Paramètres rapides (réseau, son, batterie)
-        else if (z == 2) Native.PressWinKey(0x4E);   // Windows + N : notifications et calendrier
+        else if (!Sandbox.Active && (z == 2 || z == 3)) Native.PressWinKey(0x4E);   // Windows + N : notifications et calendrier
     }
 }

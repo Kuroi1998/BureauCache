@@ -125,6 +125,20 @@ static class ShellUtil
         catch { return null; }
     }
 
+    // Un nom nu (« taskmgr.exe », « devmgmt.msc ») est cherché par le Shell dans le dossier courant avant System32 :
+    // un fichier homonyme posé à côté de BureauCache serait lancé à sa place (CDX-40). On donne le chemin complet
+    // quand l'outil existe dans le dossier système, sinon le nom tel quel (adresses ms-settings:, protocoles).
+    internal static string SystemPath(string name)
+    {
+        if (string.IsNullOrEmpty(name) || name.IndexOfAny(new[] { '\\', '/', ':' }) >= 0) return name;
+        try
+        {
+            string full = Path.Combine(Environment.SystemDirectory, name);
+            return File.Exists(full) ? full : name;
+        }
+        catch (Exception) { return name; }
+    }
+
     public static void Open(string target, string args)
     {
         ProcessStartInfo psi = new ProcessStartInfo(target);

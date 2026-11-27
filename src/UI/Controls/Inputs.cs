@@ -223,6 +223,7 @@ class Slider : FlatControl
 
     protected override AccessibleRole FlatRole { get { return AccessibleRole.Slider; } }
     protected override string FlatValue { get { return val.ToString(); } }
+    internal bool IsDragging { get { return drag; } }
 
     public int Value
     {

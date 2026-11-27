@@ -11,6 +11,25 @@ class TaskWindow
     public string Title = "";
     public bool Flashing;
     public string AppKey;   // application de la fenêtre (D-014) : « aumid:… » ou « exe:… »
+    public const int MaxDiscordAlerts = 100;
+    public int DiscordAlerts { get; private set; }
+
+    public bool RegisterDiscordAlert()
+    {
+        if (!IsDiscord(AppKey)) return false;
+        DiscordAlerts = Math.Min(MaxDiscordAlerts, DiscordAlerts + 1);
+        return true;
+    }
+
+    public void ClearDiscordAlerts() { DiscordAlerts = 0; }
+
+    static bool IsDiscord(string key)
+    {
+        if (string.Equals(key, "aumid:com.squirrel.Discord.Discord", StringComparison.OrdinalIgnoreCase)) return true;
+        if (key == null || !key.StartsWith("exe:", StringComparison.OrdinalIgnoreCase)) return false;
+        int nameStart = Math.Max(4, key.LastIndexOfAny(new[] { '\\', '/' }) + 1);
+        return string.Equals(key.Substring(nameStart), "Discord.exe", StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 // Suivi par les événements de Windows (SetWinEventHook hors contexte : rien n'est injecté dans les autres
@@ -57,8 +76,44 @@ sealed class WindowList : IDisposable
     void OnEvent(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
     {
         if (idObject != 0 /*OBJID_WINDOW*/ || idChild != 0 || hwnd == IntPtr.Zero) return;
-        if (ev == Native.EVENT_SYSTEM_FOREGROUND) flashing.Remove(hwnd);
-        Schedule();
+        if (ev == Native.EVENT_SYSTEM_FOREGROUND || ev == Native.EVENT_OBJECT_DESTROY)
+        {
+            flashing.Remove(hwnd);
+            ClearDiscordAlerts(hwnd);
+        }
+        if (NeedsFullRefresh(ev, hwnd)) Schedule();
+    }
+
+    // Chaque infobulle, menu ou contrôle qui apparaît, et chaque titre qui change (lecteur de musique, navigateur),
+    // relançait l'énumération de toutes les fenêtres du système. Seuls comptent maintenant les événements d'une
+    // fenêtre déjà listée ou qui pourrait l'être ; un titre qui change sur une fenêtre listée est mis à jour sur
+    // place (QA-69). Une actualisation complète de sûreté a lieu toutes les 5 s (Tick).
+    bool NeedsFullRefresh(uint ev, IntPtr hwnd)
+    {
+        bool known = tracked.ContainsKey(hwnd);
+        if (ev == Native.EVENT_SYSTEM_FOREGROUND) return true;
+        if (ev == Native.EVENT_OBJECT_DESTROY || ev == Native.EVENT_OBJECT_HIDE || ev == Native.EVENT_OBJECT_CLOAKED) return known;
+        if (ev == Native.EVENT_OBJECT_NAMECHANGE && known)
+        {
+            TaskWindow w = tracked[hwnd];
+            string title = Native.WindowTitle(hwnd);
+            if (title == w.Title) return false;
+            w.Title = title;
+            if (Items.Contains(w) && Changed != null) Changed();
+            return false;
+        }
+        // Création, affichage, retour d'un autre bureau, titre d'une fenêtre encore inconnue : seulement si elle
+        // a sa place dans la barre (quelques appels pour une fenêtre au lieu de toutes les fenêtres)
+        return known || IsTaskWindow(hwnd);
+    }
+
+    int ticks;
+
+    // Appelé chaque seconde par la barre : nouvel essai si un crochet ou l'énumération a échoué, et actualisation
+    // complète toutes les 5 s, pour un changement qu'aucun événement n'aurait signalé (style d'une fenêtre)
+    public void Tick()
+    {
+        if (NeedsRefresh || ++ticks % 5 == 0) Refresh();
     }
 
     void Schedule() { if (!debounce.Enabled) debounce.Start(); }
@@ -66,9 +121,24 @@ sealed class WindowList : IDisposable
     // Une fenêtre demande l'attention (message HSHELL_FLASH reçu par la barre)
     public void Flash(IntPtr hwnd)
     {
-        if (hwnd == IntPtr.Zero || hwnd == Native.GetForegroundWindow()) return;
+        if (Sandbox.Active || hwnd == IntPtr.Zero || hwnd == Native.GetForegroundWindow()) return;
         flashing.Add(hwnd);
+        TaskWindow window;
+        if (!tracked.TryGetValue(hwnd, out window) && IsTaskWindow(hwnd))
+        {
+            window = new TaskWindow { Handle = hwnd, AppKey = AppKeyOf(hwnd) };
+            tracked.Add(hwnd, window);
+            if (!sessionOrder.Contains(hwnd)) sessionOrder.Add(hwnd);
+        }
+        // Un cycle produit plusieurs HSHELL_FLASH. La barre garde son propre état et arrête le cycle après le premier.
+        if (window != null && window.RegisterDiscordAlert()) Native.StopTaskbarFlash(hwnd);
         Schedule();
+    }
+
+    public void ClearDiscordAlerts(IntPtr hwnd)
+    {
+        TaskWindow window;
+        if (tracked.TryGetValue(hwnd, out window)) window.ClearDiscordAlerts();
     }
 
     public void Refresh()
@@ -108,6 +178,9 @@ sealed class WindowList : IDisposable
             next.Add(w);
         }
         flashing.RemoveWhere(h => !present.Contains(h));
+        Active = Native.GetForegroundWindow();
+        flashing.Remove(Active);
+        ClearDiscordAlerts(Active);
         foreach (TaskWindow w in next)
         {
             w.Title = Native.WindowTitle(w.Handle);
@@ -115,7 +188,6 @@ sealed class WindowList : IDisposable
         }
         TaskIcons.Forget(present);
         Items = next;
-        Active = Native.GetForegroundWindow();
         if (Changed != null) Changed();
     }
 
@@ -196,7 +268,14 @@ sealed class WindowList : IDisposable
         if (!Native.IsWindow(h)) return;
         // Demandes postées (ShowWindowAsync) : une application figée ne bloque jamais la barre ni le panneau (CDX-03)
         if (wasActive && !Native.IsIconic(h)) { Native.ShowWindowAsync(h, Native.SW_MINIMIZE); return; }
-        if (Native.IsIconic(h)) Native.ShowWindowAsync(h, Native.SW_RESTORE);
+        // Fenêtre réduite : elle revient dans l'état où elle était, en plein écran si elle l'était. SwitchToThisWindow,
+        // qui la remettait en taille normale, n'est plus utilisé pour elle (retour de l'essai, T-038).
+        if (Native.IsIconic(h))
+        {
+            Native.ShowWindowAsync(h, Native.RestoresToMaximized(h) ? Native.SW_SHOWMAXIMIZED : Native.SW_RESTORE);
+            Native.SetForegroundWindow(h);
+            return;
+        }
         // Le dernier clic vient de notre processus : Windows nous laisse donner le premier plan
         if (!Native.SetForegroundWindow(h) || Native.GetForegroundWindow() != h) Native.SwitchToThisWindow(h, true);
     }

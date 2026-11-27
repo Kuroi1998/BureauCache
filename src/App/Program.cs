@@ -25,7 +25,7 @@ static class Program
         string cmd = args.Length > 0 ? args[0].ToLowerInvariant() : "";
         if (cmd == "--watchdog" && args.Length > 1) { Watchdog(args[1]); return; }
         if (cmd == "--make-icon" && args.Length > 1) { Ui.WriteIco(args[1]); return; }
-        if (cmd == "--restore") { Native.RestoreDesktopIcons(); WindowsBar.Restore(); return; }
+        if (cmd == "--restore") { Native.RestoreDesktopIcons(); WindowsBar.Restore(); TaskbandRoute.Restore(); return; }
         Settings.Load();
         L.Refresh();
         if (cmd == "--uninstall") { UninstallFromCommandLine(); return; }
@@ -68,6 +68,7 @@ static class Program
                     {
                         if (watchdogProcess != null) watchdogProcess.Dispose();
                         Native.RestoreDesktopIcons();
+                        TaskbandRoute.Restore();
                         WindowsBar.Restore();
                     }
                 }
@@ -116,9 +117,14 @@ static class Program
         Thread.Sleep(1500);
         if (InstanceExists()) return;
         Native.RestoreDesktopIcons();   // plantage : icônes et barre Windows reviennent
-        // Explorer absent ou restauration non constatée : nouvel essai pendant 2 minutes, sauf si une instance a repris
-        for (int i = 0; i < 60 && !WindowsBar.Restore(); i++)
+        // Barre et badges (D-016) retournent à Explorer. Explorer absent ou restauration non constatée : nouvel essai
+        // de chacune pendant 2 minutes, sauf si une instance a repris (CDX-41)
+        bool bar = false, badges = false;
+        for (int i = 0; i < 60; i++)
         {
+            if (!badges) badges = TaskbandRoute.Restore();
+            if (!bar) bar = WindowsBar.Restore();
+            if (bar && badges) return;
             Thread.Sleep(2000);
             if (InstanceExists()) return;
         }
