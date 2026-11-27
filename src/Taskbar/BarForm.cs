@@ -152,6 +152,7 @@ partial class BarForm : Form
     protected override void WndProc(ref Message m)
     {
         if (m.Msg == 0x21 /*WM_MOUSEACTIVATE*/) { m.Result = new IntPtr(3 /*MA_NOACTIVATE*/); return; }
+        if (HandleTaskbarList(ref m)) return;   // badges et progressions des applications (D-016)
         if (appbar && m.Msg == (int)abMsg)
         {
             int code = m.WParam.ToInt32();
@@ -167,7 +168,7 @@ partial class BarForm : Form
             AppBarRemove();
             requestedBarBounds = Rectangle.Empty;
             AppBarRegister();
-            if (windows != null) Native.RegisterShellHookWindow(Handle);
+            if (windows != null) { Native.RegisterShellHookWindow(Handle); StartBadges(); }   // nouvelle barre d'Explorer : routage à reposer
             if (ExplorerRestarted != null) ExplorerRestarted();
         }
         base.WndProc(ref m);

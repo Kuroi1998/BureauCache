@@ -150,6 +150,7 @@ partial class App
         sessionEnding = true;
         try { Settings.Flush(); } catch { }
         try { Native.RestoreDesktopIcons(); } catch { }
+        try { TaskbandRoute.Restore(); } catch { }
         try { WindowsBar.Restore(); } catch { }
     }
 }

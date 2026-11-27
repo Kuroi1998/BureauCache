@@ -10,6 +10,14 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 **Conséquences :** ce que ça impose ensuite.
 -->
 
+## D-016 — Badges et progressions des applications dans la barre BureauCache (2026-11-27) · Statut : Proposée (prototype)
+
+**Contexte :** les applications posent un badge sur leur bouton de la barre (le « 1 » de Discord) et une barre de progression (téléchargements, copies) par `ITaskbarList3::SetOverlayIcon`, `SetProgressState` et `SetProgressValue`. Ces demandes arrivent à la barre d'Explorer, cachée : la barre BureauCache ne les voit pas.
+**Décision proposée :** comme ManagedShell (RetroBar), poser la propriété de fenêtre `TaskbandHWND` sur la fenêtre `Shell_TrayWnd` d'Explorer, pointant vers la barre BureauCache. Les demandes arrivent alors en messages `WM_USER + 79` (icône de badge, `wParam` = fenêtre, `lParam` = icône), `+ 85` (description, mémoire partagée), `+ 64` (valeur de progression) et `+ 65` (état de progression). Pas de `SetTaskmanWindow` (non documenté, inutile ici).
+**Exception à D-013, acceptée par le chef de projet :** c'est une modification légère et réversible d'une fenêtre d'Explorer (une propriété, pas de code injecté, ni registre ni fichier). La valeur d'origine est notée dans `badges.etat` avant tout changement, et remise à la sortie, par la surveillance après un plantage, par `--restore` et en fin de session. Si Explorer a redémarré entre-temps, il a reposé sa propre valeur : on n'y touche pas.
+**Risques :** mécanisme non documenté par Microsoft, d'où un **prototype essayé sur le PC du chef de projet avant toute publication** ; abandon complet s'il ne fonctionne pas. Les badges des applications du Store (notifications de badge) ne passent pas par ce chemin.
+**Alternatives écartées :** `SetTaskmanWindow` (non documenté, prend le rôle de gestionnaire de tâches) ; lire les badges dans Explorer (injection) ; compteur maison par application (impossible : seule l'application connaît son nombre de messages).
+
 ## D-015 — Gemini et Codex appelés directement, en lecture seule (2026-11-27) · Statut : Acceptée
 
 **Contexte :** la délégation à Gemini et ChatGPT passait par des prompts copiés à la main, et une nuit de modifications faites par un autre agent dans le dossier, sans coordination (QA-61 à QA-65), a dû être relue après coup. Le chef de projet veut qu'ils travaillent ici avec Claude.
