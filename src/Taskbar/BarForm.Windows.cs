@@ -53,7 +53,7 @@ partial class BarForm
         if (code == Native.HSHELL_FLASH) windows.Flash(lParam);
     }
 
-    static int ButtonWidth { get { return Ui.S(44); } }
+    static int ButtonWidth { get { return Ui.S(56); } }
 
     void LayoutWindows(int left, int right, int top, int height)
     {
@@ -82,7 +82,7 @@ partial class BarForm
     void PaintWindows(Graphics g)
     {
         if (windows == null) return;
-        int icon = Ui.S(24);
+        int icon = Ui.S(32);
         for (int i = 0; i < windowRects.Count; i++)
         {
             TaskWindow w = windows.Items[i];
@@ -94,7 +94,7 @@ partial class BarForm
             Rectangle ir = new Rectangle(r.Left + (r.Width - icon) / 2, r.Top + (r.Height - icon) / 2 - Ui.S(2), icon, icon);
             Bitmap b = TaskIcons.For(w.Handle, icon);
             if (b != null) g.DrawImage(b, ir);
-            else Ui.Glyph(g, Glyphs.Apps, 13f, Theme.Fg, ir);
+            else Ui.Glyph(g, Glyphs.Apps, 17f, Theme.Fg, ir);
             // Trait sous l'icône : long et coloré pour la fenêtre active, court et gris pour les autres
             int lw = active ? Ui.S(16) : Ui.S(6);
             Ui.Fill(g, active ? Theme.Accent : Theme.FgDim, new RectangleF(r.Left + (r.Width - lw) / 2f, r.Bottom - Ui.S(4), lw, Ui.S(3)), Ui.S(1));

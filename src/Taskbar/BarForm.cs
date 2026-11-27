@@ -20,7 +20,7 @@ partial class BarForm : Form
     int hot = -1;   // zone survolée : 0 Démarrer, 1 Paramètres rapides, 2 horloge, Overflow, WindowZone + indice
     Rectangle[] zones = new Rectangle[3];
 
-    public static int BarHeight { get { return Ui.S(48); } }
+    public static int BarHeight { get { return Ui.S(56); } }   // 48 px à l'essai : icônes jugées trop petites (QA-58)
 
     public BarForm()
     {
@@ -161,11 +161,11 @@ partial class BarForm : Form
         string time, date; ClockText(out time, out date);
         int clockW = Math.Max(TextRenderer.MeasureText(time, ClockFont).Width, TextRenderer.MeasureText(date, ClockFont).Width) + Ui.S(20);
         zones[2] = new Rectangle(ClientSize.Width - Ui.S(8) - clockW, pad, clockW, btn);
-        zones[1] = new Rectangle(zones[2].Left - Ui.S(4) - Ui.S(72), pad, Ui.S(72), btn);
+        zones[1] = new Rectangle(zones[2].Left - Ui.S(4) - Ui.S(96), pad, Ui.S(96), btn);
         LayoutWindows(zones[0].Right + Ui.S(6), zones[1].Left - Ui.S(12), pad, btn);
     }
 
-    static Font ClockFont { get { return Ui.Font("Segoe UI", 9f); } }
+    static Font ClockFont { get { return Ui.Font("Segoe UI", 9.75f); } }
 
     static void ClockText(out string time, out string date)
     {
@@ -182,16 +182,16 @@ partial class BarForm : Form
         for (int i = 0; i < zones.Length; i++)
             if (i == hot) Ui.Fill(g, Theme.HoverOverlay, zones[i], Ui.S(4));
 
-        int logo = Ui.S(26);
+        int logo = Ui.S(34);
         Rectangle z = zones[0];
         Ui.DrawLogo(g, new Rectangle(z.Left + (z.Width - logo) / 2, z.Top + (z.Height - logo) / 2, logo, logo), Theme.Accent);
         PaintWindows(g);
 
         z = zones[1];
         int third = z.Width / 3;
-        Ui.Glyph(g, Glyphs.Wifi, 11f, Theme.Fg, new Rectangle(z.Left, z.Top, third, z.Height));
-        Ui.Glyph(g, Glyphs.Volume, 11f, Theme.Fg, new Rectangle(z.Left + third, z.Top, third, z.Height));
-        Ui.Glyph(g, Glyphs.Bell, 11f, Theme.Fg, new Rectangle(z.Left + 2 * third, z.Top, third, z.Height));
+        Ui.Glyph(g, Glyphs.Wifi, 13f, Theme.Fg, new Rectangle(z.Left, z.Top, third, z.Height));
+        Ui.Glyph(g, Glyphs.Volume, 13f, Theme.Fg, new Rectangle(z.Left + third, z.Top, third, z.Height));
+        Ui.Glyph(g, Glyphs.Bell, 13f, Theme.Fg, new Rectangle(z.Left + 2 * third, z.Top, third, z.Height));
 
         string time, date; ClockText(out time, out date);
         z = zones[2];
