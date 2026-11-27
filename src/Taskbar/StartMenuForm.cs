@@ -1,13 +1,14 @@
 // BureauCache — StartMenuForm : menu Démarrer de la barre BureauCache (D-013, T-034)
 using System;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
-// Recherche (envoyée au panneau), session, puis quatre sections : BureauCache (panneau, réglages, visite), Windows
+// Recherche (envoyée au panneau), session, puis quatre sections : BureauCache (panneau, réglages, visite, quitter), Windows
 // (outils du système), session Windows (verrouiller, se déconnecter) et alimentation (veille, redémarrer, arrêter). Il se ferme dès qu'il perd le focus, ou avec Échap.
 class StartMenuForm : Form
 {
-    public event Action OpenPanel, OpenSettings, OpenTour;
+    public event Action OpenPanel, OpenSettings, OpenTour, QuitRequested;
     public event Action<string> SearchRequested;
     static readonly System.Diagnostics.Stopwatch sinceClosed = new System.Diagnostics.Stopwatch();
     public static bool JustClosed { get { return sinceClosed.IsRunning && sinceClosed.ElapsedMilliseconds < 250; } }
@@ -16,10 +17,22 @@ class StartMenuForm : Form
     readonly Bitmap picture;
     TextBox search;
     Rectangle searchRect, headerRect;
+    int menuWidth;
 
     static int Pad { get { return Ui.S(20); } }
     static int Gap { get { return Ui.S(8); } }
-    static int MenuWidth { get { return Ui.S(540); } }
+    static int MinimumWidth { get { return Ui.S(540); } }
+    static Font TileFont { get { return Ui.Font("Segoe UI", 10f); } }
+
+    // Largeur d'une colonne pour que chaque texte tienne en deux lignes au plus sans couper un mot. Essai du
+    // 2026-11-27 : « Télécharge… », « Panneau de configurati… » et « Paramètres de » sans la suite à l'échelle de
+    // l'écran du chef de projet, avec une largeur fixe.
+    internal static int ColumnWidth(string[] texts, int minimum)
+    {
+        int w = minimum;
+        while (w < Ui.S(320) && !texts.All(t => StartTile.FitsBeside(t, TileFont, w))) w += Ui.S(4);
+        return w;
+    }
 
     public StartMenuForm()
     {
@@ -44,7 +57,18 @@ class StartMenuForm : Form
 
     void Build()
     {
-        int width = MenuWidth, inner = width - 2 * Pad, y = Pad;
+        string[] windows =
+        {
+            L.T("Paramètres Windows", "Windows Settings", "Configuración de Windows"),
+            L.T("Explorateur de fichiers", "File Explorer", "Explorador de archivos"),
+            L.T("Gestionnaire des tâches", "Task Manager", "Administrador de tareas"),
+            L.T("Documents", "Documents", "Documentos"),
+            L.T("Téléchargements", "Downloads", "Descargas"),
+            L.T("Panneau de configuration", "Control Panel", "Panel de control")
+        };
+        int third = ColumnWidth(windows, (MinimumWidth - 2 * Pad - 2 * Gap) / 3);
+        int inner = 3 * third + 2 * Gap, width = inner + 2 * Pad, y = Pad;
+        menuWidth = width;
 
         // Recherche : le premier caractère tapé ouvre le panneau avec ce texte, comme dans le menu de Windows
         searchRect = new Rectangle(Pad, y, inner, Ui.S(40));
@@ -65,25 +89,29 @@ class StartMenuForm : Form
         y = headerRect.Bottom + Ui.S(16);
 
         // Sections étiquetées : ce qui appartient à BureauCache, et ce qui ouvre un outil de Windows (T-039)
-        int third = (inner - 2 * Gap) / 3, half = (inner - Gap) / 2, tileH = Ui.S(88), shortH = Ui.S(52);
+        int half = (inner - Gap) / 2, tileH = Ui.S(88), shortH = Math.Max(Ui.S(52), 2 * TileFont.Height + Ui.S(12));
         y = SectionLabel(L.T("BUREAUCACHE", "BUREAUCACHE", "BUREAUCACHE"),
             L.T("le panneau et ses réglages", "the panel and its settings", "el panel y su configuración"), y);
-        AddTile(Glyphs.Search, L.T("Applications et recherche", "Apps and search", "Aplicaciones y búsqueda"), Cell(0, y, third, shortH), false,
+        AddTile(Glyphs.Search, L.T("Applications et recherche", "Apps and search", "Aplicaciones y búsqueda"), new Rectangle(Pad, y, half, shortH), false,
             () => Finish(() => { if (OpenPanel != null) OpenPanel(); }));
-        AddTile(Glyphs.Settings, L.T("Paramètres de BureauCache", "BureauCache settings", "Configuración de BureauCache"), Cell(1, y, third, shortH), false,
+        AddTile(Glyphs.Settings, L.T("Paramètres de BureauCache", "BureauCache settings", "Configuración de BureauCache"), new Rectangle(Pad + half + Gap, y, half, shortH), false,
             () => Finish(() => { if (OpenSettings != null) OpenSettings(); }));
-        AddTile(Glyphs.School, L.T("Visite guidée", "Guided tour", "Visita guiada"), Cell(2, y, third, shortH), false,
+        y += shortH + Gap;
+        AddTile(Glyphs.School, L.T("Visite guidée", "Guided tour", "Visita guiada"), new Rectangle(Pad, y, half, shortH), false,
             () => Finish(() => { if (OpenTour != null) OpenTour(); }));
+        // Comme « Quitter » du menu de l'icône : icônes du bureau et barre Windows reviennent
+        AddTile(Glyphs.Dismiss, L.T("Quitter BureauCache", "Quit BureauCache", "Salir de BureauCache"), new Rectangle(Pad + half + Gap, y, half, shortH), false,
+            () => Finish(() => { if (QuitRequested != null) QuitRequested(); }));
         y += shortH + Ui.S(16);
 
         y = SectionLabel("WINDOWS", L.T("ouvre les outils de Windows", "opens Windows tools", "abre las herramientas de Windows"), y);
-        AddTile(Glyphs.Settings, L.T("Paramètres Windows", "Windows Settings", "Configuración de Windows"), Cell(0, y, third, shortH), false, () => Launch("ms-settings:"));
-        AddTile(Glyphs.Folder, L.T("Explorateur de fichiers", "File Explorer", "Explorador de archivos"), Cell(1, y, third, shortH), false, () => Launch("explorer.exe"));
-        AddTile(Glyphs.TaskManager, L.T("Gestionnaire des tâches", "Task Manager", "Administrador de tareas"), Cell(2, y, third, shortH), false, () => Launch("taskmgr.exe"));
+        AddTile(Glyphs.Settings, windows[0], Cell(0, y, third, shortH), false, () => Launch("ms-settings:"));
+        AddTile(Glyphs.Folder, windows[1], Cell(1, y, third, shortH), false, () => Launch("explorer.exe"));
+        AddTile(Glyphs.TaskManager, windows[2], Cell(2, y, third, shortH), false, () => Launch("taskmgr.exe"));
         y += shortH + Gap;
-        AddTile(Glyphs.Page, L.T("Documents", "Documents", "Documentos"), Cell(0, y, third, shortH), false, () => Launch("shell:Personal"));
-        AddTile(Glyphs.Download, L.T("Téléchargements", "Downloads", "Descargas"), Cell(1, y, third, shortH), false, () => Launch("shell:Downloads"));
-        AddTile(Glyphs.Box, L.T("Panneau de configuration", "Control Panel", "Panel de control"), Cell(2, y, third, shortH), false, () => Launch("control.exe"));
+        AddTile(Glyphs.Page, windows[3], Cell(0, y, third, shortH), false, () => Launch("shell:Personal"));
+        AddTile(Glyphs.Download, windows[4], Cell(1, y, third, shortH), false, () => Launch("shell:Downloads"));
+        AddTile(Glyphs.Box, windows[5], Cell(2, y, third, shortH), false, () => Launch("control.exe"));
         y += shortH + Ui.S(16);
 
         int rowH = Ui.S(48);
@@ -136,7 +164,7 @@ class StartMenuForm : Form
         Label l = new Label { Text = title, AutoSize = false, ForeColor = Theme.Fg, BackColor = Theme.Bg, Font = bold,
                               Bounds = new Rectangle(Pad, y, titleW + Ui.S(4), Ui.S(20)) };
         Label h = new Label { Text = "· " + hint, AutoSize = false, ForeColor = Theme.FgDim, BackColor = Theme.Bg, Font = light, AutoEllipsis = true,
-                              Bounds = new Rectangle(l.Right + Ui.S(4), y, MenuWidth - 2 * Pad - titleW - Ui.S(8), Ui.S(20)) };
+                              Bounds = new Rectangle(l.Right + Ui.S(4), y, menuWidth - 2 * Pad - titleW - Ui.S(8), Ui.S(20)) };
         Controls.Add(l);
         Controls.Add(h);
         return y + Ui.S(24);
@@ -333,6 +361,24 @@ class StartTile : FlatControl
         }
     }
 
+    // Chaque mot tient sur une ligne : sinon Windows le coupe par « … » ou le fait disparaître, alors que la hauteur
+    // mesurée semble bonne (essai du 2026-11-27 : « Télécharge… » passait l'ancien test)
+    internal static bool WordsFit(string text, Font font, int width)
+    {
+        foreach (string word in (text ?? string.Empty).Split(' '))
+            if (word.Length > 0 && TextRenderer.MeasureText(word, font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine).Width > width)
+                return false;
+        return true;
+    }
+
+    // Une tuile à icône à gauche de largeur tileWidth affiche ce texte en deux lignes au plus, sans couper de mot
+    internal static bool FitsBeside(string text, Font font, int tileWidth)
+    {
+        int width = tileWidth - Ui.S(52);
+        return WordsFit(text, font, width) &&
+               TextRenderer.MeasureText(text, font, new Size(width, int.MaxValue), TextFlags).Height <= 2 * font.Height + Ui.S(2);
+    }
+
     // Faux si le texte, mis en page, dépasse sa zone (test de non-régression)
     internal bool TextFits
     {
@@ -340,7 +386,7 @@ class StartTile : FlatControl
         {
             Rectangle a = TextArea;
             Size need = TextRenderer.MeasureText(Text, Font, new Size(a.Width, int.MaxValue), TextFlags);
-            return need.Height <= a.Height && a.Bottom <= Height;
+            return need.Height <= a.Height && a.Bottom <= Height && WordsFit(Text, Font, a.Width);
         }
     }
 }

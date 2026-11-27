@@ -102,7 +102,7 @@ public class TaskbarWindowsStartTests
         using (StartMenuForm menu = new StartMenuForm())
         {
             StartTile[] tiles = menu.Controls.OfType<StartTile>().ToArray();
-            Assert.AreEqual(14, tiles.Length, "3 BureauCache, 6 Windows, 2 de session, 3 d'alimentation.");
+            Assert.AreEqual(15, tiles.Length, "4 BureauCache (dont Quitter), 6 Windows, 2 de session, 3 d'alimentation.");
             string[] names = tiles.Select(t => t.Text).ToArray();
             foreach (string expected in new[] { L.T("Verrouiller", "Lock", "Bloquear"), L.T("Se déconnecter", "Sign out", "Cerrar sesión"),
                                                 L.T("Mettre en veille", "Sleep", "Suspender") })
@@ -189,6 +189,35 @@ public class TaskbarWindowsStartTests
             using (StartMenuForm menu = new StartMenuForm())
                 foreach (StartTile t in menu.Controls.OfType<StartTile>())
                     Assert.IsTrue(t.TextFits, L.CurrentLanguage + " : " + t.Text);
+    }
+
+    // Essai du 2026-11-27 : « Télécharge… » et « Panneau de configurati… » passaient l'ancien test, qui ne vérifiait
+    // que la hauteur ; un mot trop long pour sa ligne est maintenant refusé
+    [TestMethod]
+    public void WordTooWideForItsLineIsDetected()
+    {
+        System.Drawing.Font font = Ui.Font("Segoe UI", 10f);
+        int word = TextRenderer.MeasureText("Téléchargements", font, new System.Drawing.Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine).Width;
+        Assert.IsFalse(StartTile.WordsFit("Téléchargements", font, word - 1));
+        Assert.IsTrue(StartTile.WordsFit("Téléchargements", font, word));
+        Assert.IsFalse(StartTile.FitsBeside("Téléchargements", font, word - 1 + Ui.S(52)));
+        int column = StartMenuForm.ColumnWidth(new[] { "Téléchargements", "Panneau de configuration" }, Ui.S(100));
+        Assert.IsTrue(StartTile.FitsBeside("Téléchargements", font, column) && StartTile.FitsBeside("Panneau de configuration", font, column));
+    }
+
+    [TestMethod]
+    public void StartMenuCanQuitBureauCache()
+    {
+        foreach (Func<IDisposable> scope in new Func<IDisposable>[] { () => BureauCache.Tests.LanguageScope.French(), () => BureauCache.Tests.LanguageScope.English(), () => BureauCache.Tests.LanguageScope.Spanish() })
+            using (scope())
+            using (StartMenuForm menu = new StartMenuForm())
+            {
+                string quit = L.T("Quitter BureauCache", "Quit BureauCache", "Salir de BureauCache");
+                StartTile tile = menu.Controls.OfType<StartTile>().SingleOrDefault(t => t.Text == quit);
+                Assert.IsNotNull(tile, "Tuile « " + quit + " » dans la section BureauCache.");
+                Assert.IsTrue(tile.TextFits, quit);
+                Assert.IsTrue(menu.ClientRectangle.Contains(tile.Bounds));
+            }
     }
 
     [TestMethod]
