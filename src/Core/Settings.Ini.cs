@@ -85,6 +85,13 @@ static partial class Settings
                     case "ClipboardOn": ClipboardOn = b; break;
                     case "TaskbarOn": TaskbarOn = b; break;
                     case "TaskbarPins": TaskbarPins = SplitList(v); break;
+                    case "TaskbarSize": if (int.TryParse(v, out n)) TaskbarSize = Math.Max(0, Math.Min(2, n)); break;
+                    case "TaskbarCenter": TaskbarCenter = b; break;
+                    case "TaskbarLabels": TaskbarLabels = b; break;
+                    case "TaskbarQuick": TaskbarQuick = b; break;
+                    case "TaskbarBell": TaskbarBell = b; break;
+                    case "TaskbarDate": TaskbarDate = b; break;
+                    case "TaskbarSeconds": TaskbarSeconds = b; break;
                     case "NewBadge": NewBadge = b; break;
                     case "ArchiveOn": ArchiveOn = b; break;
                     case "HoverPreview": HoverPreview = b; break;
@@ -289,7 +296,8 @@ static partial class Settings
                 "GridView=" + B(GridView), "Glass=" + B(Glass), "LiveBlur=" + B(LiveBlur), "HidePanelInCapture=" + B(HidePanelInCapture), "Animations=" + B(Animations),
                 "NoFullscreen=" + B(NoFullscreen), "HotkeyOn=" + B(HotkeyOn),
                 "SearchApps=" + B(SearchApps), "SearchRecent=" + B(SearchRecent), "SearchSettings=" + B(SearchSettings),
-                "SearchCommands=" + B(SearchCommands), "SearchContent=" + B(SearchContent), "ClipboardOn=" + B(ClipboardOn), "TaskbarOn=" + B(TaskbarOn), "TaskbarPins=" + string.Join("|", TaskbarPins), "NewBadge=" + B(NewBadge), "ArchiveOn=" + B(ArchiveOn),
+                "SearchCommands=" + B(SearchCommands), "SearchContent=" + B(SearchContent), "ClipboardOn=" + B(ClipboardOn), "TaskbarOn=" + B(TaskbarOn), "TaskbarPins=" + string.Join("|", TaskbarPins), "TaskbarSize=" + TaskbarSize, "TaskbarCenter=" + B(TaskbarCenter), "TaskbarLabels=" + B(TaskbarLabels),
+                "TaskbarQuick=" + B(TaskbarQuick), "TaskbarBell=" + B(TaskbarBell), "TaskbarDate=" + B(TaskbarDate), "TaskbarSeconds=" + B(TaskbarSeconds), "NewBadge=" + B(NewBadge), "ArchiveOn=" + B(ArchiveOn),
                 "HoverPreview=" + B(HoverPreview), "Widgets=" + B(Widgets), "AutoUpdate=" + B(AutoUpdate),
                 "Pinned=" + B(Pinned), "QuietStart=" + B(QuietStart), "TrayHintShown=" + B(TrayHintShown), "LastVersion=" + LastVersion, "ArchiveLog=" + string.Join("|", ArchiveLog),
                 "ThemeMode=" + ThemeMode, "Language=" + Language, "Delay=" + Delay, "PanelWidth=" + PanelWidth,

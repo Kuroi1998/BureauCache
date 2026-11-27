@@ -70,7 +70,8 @@ partial class BarForm
         Invalidate();
     }
 
-    static int ButtonWidth { get { return Ui.S(56); } }
+    // Icône seule : un carré de la hauteur de la barre ; avec titre (T-043) : un bouton large, comme Windows 10
+    static int ButtonWidth { get { return Settings.TaskbarLabels ? (int)(Ui.S(176) * Math.Max(0.9f, SizeScale)) : BarHeight; } }
 
     void LayoutWindows(int left, int right, int top, int height)
     {
@@ -105,7 +106,7 @@ partial class BarForm
 
     void PaintWindows(Graphics g)
     {
-        int icon = Ui.S(32);
+        int icon = (int)(Ui.S(32) * SizeScale);
         IntPtr active = windows != null ? windows.Active : IntPtr.Zero;
         for (int i = 0; i < buttonRects.Count && i < buttons.Count; i++)
         {
@@ -117,10 +118,18 @@ partial class BarForm
             else if (b.Window != null && b.Window.Flashing) Ui.Fill(g, Color.FromArgb(150, 249, 115, 22), r, Ui.S(4));
             else if (isActive) Ui.Fill(g, Theme.SelOverlay, r, Ui.S(4));
             else if (hot == WindowZone + i) Ui.Fill(g, Theme.HoverOverlay, r, Ui.S(4));
-            Rectangle ir = new Rectangle(r.Left + (r.Width - icon) / 2, r.Top + (r.Height - icon) / 2 - Ui.S(2), icon, icon);
+            Rectangle ir = Settings.TaskbarLabels
+                ? new Rectangle(r.Left + Ui.S(10), r.Top + (r.Height - icon) / 2 - Ui.S(2), icon, icon)
+                : new Rectangle(r.Left + (r.Width - icon) / 2, r.Top + (r.Height - icon) / 2 - Ui.S(2), icon, icon);
             Bitmap img = IconOf(b, icon);
             if (img != null) g.DrawImage(img, ir);
-            else Ui.Glyph(g, Glyphs.Apps, 17f, Theme.Fg, ir);
+            else Ui.Glyph(g, Glyphs.Apps, 17f * SizeScale, Theme.Fg, ir);
+            if (Settings.TaskbarLabels)
+            {
+                string title = b.Window != null && !string.IsNullOrEmpty(b.Window.Title) ? b.Window.Title : b.Name;
+                TextRenderer.DrawText(g, title, ClockFont, new Rectangle(ir.Right + Ui.S(8), r.Top, r.Right - ir.Right - Ui.S(14), r.Height - Ui.S(4)),
+                    Theme.Fg, TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
+            }
             PaintBadge(g, r, ir, b.Window);
             // Trait sous l'icône : long et coloré pour la fenêtre active, court et gris pour une fenêtre ouverte,
             // aucun pour une épingle dont l'application est fermée

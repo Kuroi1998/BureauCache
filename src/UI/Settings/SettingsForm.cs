@@ -64,8 +64,9 @@ partial class SettingsForm : Form
         KeyPreview = true;
 
         nav = new SettingsNavigation(new[] { T("Général", "General", "General"), T("Ouverture", "Opening", "Apertura"), T("Apparence", "Appearance", "Apariencia"),
-                                  T("Recherche", "Search", "Búsqueda"), T("Organisation", "Organization", "Organización"), T("Avancé", "Advanced", "Opciones avanzadas") },
-                          new[] { Glyphs.Settings, Glyphs.Mouse, Glyphs.Palette, Glyphs.Search, Glyphs.Library, Glyphs.Info });
+                                  T("Recherche", "Search", "Búsqueda"), T("Organisation", "Organization", "Organización"),
+                                  T("Barre des tâches", "Taskbar", "Barra de tareas"), T("Avancé", "Advanced", "Opciones avanzadas") },
+                          new[] { Glyphs.Settings, Glyphs.Mouse, Glyphs.Palette, Glyphs.Search, Glyphs.Library, Glyphs.Monitor, Glyphs.Info });
         nav.Width = NavW;
         nav.TabIndex = 0;
         nav.SelectedChanged += ShowPage;
@@ -91,6 +92,7 @@ partial class SettingsForm : Form
         BuildLook();
         BuildSearch();
         BuildOrganize();
+        BuildTaskbar();   // avant Avancé : la page Organisation garde l'indice 4
         BuildAdvanced();
 
         LoadValues();

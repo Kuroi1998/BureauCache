@@ -21,7 +21,12 @@ partial class BarForm : Form
     int hot = -1;   // zone survolée : 0 Démarrer, 1 Paramètres rapides, 2 horloge, Overflow, WindowZone + indice
     readonly Rectangle[] zones = new Rectangle[4];   // Démarrer, réseau/son, horloge, notifications
 
-    public static int BarHeight { get { return Ui.S(56); } }   // 48 px à l'essai : icônes jugées trop petites (QA-58)
+    // Hauteur selon la taille choisie (T-043) : 56 px, la taille normale, après l'essai de 48 px jugé trop petit (QA-58)
+    static readonly int[] Heights = { 46, 56, 66 };
+    public static int BarHeight { get { return Ui.S(Heights[Math.Max(0, Math.Min(2, Settings.TaskbarSize))]); } }
+    // Échelle des icônes et du texte de la barre par rapport à la taille normale
+    static float SizeScale { get { return Heights[Math.Max(0, Math.Min(2, Settings.TaskbarSize))] / 56f; } }
+    int appliedHeight;
 
     public BarForm()
     {
@@ -34,6 +39,7 @@ partial class BarForm : Form
         AccessibleRole = AccessibleRole.ToolBar;
         Rectangle s = Screen.PrimaryScreen.Bounds;
         Bounds = new Rectangle(s.Left, s.Bottom - BarHeight, s.Width, BarHeight);
+        appliedHeight = BarHeight;
         ApplyTheme();
         previewDelay.Tick += (o, e) => { previewDelay.Stop(); OpenPreview(previewZone); };
         previewWatch.Tick += (o, e) => WatchPreview();
@@ -60,13 +66,29 @@ partial class BarForm : Form
         Invalidate();
     }
 
-    // Le minuteur se recale sur le début de chaque minute : un seul réveil par minute
+    // Le minuteur se recale sur le début de chaque minute (un seul réveil par minute), ou de chaque seconde quand
+    // l'horloge les affiche
     void ScheduleClock()
     {
         clock.Stop();
         DateTime now = DateTime.Now;
-        clock.Interval = Math.Max(1000, (60 - now.Second) * 1000 - now.Millisecond + 50);
+        clock.Interval = Settings.TaskbarSeconds ? Math.Max(50, 1000 - now.Millisecond + 15)
+            : Math.Max(1000, (60 - now.Second) * 1000 - now.Millisecond + 50);
         clock.Start();
+    }
+
+    // Réglages de la barre changés (T-043) : nouvelle hauteur réservée à Windows si besoin, horloge et dessin
+    public void ApplyLayoutSettings()
+    {
+        if (BarHeight != appliedHeight)
+        {
+            appliedHeight = BarHeight;
+            ClosePanels();
+            HidePreview();
+            Reposition();
+        }
+        ScheduleClock();
+        Invalidate();
     }
 
     // La réservation suit la vie du handle (BAR-10). Jamais en test : elle changerait la zone de travail réelle (BAR-12).
@@ -196,25 +218,41 @@ partial class BarForm : Form
 
     // ---- Dessin -------------------------------------------------------------------------------------------------
 
+    // Zones de droite selon les éléments affichés (T-043) ; boutons à gauche ou centrés avec le bouton Démarrer,
+    // comme Windows 11, tant qu'ils tiennent avant les zones de droite
     void Layout2()
     {
         int h = ClientSize.Height, pad = Ui.S(4), btn = h - 2 * pad;
-        zones[0] = new Rectangle(Ui.S(8), pad, btn, btn);
         string time, date; ClockText(out time, out date);
-        int clockW = Math.Max(TextRenderer.MeasureText(time, ClockFont).Width, TextRenderer.MeasureText(date, ClockFont).Width) + Ui.S(20);
+        int clockW = Math.Max(TextRenderer.MeasureText(time, ClockFont).Width, date == null ? 0 : TextRenderer.MeasureText(date, ClockFont).Width) + Ui.S(20);
         zones[2] = new Rectangle(ClientSize.Width - Ui.S(8) - clockW, pad, clockW, btn);
-        zones[3] = new Rectangle(zones[2].Left - Ui.S(4) - Ui.S(32), pad, Ui.S(32), btn);
-        zones[1] = new Rectangle(zones[3].Left - Ui.S(4) - Ui.S(64), pad, Ui.S(64), btn);
-        LayoutWindows(zones[0].Right + Ui.S(6), zones[1].Left - Ui.S(12), pad, btn);
+        int right = zones[2].Left;
+        zones[3] = Settings.TaskbarBell ? new Rectangle(right - Ui.S(4) - Ui.S(32), pad, Ui.S(32), btn) : Rectangle.Empty;
+        if (Settings.TaskbarBell) right = zones[3].Left;
+        zones[1] = Settings.TaskbarQuick ? new Rectangle(right - Ui.S(4) - Ui.S(64), pad, Ui.S(64), btn) : Rectangle.Empty;
+        if (Settings.TaskbarQuick) right = zones[1].Left;
+        int limit = right - Ui.S(12), start = Ui.S(8);
+        if (Settings.TaskbarCenter)
+        {
+            int group = btn + Ui.S(6) + buttons.Count * ButtonWidth;
+            start = Math.Max(Ui.S(8), Math.Min((ClientSize.Width - group) / 2, limit - group));
+        }
+        zones[0] = new Rectangle(start, pad, btn, btn);
+        LayoutWindows(zones[0].Right + Ui.S(6), limit, pad, btn);
     }
 
-    static Font ClockFont { get { return Ui.Font("Segoe UI", 9.75f); } }
+    static Font ClockFont { get { return Ui.Font("Segoe UI", 9.75f * Math.Max(0.9f, SizeScale)); } }
 
+    // Heure (avec les secondes si demandé) et date, ou date null quand elle est masquée
     static void ClockText(out string time, out string date)
     {
-        DateTime now = DateTime.Now;
-        time = now.ToString("t", L.Culture);
-        date = now.ToString("d", L.Culture);
+        ClockText(DateTime.Now, out time, out date);
+    }
+
+    internal static void ClockText(DateTime now, out string time, out string date)
+    {
+        time = now.ToString(Settings.TaskbarSeconds ? "T" : "t", L.Culture);
+        date = Settings.TaskbarDate ? now.ToString("d", L.Culture) : null;
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -223,25 +261,35 @@ partial class BarForm : Form
         Layout2();
         using (Pen line = new Pen(Theme.Line)) g.DrawLine(line, 0, 0, ClientSize.Width, 0);
         for (int i = 0; i < zones.Length; i++)
-            if (i == hot || (i == 1 && quickSettings != null) || (i == popupZone && popup != null)) Ui.Fill(g, Theme.HoverOverlay, zones[i], Ui.S(4));
+            if (zones[i].IsEmpty) continue;
+            else if (i == hot || (i == 1 && quickSettings != null) || (i == popupZone && popup != null)) Ui.Fill(g, Theme.HoverOverlay, zones[i], Ui.S(4));
 
-        int logo = Ui.S(34);
+        int logo = (int)(Ui.S(34) * SizeScale);
         Rectangle z = zones[0];
         Ui.DrawLogo(g, new Rectangle(z.Left + (z.Width - logo) / 2, z.Top + (z.Height - logo) / 2, logo, logo), Theme.Accent);
         PaintWindows(g);
 
         z = zones[1];
         int halfWidth = z.Width / 2;
-        Ui.Glyph(g, Glyphs.Wifi, 13f, Theme.Fg, new Rectangle(z.Left, z.Top, halfWidth, z.Height));
-        Ui.Glyph(g, Glyphs.Volume, 13f, Theme.Fg, new Rectangle(z.Left + halfWidth, z.Top, z.Width - halfWidth, z.Height));
-        Ui.Glyph(g, Glyphs.Bell, 13f, Theme.Fg, zones[3]);
+        float glyph = 13f * Math.Max(0.9f, SizeScale);
+        if (!z.IsEmpty)
+        {
+            Ui.Glyph(g, Glyphs.Wifi, glyph, Theme.Fg, new Rectangle(z.Left, z.Top, halfWidth, z.Height));
+            Ui.Glyph(g, Glyphs.Volume, glyph, Theme.Fg, new Rectangle(z.Left + halfWidth, z.Top, z.Width - halfWidth, z.Height));
+        }
+        if (!zones[3].IsEmpty) Ui.Glyph(g, Glyphs.Bell, glyph, Theme.Fg, zones[3]);
 
         string time, date; ClockText(out time, out date);
         z = zones[2];
         int half = z.Height / 2;
         TextFormatFlags f = TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPadding;
-        TextRenderer.DrawText(g, time, ClockFont, new Rectangle(z.Left, z.Top + half - ClockFont.Height, z.Width, ClockFont.Height), Theme.Fg, f);
-        TextRenderer.DrawText(g, date, ClockFont, new Rectangle(z.Left, z.Top + half, z.Width, ClockFont.Height), Theme.Fg, f);
+        if (date == null)
+            TextRenderer.DrawText(g, time, ClockFont, new Rectangle(z.Left, z.Top + half - ClockFont.Height / 2, z.Width, ClockFont.Height), Theme.Fg, f);
+        else
+        {
+            TextRenderer.DrawText(g, time, ClockFont, new Rectangle(z.Left, z.Top + half - ClockFont.Height, z.Width, ClockFont.Height), Theme.Fg, f);
+            TextRenderer.DrawText(g, date, ClockFont, new Rectangle(z.Left, z.Top + half, z.Width, ClockFont.Height), Theme.Fg, f);
+        }
     }
 
     int ZoneAt(Point p)

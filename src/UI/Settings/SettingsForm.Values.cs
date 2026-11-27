@@ -16,6 +16,7 @@ partial class SettingsForm
         loading = true;
         tHide.Checked = Settings.HideIcons;
         tQuiet.Checked = Settings.QuietStart;
+        LoadTaskbarValues();
         tStartup.Checked = Startup.Enabled;
         sLang.Selected = Settings.Language;
         sSide.Selected = Settings.RightSide ? 1 : 0;

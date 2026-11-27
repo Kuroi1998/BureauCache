@@ -10,6 +10,17 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 **Conséquences :** ce que ça impose ensuite.
 -->
 
+## D-019 — Personnalisation de BureauCache : barre, menu Démarrer, thèmes, profils (2026-11-27) · Statut : Proposée
+
+**Contexte :** le chef de projet veut « une plus grande personnalisation, une meilleure liberté dans l'expérience utilisateur ». Il a retenu toutes les pistes proposées : disposition et taille de la barre, éléments affichés, apparence de la barre, comportement, menu Démarrer à la carte, thèmes prêts, profils à partager, page dédiée dans les Paramètres.
+**Décision proposée :** quatre tâches livrées l'une après l'autre, chacune essayée avant la suivante.
+- **T-043 Barre des tâches** : page « Barre des tâches » dans les Paramètres, placée avant « Avancé » (la page Organisation garde son indice). Chaque réglage s'applique tout de suite à la barre, qui sert d'aperçu en direct. Étape 1 (faite) : taille (petite 46 px, normale 56 px, grande 66 px), icônes à gauche ou centrées avec le bouton Démarrer, titres des fenêtres à côté des icônes, réseau et son, cloche, date, secondes. Étape 2 : apparence (effet verre, opacité, couleur propre), comportement (masquage automatique, regroupement par application, clic du milieu pour fermer, molette sur le volume).
+- **T-044 Menu Démarrer à la carte** : sections et tuiles affichées au choix, raccourcis personnels (applications, dossiers, sites).
+- **T-045 Thèmes prêts** : palettes complètes en un clic, accent qui suit Windows, taille du texte.
+- **T-046 Profils** : l'export et l'import existent déjà (page Avancé) et emportent les nouveaux réglages, puisqu'ils sont dans le même fichier ; il reste « Rétablir la personnalisation d'origine ».
+**Règles :** réglages simples dans `settings.ini`, valeurs bornées à la lecture ; aucun réglage ne touche Explorer (D-013) ; l'horloge et le bouton Démarrer restent toujours affichés ; position de la barre en haut de l'écran écartée pour l'instant (tous les panneaux s'ouvrent au-dessus de la barre).
+**Alternatives écartées :** un fichier de thème séparé (le profil exporté suffit) ; masquer le bouton Démarrer (plus aucun accès au menu à la souris).
+
 ## D-018 — Notifications et calendrier de la barre BureauCache (2026-11-27) · Statut : Proposée
 
 **Contexte :** l'horloge et la cloche de la barre BureauCache ouvrent encore le panneau de Windows (Windows + N) : style Windows, couleurs du thème Windows, ancrage prévu pour la barre d'Explorer. Le chef de projet veut un panneau assorti à la barre, comme les Paramètres rapides (D-017).

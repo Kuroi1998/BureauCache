@@ -2,6 +2,7 @@
 
 ## Non publié
 
+- Nouvelle page « Barre des tâches » dans les Paramètres : taille de la barre (petite, normale, grande), icônes à gauche ou centrées comme Windows 11, titres des fenêtres à côté des icônes comme Windows 10, et choix des éléments affichés (réseau et son, cloche, date, secondes). La barre change en direct.
 - Le menu Démarrer de la barre BureauCache permet de quitter BureauCache. Ses textes ne sont plus coupés (« Téléchargements », « Panneau de configuration », « Paramètres de BureauCache ») : les colonnes s'élargissent selon la langue et l'échelle de l'écran.
 - La cloche de la barre BureauCache ouvre un panneau de notifications assorti au thème de l'application : les notifications de Windows regroupées par application, à effacer une par une ou toutes, un clic ouvrant l'application.
 - L'horloge ouvre son propre panneau : l'heure avec les secondes, la météo (clic pour les détails) et le calendrier du mois, avec navigation au clavier et à la souris.

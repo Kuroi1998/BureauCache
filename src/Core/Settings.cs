@@ -43,6 +43,11 @@ static partial class Settings
     public static bool ClipboardOn = false;   // historique du presse-papiers, en mémoire seulement (D-011)
     public static bool TaskbarOn = false;     // barre BureauCache à la place de celle de Windows (D-013)
     public static List<string> TaskbarPins = new List<string>();   // applications épinglées, « clé>nom » (D-014)
+    // Personnalisation de la barre (T-043, D-019) : taille 0 petite, 1 normale, 2 grande ; icônes centrées ; titres des
+    // fenêtres à côté des icônes ; éléments affichés à droite ; date et secondes de l'horloge
+    public static int TaskbarSize = 1;
+    public static bool TaskbarCenter = false, TaskbarLabels = false, TaskbarQuick = true, TaskbarBell = true,
+        TaskbarDate = true, TaskbarSeconds = false;
     public static string WeatherPlace = "", WeatherShort = "";   // libellé complet et « Ville, Pays » (QA52-05)
     public static double WeatherLat = double.NaN, WeatherLon = double.NaN;
     public static Color Accent = Color.FromArgb(59, 130, 246);
