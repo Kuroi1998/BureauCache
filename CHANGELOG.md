@@ -1,6 +1,6 @@
 ﻿# Nouveautés
 
-## Non publié
+## 3.11.1 — Barre personnalisable et panneaux
 
 - La barre ne reconstruit ses boutons qu’en cas de changement utile. Les icônes sont chargées après le premier dessin, avec les boutons visibles avant le menu « +N ». Les durées du démarrage de la barre sont conservées dans `demarrage-barre.csv`.
 
