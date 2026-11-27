@@ -10,6 +10,13 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 **Conséquences :** ce que ça impose ensuite.
 -->
 
+## D-015 — Gemini et Codex appelés directement, en lecture seule (2026-11-27) · Statut : Acceptée
+
+**Contexte :** la délégation à Gemini et ChatGPT passait par des prompts copiés à la main, et une nuit de modifications faites par un autre agent dans le dossier, sans coordination (QA-61 à QA-65), a dû être relue après coup. Le chef de projet veut qu'ils travaillent ici avec Claude.
+**Décision :** Repomix, Gemini CLI et Codex CLI sont installés par npm dans le profil utilisateur (paquets officiels : `repomix`, `@google/gemini-cli`, `@openai/codex`). Claude les appelle lui-même, **en lecture seule** (`gemini --approval-mode plan -p`, `codex exec -s read-only`) ; ils lisent leurs consignes dans `GEMINI.md` et `AGENTS.md`. Claude reste le seul à écrire dans le dépôt et trie leurs avis comme avant (registre QA). Les comptes sont ceux du chef de projet ; la connexion se fait par lui.
+**Alternatives écartées :** les laisser écrire (`--yolo`, `workspace-write`) : modifications concurrentes impossibles à relire ; serveurs MCP : plus de configuration pour le même résultat ; continuer le copier-coller : lent, et les réponses arrivaient sans leur contexte.
+**Conséquences :** aucune dépendance du produit (outils de développement seulement, hors `src/`) ; `.ai/` reste ignoré par git ; si un outil n'est pas connecté, Claude revient au prompt prêt à copier.
+
 ## D-014 — Applications épinglées et ordre des boutons de la barre (2026-11-27) · Statut : Acceptée
 
 **Contexte :** demande du chef de projet après l'essai de T-033 : épingler des applications dans la barre BureauCache et pouvoir déplacer les icônes.
