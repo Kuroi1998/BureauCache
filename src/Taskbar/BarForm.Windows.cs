@@ -1,7 +1,8 @@
-// BureauCache — BarForm : boutons des fenêtres ouvertes (D-013, T-033)
+// BureauCache — BarForm : boutons des applications épinglées et des fenêtres ouvertes (D-013, D-014)
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 partial class BarForm
@@ -9,14 +10,16 @@ partial class BarForm
     const int Overflow = 99, WindowZone = 100;   // codes de zone : « +N », puis 100 + indice du bouton
     WindowList windows;
     uint shellHook;
-    readonly List<Rectangle> windowRects = new List<Rectangle>();
+    List<BarButton> buttons = new List<BarButton>();
+    readonly List<Rectangle> buttonRects = new List<Rectangle>();
     Rectangle overflowRect;
-    int shownWindows;
+    int shown, buttonsLeft;
     // Aperçu au survol : il s'ouvre après un court délai, passe tout de suite d'un bouton à l'autre une fois ouvert, et
-    // reste tant que la souris est sur un bouton de fenêtre ou sur l'aperçu lui-même
+    // reste tant que la souris est sur un bouton ou sur l'aperçu lui-même. Une épingle fermée n'a qu'une infobulle.
     WindowPreview preview;
     readonly Timer previewDelay = new Timer { Interval = 400 };
     readonly Timer previewWatch = new Timer { Interval = 150 };
+    readonly ToolTip tip = new ToolTip();
     int previewZone = -1;
 
     // Position du bouton Démarrer à l'écran, pour placer le menu juste au-dessus
@@ -26,7 +29,7 @@ partial class BarForm
     {
         if (windows != null) return;
         windows = new WindowList(h => h == Handle);
-        windows.Changed += Invalidate;
+        windows.Changed += RebuildButtons;
         windows.Changed += OnWindowsChanged;
         previewDelay.Tick += (s, e) => { previewDelay.Stop(); OpenPreview(previewZone); };
         previewWatch.Tick += (s, e) => WatchPreview();
@@ -53,56 +56,75 @@ partial class BarForm
         if (code == Native.HSHELL_FLASH) windows.Flash(lParam);
     }
 
+    // Liste des boutons : épingles puis fenêtres (D-014). Pendant un glisser-déposer, la liste en cours est gardée jusqu'au lâcher.
+    public void RebuildButtons()
+    {
+        if (dragging) return;   // la fin du glissement reconstruit la liste
+        buttons = TaskbarModel.Build(Settings.TaskbarPins, windows != null ? windows.Items : new List<TaskWindow>());
+        Invalidate();
+    }
+
     static int ButtonWidth { get { return Ui.S(56); } }
 
     void LayoutWindows(int left, int right, int top, int height)
     {
-        windowRects.Clear();
+        buttonRects.Clear();
         overflowRect = Rectangle.Empty;
-        int count = windows == null ? 0 : windows.Items.Count;
+        buttonsLeft = left;
+        int count = buttons.Count;
         int fit = Math.Max(0, (right - left) / ButtonWidth);
-        shownWindows = count <= fit ? count : Math.Max(0, fit - 1);   // une place pour « +N »
-        for (int i = 0; i < shownWindows; i++)
-            windowRects.Add(new Rectangle(left + i * ButtonWidth, top, ButtonWidth - Ui.S(2), height));
-        if (shownWindows < count) overflowRect = new Rectangle(left + shownWindows * ButtonWidth, top, ButtonWidth - Ui.S(2), height);
+        shown = count <= fit ? count : Math.Max(0, fit - 1);   // une place pour « +N »
+        for (int i = 0; i < shown; i++)
+            buttonRects.Add(new Rectangle(left + i * ButtonWidth, top, ButtonWidth - Ui.S(2), height));
+        if (shown < count) overflowRect = new Rectangle(left + shown * ButtonWidth, top, ButtonWidth - Ui.S(2), height);
     }
 
     int WindowZoneAt(Point p)
     {
-        for (int i = 0; i < windowRects.Count; i++) if (windowRects[i].Contains(p)) return WindowZone + i;
+        for (int i = 0; i < buttonRects.Count; i++) if (buttonRects[i].Contains(p)) return WindowZone + i;
         return overflowRect.Contains(p) ? Overflow : -1;
     }
 
-    TaskWindow WindowAtZone(int zone)
+    BarButton ButtonAtZone(int zone)
     {
         int i = zone - WindowZone;
-        return windows != null && i >= 0 && i < shownWindows && i < windows.Items.Count ? windows.Items[i] : null;
+        return i >= 0 && i < shown && i < buttons.Count ? buttons[i] : null;
+    }
+
+    Bitmap IconOf(BarButton b, int px)
+    {
+        Bitmap img = b.Window != null ? TaskIcons.For(b.Window.Handle, px) : null;
+        return img ?? TaskIcons.ForKey(b.Key, px);
     }
 
     void PaintWindows(Graphics g)
     {
-        if (windows == null) return;
         int icon = Ui.S(32);
-        for (int i = 0; i < windowRects.Count; i++)
+        IntPtr active = windows != null ? windows.Active : IntPtr.Zero;
+        for (int i = 0; i < buttonRects.Count && i < buttons.Count; i++)
         {
-            TaskWindow w = windows.Items[i];
-            Rectangle r = windowRects[i];
-            bool active = w.Handle == windows.Active;
-            if (w.Flashing) Ui.Fill(g, Color.FromArgb(150, 249, 115, 22), r, Ui.S(4));
-            else if (active) Ui.Fill(g, Theme.SelOverlay, r, Ui.S(4));
+            BarButton b = buttons[i];
+            Rectangle r = buttonRects[i];
+            bool isActive = b.Window != null && b.Window.Handle == active;
+            bool lifted = dragging && i == dragIndex;
+            if (lifted) Ui.Fill(g, Theme.SelOverlay, r, Ui.S(4));
+            else if (b.Window != null && b.Window.Flashing) Ui.Fill(g, Color.FromArgb(150, 249, 115, 22), r, Ui.S(4));
+            else if (isActive) Ui.Fill(g, Theme.SelOverlay, r, Ui.S(4));
             else if (hot == WindowZone + i) Ui.Fill(g, Theme.HoverOverlay, r, Ui.S(4));
             Rectangle ir = new Rectangle(r.Left + (r.Width - icon) / 2, r.Top + (r.Height - icon) / 2 - Ui.S(2), icon, icon);
-            Bitmap b = TaskIcons.For(w.Handle, icon);
-            if (b != null) g.DrawImage(b, ir);
+            Bitmap img = IconOf(b, icon);
+            if (img != null) g.DrawImage(img, ir);
             else Ui.Glyph(g, Glyphs.Apps, 17f, Theme.Fg, ir);
-            // Trait sous l'icône : long et coloré pour la fenêtre active, court et gris pour les autres
-            int lw = active ? Ui.S(16) : Ui.S(6);
-            Ui.Fill(g, active ? Theme.Accent : Theme.FgDim, new RectangleF(r.Left + (r.Width - lw) / 2f, r.Bottom - Ui.S(4), lw, Ui.S(3)), Ui.S(1));
+            // Trait sous l'icône : long et coloré pour la fenêtre active, court et gris pour une fenêtre ouverte,
+            // aucun pour une épingle dont l'application est fermée
+            if (b.Window == null) continue;
+            int lw = isActive ? Ui.S(16) : Ui.S(6);
+            Ui.Fill(g, isActive ? Theme.Accent : Theme.FgDim, new RectangleF(r.Left + (r.Width - lw) / 2f, r.Bottom - Ui.S(4), lw, Ui.S(3)), Ui.S(1));
         }
         if (!overflowRect.IsEmpty)
         {
             if (hot == Overflow) Ui.Fill(g, Theme.HoverOverlay, overflowRect, Ui.S(4));
-            TextRenderer.DrawText(g, "+" + (windows.Items.Count - shownWindows), ClockFont, overflowRect, Theme.Fg,
+            TextRenderer.DrawText(g, "+" + (buttons.Count - shown), ClockFont, overflowRect, Theme.Fg,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
         }
     }
@@ -111,23 +133,32 @@ partial class BarForm
     void ShowWindowTip(int zone)
     {
         previewZone = zone;
-        if (WindowAtZone(zone) == null) { previewDelay.Stop(); return; }
+        tip.Hide(this);
+        BarButton b = ButtonAtZone(zone);
+        if (b == null || dragging) { previewDelay.Stop(); return; }
+        if (b.Window == null)
+        {
+            HidePreview();
+            Rectangle r = buttonRects[zone - WindowZone];
+            tip.Show(b.Name, this, r.Left, -Ui.S(34), 3000);
+            return;
+        }
         if (preview != null && preview.Visible) OpenPreview(zone);
         else { previewDelay.Stop(); previewDelay.Start(); }
     }
 
     void OpenPreview(int zone)
     {
-        TaskWindow w = WindowAtZone(zone);
-        if (w == null || zone != hot) return;
+        BarButton b = ButtonAtZone(zone);
+        if (b == null || b.Window == null || zone != hot || dragging) return;
         if (preview == null)
         {
             preview = new WindowPreview();
             preview.ActivateRequested += h => { HidePreview(); WindowList.Activate(h, false); if (windows != null) windows.Refresh(); };
             preview.CloseRequested += h => { HidePreview(); WindowList.Close(h); };
         }
-        Rectangle r = RectangleToScreen(windowRects[zone - WindowZone]);
-        preview.ShowFor(w.Handle, w.Title, TaskIcons.For(w.Handle, Ui.S(32)), r);
+        Rectangle r = RectangleToScreen(buttonRects[zone - WindowZone]);
+        preview.ShowFor(b.Window.Handle, b.Window.Title, IconOf(b, Ui.S(32)), r);
         previewWatch.Start();
     }
 
@@ -135,6 +166,7 @@ partial class BarForm
     {
         previewDelay.Stop();
         previewWatch.Stop();
+        tip.Hide(this);
         if (preview != null) preview.HideNow();
     }
 
@@ -145,7 +177,8 @@ partial class BarForm
         Point p = Cursor.Position;
         if (preview.Bounds.Contains(p)) return;
         Point local = PointToClient(p);
-        if (ClientRectangle.Contains(local) && WindowAtZone(WindowZoneAt(local)) != null) return;
+        BarButton b = ClientRectangle.Contains(local) ? ButtonAtZone(WindowZoneAt(local)) : null;
+        if (b != null && b.Window != null) return;
         HidePreview();
     }
 
@@ -156,39 +189,76 @@ partial class BarForm
         if (!windows.Items.Exists(w => w.Handle == preview.Target)) HidePreview();
     }
 
-    // Vrai si le clic concernait un bouton de fenêtre (ou « +N ») et a été traité
+    // Vrai si le clic concernait un bouton (ou « +N ») et a été traité
     bool WindowMouseUp(int zone, MouseButtons button)
     {
         if (zone == Overflow) { ShowOverflowMenu(); return true; }
-        TaskWindow w = WindowAtZone(zone);
-        if (w == null) return false;
+        BarButton b = ButtonAtZone(zone);
+        if (b == null) return false;
         HidePreview();
-        if (button == MouseButtons.Left) { WindowList.Activate(w.Handle, w.Handle == Native.GetForegroundWindow()); windows.Refresh(); }
-        else if (button == MouseButtons.Right) ShowWindowMenu(w);
+        bool newWindow = button == MouseButtons.Middle || (button == MouseButtons.Left && (ModifierKeys & Keys.Shift) != 0);
+        if (newWindow || (button == MouseButtons.Left && b.Window == null)) { Launch(b.Key); return true; }
+        if (button == MouseButtons.Left)
+        {
+            WindowList.Activate(b.Window.Handle, b.Window.Handle == Native.GetForegroundWindow());
+            windows.Refresh();
+        }
+        else if (button == MouseButtons.Right) ShowButtonMenu(b);
         return true;
     }
 
-    void ShowWindowMenu(TaskWindow w)
+    static void Launch(string key)
+    {
+        try { TaskbarModel.Launch(key); } catch { }
+    }
+
+    void ShowButtonMenu(BarButton b)
     {
         ContextMenuStrip menu = Menus.Create();
-        string title = w.Title.Length > 60 ? w.Title.Substring(0, 59) + "…" : w.Title;
+        string title = b.Window != null ? b.Window.Title : b.Name;
+        if (title.Length > 60) title = title.Substring(0, 59) + "…";
         menu.Items.Add(new ToolStripMenuItem(title) { Enabled = false });
         menu.Items.Add(new ToolStripSeparator());
-        IntPtr h = w.Handle;
-        menu.Items.Add(Menus.Item(L.T("Fermer la fenêtre", "Close window", "Cerrar la ventana"), Glyphs.Delete, () => WindowList.Close(h)));
+        string key = b.Key, name = b.Name;
+        if (TaskbarModel.CanLaunch(key))
+            menu.Items.Add(Menus.Item(b.Window != null ? L.T("Nouvelle fenêtre", "New window", "Nueva ventana") : L.T("Ouvrir", "Open", "Abrir"),
+                Glyphs.Open, () => Launch(key)));
+        if (key != null)
+        {
+            bool pinned = TaskbarModel.IsPinned(Settings.TaskbarPins, key);
+            menu.Items.Add(Menus.Item(pinned ? L.T("Détacher de la barre des tâches", "Unpin from taskbar", "Desanclar de la barra de tareas")
+                                             : L.T("Épingler à la barre des tâches", "Pin to taskbar", "Anclar a la barra de tareas"),
+                pinned ? Glyphs.Pinned : Glyphs.Pin, () => SetPinned(key, name, !pinned)));
+        }
+        if (b.Window != null)
+        {
+            IntPtr h = b.Window.Handle;
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add(Menus.Item(L.T("Fermer la fenêtre", "Close window", "Cerrar la ventana"), Glyphs.Delete, () => WindowList.Close(h)));
+        }
         ShowMenu(menu);
+    }
+
+    // Épingler ajoute l'application à la fin des épingles ; détacher la retire (ses fenêtres ouvertes restent)
+    void SetPinned(string key, string name, bool pin)
+    {
+        Settings.TaskbarPins = pin ? TaskbarModel.WithPin(Settings.TaskbarPins, key, name) : TaskbarModel.Without(Settings.TaskbarPins, key);
+        Settings.SaveQuiet();
+        RebuildButtons();
     }
 
     void ShowOverflowMenu()
     {
-        if (windows == null) return;
         ContextMenuStrip menu = Menus.Create();
-        for (int i = shownWindows; i < windows.Items.Count; i++)
+        for (int i = shown; i < buttons.Count; i++)
         {
-            IntPtr h = windows.Items[i].Handle;
-            string title = windows.Items[i].Title;
+            BarButton b = buttons[i];
+            string title = b.Window != null ? b.Window.Title : b.Name;
             if (title.Length > 60) title = title.Substring(0, 59) + "…";
-            menu.Items.Add(Menus.Item(title, Glyphs.Apps, () => WindowList.Activate(h, false)));
+            menu.Items.Add(Menus.Item(title, Glyphs.Apps, () =>
+            {
+                if (b.Window != null) WindowList.Activate(b.Window.Handle, false); else Launch(b.Key);
+            }));
         }
         ShowMenu(menu);
     }

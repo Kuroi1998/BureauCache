@@ -10,7 +10,19 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 **Conséquences :** ce que ça impose ensuite.
 -->
 
-## D-013 — Barre des tâches BureauCache à la place de celle de Windows (2026-11-27) · Statut : Proposée
+## D-014 — Applications épinglées et ordre des boutons de la barre (2026-11-27) · Statut : Acceptée
+
+**Contexte :** demande du chef de projet après l'essai de T-033 : épingler des applications dans la barre BureauCache et pouvoir déplacer les icônes.
+**Décision :**
+- **Identité d'une application** : son AppUserModelID quand la fenêtre en déclare un (applis du Store, Chrome, Discord…), sinon le chemin de son exe. Une épingle garde cette clé et le nom affiché (`aumid:…` ou `exe:…`, puis `>nom`).
+- **Un bouton par fenêtre, sans regroupement** (comme le mode « Ne jamais combiner » de Windows) : une application épinglée et ouverte affiche sa première fenêtre à la place de l'épingle ; ses autres fenêtres suivent juste après. Fermée, l'épingle reste, sans trait, et un clic la lance.
+- **Ordre** : les épingles d'abord, dans l'ordre choisi (enregistré dans `TaskbarPins`) ; puis les autres fenêtres, dans un ordre de session (non enregistré, les fenêtres changent à chaque session). On réordonne en glissant un bouton ; une fenêtre non épinglée lâchée parmi les épingles se range après elles.
+- **Clic droit** : nouvelle fenêtre, épingler ou détacher, fermer la fenêtre. Maj + clic ou clic du milieu ouvre une nouvelle fenêtre, comme dans Windows.
+- **Import** : les épingles sont un choix local, gardé à l'import (une épingle importée pourrait désigner un exe inconnu, lancé au premier clic).
+**Alternatives écartées :** regrouper les fenêtres d'une même application (aperçu à plusieurs fenêtres, clic qui alterne : beaucoup plus de logique, à reconsidérer plus tard) ; épingler depuis le panneau (un raccourci du menu Démarrer ne donne pas toujours la clé de la fenêtre lancée) ; ordre libre mêlant épingles et fenêtres (ordre impossible à rendre stable d'une session à l'autre).
+**Conséquences :** nouveau réglage `TaskbarPins` ; `TaskbarModel` (pur, testé) construit la liste des boutons ; `TaskWindow` gagne sa clé d'application. Lancer une épingle passe par le bac à sable.
+
+## D-013 — Barre des tâches BureauCache à la place de celle de Windows (2026-11-27) · Statut : Acceptée
 
 **Contexte :** le chef de projet veut que BureauCache, une fois lancé, cache la barre des tâches de Windows et la remplace par la sienne : bouton Démarrer, fenêtres ouvertes, horloge, compte, alimentation, et le bouton « ^ » avec les **vraies icônes de notification** des applications (version B). Exigence : ne jamais modifier Explorer.
 **Décision proposée :**

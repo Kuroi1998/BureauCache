@@ -10,6 +10,7 @@ class TaskWindow
     public IntPtr Handle;
     public string Title = "";
     public bool Flashing;
+    public string AppKey;   // application de la fenêtre (D-014) : « aumid:… » ou « exe:… »
 }
 
 // Suivi par les événements de Windows (SetWinEventHook hors contexte : rien n'est injecté dans les autres
@@ -80,7 +81,7 @@ sealed class WindowList : IDisposable
         HashSet<IntPtr> present = new HashSet<IntPtr>(found);
         List<TaskWindow> next = Items.Where(w => present.Contains(w.Handle)).ToList();
         HashSet<IntPtr> known = new HashSet<IntPtr>(next.Select(w => w.Handle));
-        foreach (IntPtr h in found) if (!known.Contains(h)) next.Add(new TaskWindow { Handle = h });
+        foreach (IntPtr h in found) if (!known.Contains(h)) next.Add(new TaskWindow { Handle = h, AppKey = AppKeyOf(h) });
         flashing.RemoveWhere(h => !present.Contains(h));
         foreach (TaskWindow w in next)
         {
@@ -92,6 +93,30 @@ sealed class WindowList : IDisposable
         Active = Native.GetForegroundWindow();
         if (Changed != null) Changed();
     }
+
+    // Ordre choisi par glisser-déposer (D-014) : les fenêtres citées passent dans cet ordre, les autres restent après
+    public void Reorder(IList<IntPtr> order)
+    {
+        List<TaskWindow> next = new List<TaskWindow>();
+        foreach (IntPtr h in order)
+        {
+            TaskWindow w = Items.FirstOrDefault(x => x.Handle == h);
+            if (w != null && !next.Contains(w)) next.Add(w);
+        }
+        foreach (TaskWindow w in Items) if (!next.Contains(w)) next.Add(w);
+        Items = next;
+        if (Changed != null) Changed();
+    }
+
+    // Clé d'application : AppUserModelID déclaré par la fenêtre, sinon chemin de l'exe (D-014)
+    internal static string KeyFor(string aumid, string exe)
+    {
+        if (!string.IsNullOrEmpty(aumid)) return "aumid:" + aumid;
+        if (!string.IsNullOrEmpty(exe)) return "exe:" + exe;
+        return null;
+    }
+
+    static string AppKeyOf(IntPtr h) { return KeyFor(Native.AppUserModelId(h), Native.ProcessPath(h)); }
 
     static bool IsTaskWindow(IntPtr h)
     {
@@ -185,5 +210,29 @@ static class TaskIcons
         }
     }
 
-    public static void Clear() { Forget(new HashSet<IntPtr>()); }
+    public static void Clear()
+    {
+        Forget(new HashSet<IntPtr>());
+        foreach (Bitmap b in byKey.Values) if (b != null) b.Dispose();
+        byKey.Clear();
+    }
+
+    // Icône d'une épingle dont l'application est fermée : celle de l'application du Store, ou celle de l'exe
+    static readonly Dictionary<string, Bitmap> byKey = new Dictionary<string, Bitmap>(StringComparer.OrdinalIgnoreCase);
+
+    public static Bitmap ForKey(string key, int px)
+    {
+        if (key == null) return null;
+        string cacheKey = px + "|" + key;
+        Bitmap b;
+        if (byKey.TryGetValue(cacheKey, out b)) return b;
+        try
+        {
+            if (key.StartsWith("aumid:")) b = Icons.ShellImage(@"shell:AppsFolder\" + key.Substring(6), px, false);
+            else if (key.StartsWith("exe:")) b = Icons.ForPath(key.Substring(4), px);
+        }
+        catch { b = null; }
+        byKey[cacheKey] = b;
+        return b;
+    }
 }

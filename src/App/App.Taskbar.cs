@@ -39,7 +39,7 @@ partial class App
         }
         else if (!want && bar != null) CloseBar();
         else if (!want) WindowsBar.Restore();   // reste d'un plantage ou d'un arrêt brutal : la barre Windows revient
-        if (bar != null) bar.ApplyTheme();
+        if (bar != null) { bar.ApplyTheme(); bar.RebuildButtons(); }   // épingles changées par une restauration (D-014)
     }
 
     void RefuseTaskbar()

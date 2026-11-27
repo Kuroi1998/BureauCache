@@ -4,6 +4,8 @@
 
 - Nouvelle option « Remplacer la barre des tâches » (Paramètres → Général, désactivée par défaut) : la barre de Windows est cachée tant que BureauCache est ouvert et remplacée par une barre BureauCache avec un bouton Démarrer (ouvre le panneau), les Paramètres rapides, les notifications et l'horloge. Version d'essai : les fenêtres ouvertes et les icônes près de l'horloge arriveront ensuite.
 - La barre BureauCache affiche les fenêtres ouvertes, avec de grandes icônes : clic pour l'afficher (ou la réduire si elle est déjà devant), clic droit pour la fermer. La fenêtre active est soulignée, une fenêtre qui demande ton attention est en orange, et « +N » regroupe celles qui ne tiennent pas.
+- Épingle tes applications à la barre (clic droit, « Épingler à la barre des tâches ») : elles restent même fermées, et un clic les lance. Maj + clic ou clic du milieu ouvre une nouvelle fenêtre.
+- Glisse les icônes de la barre pour les réordonner : l'ordre des applications épinglées est retenu.
 - Au survol d'une fenêtre dans la barre, un aperçu en direct s'affiche au-dessus : clic pour y aller, croix pour la fermer.
 - Nouveau menu Démarrer dans la barre, en grand : une recherche (le texte tapé part dans le panneau), ta photo et ton nom, Documents, Téléchargements, Gestionnaire des tâches, accès au panneau (applications et recherche), aux Paramètres et à l'Explorateur, puis Verrouiller, Se déconnecter, Mettre en veille, Redémarrer et Arrêter (avec « Mettre à jour et… » quand Windows a des mises à jour en attente).
 - La barre de Windows revient toujours : en quittant BureauCache, par clic droit sur la barre puis « Rétablir la barre des tâches de Windows », et même si BureauCache plante.

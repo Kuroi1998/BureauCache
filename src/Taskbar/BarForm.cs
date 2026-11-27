@@ -210,6 +210,7 @@ partial class BarForm : Form
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        if (DragMove(e.Location)) return;
         int z = ZoneAt(e.Location);
         if (z != hot) { hot = z; Invalidate(); ShowWindowTip(z); }
     }
@@ -223,6 +224,7 @@ partial class BarForm : Form
     protected override void OnMouseUp(MouseEventArgs e)
     {
         base.OnMouseUp(e);
+        if (DragEnd()) return;
         int z = ZoneAt(e.Location);
         if (WindowMouseUp(z, e.Button)) return;
         if (e.Button == MouseButtons.Right) { if (MenuRequested != null) MenuRequested(); return; }

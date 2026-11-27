@@ -196,11 +196,11 @@ static class SettingsBackup
     // presse-papiers, barre des tâches (D-013), rangement automatique et journal d'annulation (il désigne des fichiers à déplacer)
     sealed class LocalChoices
     {
-        string repo, archiveName; bool autoUpdate, clipboard, archive, taskbar; int archiveDays; List<string> log; List<ArchiveRule> rules;
+        string repo, archiveName; bool autoUpdate, clipboard, archive, taskbar; List<string> pins; int archiveDays; List<string> log; List<ArchiveRule> rules;
 
         public static LocalChoices Capture()
         {
-            return new LocalChoices { repo = Settings.UpdateRepo, autoUpdate = Settings.AutoUpdate, clipboard = Settings.ClipboardOn, taskbar = Settings.TaskbarOn,
+            return new LocalChoices { repo = Settings.UpdateRepo, autoUpdate = Settings.AutoUpdate, clipboard = Settings.ClipboardOn, taskbar = Settings.TaskbarOn, pins = Settings.TaskbarPins.ToList(),
                                       archive = Settings.ArchiveOn, log = Settings.ArchiveLog.ToList(), rules = Settings.ArchiveRules.ToList(),
                                       archiveName = Settings.ArchiveName, archiveDays = Settings.ArchiveDays };
         }
@@ -213,6 +213,7 @@ static class SettingsBackup
                 kept.Add(L.T("le dépôt des mises à jour", "the update repository", "el repositorio de actualizaciones"));
             if (Settings.AutoUpdate != autoUpdate) kept.Add(L.T("la vérification automatique des mises à jour", "automatic update checks", "la comprobación automática de actualizaciones"));
             if (Settings.ClipboardOn != clipboard) kept.Add(L.T("l'historique du presse-papiers", "the clipboard history", "el historial del portapapeles"));
+            if (!Settings.TaskbarPins.SequenceEqual(pins)) kept.Add(L.T("les applications épinglées à la barre", "the apps pinned to the taskbar", "las aplicaciones ancladas a la barra"));
             if (Settings.TaskbarOn != taskbar) kept.Add(L.T("la barre des tâches BureauCache", "the BureauCache taskbar", "la barra de tareas de BureauCache"));
             if (Settings.ArchiveOn != archive) kept.Add(L.T("le rangement automatique", "automatic tidy-up", "la organización automática"));
             if (Settings.ArchiveLog.Count > 0) kept.Add(L.T("le journal d'annulation du rangement", "the tidy-up undo log", "el registro para deshacer la organización"));
@@ -222,7 +223,7 @@ static class SettingsBackup
             bool keepPolicy = archive;
             if (keepPolicy && (Sig(Settings.ArchiveRules) != Sig(rules) || Settings.ArchiveName != archiveName || Settings.ArchiveDays != archiveDays))
                 kept.Add(L.T("les règles et le dossier du rangement automatique", "the automatic tidy-up rules and folder", "las reglas y la carpeta de la organización automática"));
-            Settings.UpdateRepo = repo; Settings.AutoUpdate = autoUpdate; Settings.ClipboardOn = clipboard; Settings.TaskbarOn = taskbar;
+            Settings.UpdateRepo = repo; Settings.AutoUpdate = autoUpdate; Settings.ClipboardOn = clipboard; Settings.TaskbarOn = taskbar; Settings.TaskbarPins = pins;
             Settings.ArchiveOn = archive; Settings.ArchiveLog = log;
             if (keepPolicy) { Settings.ArchiveRules = rules; Settings.ArchiveName = archiveName; Settings.ArchiveDays = archiveDays; }
         }
