@@ -197,11 +197,25 @@ static partial class Native
         return window.Left <= screen.Left && window.Top <= screen.Top && window.Right >= screen.Right && window.Bottom >= screen.Bottom;
     }
 
+    // Barre de titre sombre : attribut 20 (Windows 10 20H1 et suivants), sinon 19 (Windows 10 1809 à 1909) (D-012)
     public static void SetDarkTitleBar(IntPtr hwnd, bool dark)
     {
         int v = dark ? 1 : 0;
-        try { DwmSetWindowAttribute(hwnd, 20, ref v, 4); } catch { }
+        try { if (DwmSetWindowAttribute(hwnd, 20, ref v, 4) != 0) DwmSetWindowAttribute(hwnd, 19, ref v, 4); } catch { }
     }
+
+    // Couleur de la légende et de son texte (Windows 11 : DWMWA_CAPTION_COLOR = 35, DWMWA_TEXT_COLOR = 36). Sans elle,
+    // la couleur d'accentuation que l'utilisateur affiche sur les barres de titre l'emporte sur le mode sombre.
+    // reset rend la main à Windows (DWMWA_COLOR_DEFAULT), par exemple en mode Contraste élevé.
+    public static void SetCaptionColors(IntPtr hwnd, Color caption, Color text, bool reset)
+    {
+        int c = reset ? unchecked((int)0xFFFFFFFF) : ColorRef(caption);
+        int t = reset ? unchecked((int)0xFFFFFFFF) : ColorRef(text);
+        try { DwmSetWindowAttribute(hwnd, 35, ref c, 4); DwmSetWindowAttribute(hwnd, 36, ref t, 4); } catch { }
+    }
+
+    // COLORREF : 0x00BBGGRR
+    internal static int ColorRef(Color c) { return c.R | (c.G << 8) | (c.B << 16); }
 
     public static void SetRoundCorners(IntPtr hwnd)
     {

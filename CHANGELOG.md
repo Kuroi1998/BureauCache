@@ -16,6 +16,7 @@
 - La météo affiche simplement « Ville, Pays », et l'espace disque « 130 Go libres » sur une ligne.
 - La Corbeille et Ce PC n'apparaissent plus dans les Récents.
 - Style plus net : cartes, widgets et icônes ont une bordure fine et un survol plus visible ; le champ de recherche s'illumine quand on y tape.
+- Paramètres : la barre de titre suit le thème même quand Windows colore les barres de titre ; boutons plus sobres (Aperçu, Quitter, Désinstaller) ; le cadre en pointillés n'apparaît plus qu'au clavier.
 
 ## 3.10 — Règles de rangement, recherche dans le contenu, presse-papiers
 

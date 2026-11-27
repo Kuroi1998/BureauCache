@@ -71,10 +71,11 @@ partial class SettingsForm : Form
         nav.SelectedChanged += ShowPage;
         Controls.Add(nav);
 
-        FlatButton bQuit = new FlatButton(T("Quitter BureauCache", "Quit BureauCache", "Salir de BureauCache"), false, NavW - S(32));
+        // Boutons du bas (D-012) : « Quitter » discret, « Aperçu » secondaire au lieu du bleu plein
+        FlatButton bQuit = new FlatButton(T("Quitter BureauCache", "Quit BureauCache", "Salir de BureauCache"), false, NavW - S(32)) { Ghost = true };
         nav.AddAction(bQuit, false);
         bQuit.Click += (s, e) => { if (act.Quit != null) act.Quit(); };
-        FlatButton bPrev = new FlatButton(T("Aperçu du panneau", "Preview panel", "Vista previa"), true, NavW - S(32));
+        FlatButton bPrev = new FlatButton(T("Aperçu du panneau", "Preview panel", "Vista previa"), false, NavW - S(32));
         nav.AddAction(bPrev, true);
         bPrev.Click += (s, e) => { if (act.Preview != null) act.Preview(); };
         header = new Panel { TabStop = false };

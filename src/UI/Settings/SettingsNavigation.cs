@@ -132,13 +132,14 @@ sealed class SettingsNavigation : Panel
             if (contrast && Active) { surface = SystemColors.Highlight; fg = SystemColors.HighlightText; }
             e.Graphics.Clear(surface);
             if (!contrast && (Active || ClientRectangle.Contains(PointToClient(Cursor.Position))))
-                Ui.Fill(e.Graphics, Active ? Theme.Surface : Theme.Hover, ClientRectangle, Ui.S(8));
+                Ui.Card(e.Graphics, Active ? Theme.SelOverlay : Theme.HoverOverlay, ClientRectangle, Ui.S(Ui.RadiusControl), Active);   // D-012
             if (Active && !contrast)
                 Ui.Fill(e.Graphics, Theme.Accent, new RectangleF(0, Ui.S(10), Ui.S(3), Height - Ui.S(20)), Ui.S(2));
             Ui.Glyph(e.Graphics, glyph, 10f, fg, new Rectangle(Ui.S(7), 0, Ui.S(27), Height));
             TextRenderer.DrawText(e.Graphics, Text, Font, new Rectangle(Ui.S(38), 0, Width - Ui.S(42), Height), fg,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-            if (Focused) ControlPaint.DrawFocusRectangle(e.Graphics, Rectangle.Inflate(ClientRectangle, -Ui.S(3), -Ui.S(3)), fg, surface);
+            // Cadre de focus seulement quand on navigue au clavier, pas après un clic (D-012)
+            if (Focused && ShowFocusCues) ControlPaint.DrawFocusRectangle(e.Graphics, Rectangle.Inflate(ClientRectangle, -Ui.S(3), -Ui.S(3)), fg, surface);
         }
     }
 }

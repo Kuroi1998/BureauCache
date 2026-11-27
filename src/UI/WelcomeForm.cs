@@ -124,7 +124,7 @@ class WelcomeForm : Form
         if (onFinish != null) onFinish();
     }
 
-    protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Native.SetDarkTitleBar(Handle, Settings.Dark); }
+    protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Ui.ThemeTitleBar(Handle); }
 
     protected override void OnKeyDown(KeyEventArgs e)
     {

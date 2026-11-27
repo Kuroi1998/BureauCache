@@ -30,7 +30,7 @@ abstract partial class FlatControl : Control
 
     protected void DrawSettingsFocus(Graphics g)
     {
-        if (SettingsKeyboard && Focused) ControlPaint.DrawFocusRectangle(g, Rectangle.Inflate(ClientRectangle, -1, -1),
+        if (SettingsKeyboard && Focused && ShowFocusCues) ControlPaint.DrawFocusRectangle(g, Rectangle.Inflate(ClientRectangle, -1, -1),
             SettingsHighContrast ? SystemColors.WindowText : Theme.Fg, BackColor);
     }
 

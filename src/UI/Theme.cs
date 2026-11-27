@@ -78,6 +78,15 @@ static class Ui
         g.SmoothingMode = old;
     }
 
+    // Barre de titre aux couleurs de BureauCache (D-012) : mode sombre et, sous Windows 11, couleur de la légende
+    // égale au fond de la fenêtre. En contraste élevé, Windows garde ses couleurs.
+    public static void ThemeTitleBar(IntPtr hwnd)
+    {
+        bool contrast = Theme.HighContrast;
+        Native.SetDarkTitleBar(hwnd, Settings.Dark && !contrast);
+        Native.SetCaptionColors(hwnd, Theme.Bg, Theme.Fg, contrast);
+    }
+
     // Carte : fond arrondi et bordure fine de 1 px, plus marquée au survol ou au focus (D-012)
     public static void Card(Graphics g, Color fill, RectangleF r, float rad, bool hot)
     {

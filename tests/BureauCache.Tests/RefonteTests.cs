@@ -109,4 +109,53 @@ public class RefonteTests
         Assert.AreEqual(10, Ui.RadiusCard);
         Assert.AreEqual(8, Ui.RadiusControl);
     }
+
+    [TestMethod]
+    public void CaptionColorIsSentAsColorRef()
+    {
+        // COLORREF 0x00BBGGRR attendu par DWMWA_CAPTION_COLOR (35) et DWMWA_TEXT_COLOR (36)
+        Assert.AreEqual(0x00332211, Native.ColorRef(System.Drawing.Color.FromArgb(0x11, 0x22, 0x33)));
+    }
+
+    static double Lum(System.Drawing.Color c)
+    {
+        Func<int, double> lin = v => { double x = v / 255.0; return x <= 0.04045 ? x / 12.92 : Math.Pow((x + 0.055) / 1.055, 2.4); };
+        return 0.2126 * lin(c.R) + 0.7152 * lin(c.G) + 0.0722 * lin(c.B);
+    }
+
+    static System.Drawing.Color Over(System.Drawing.Color top, System.Drawing.Color under)
+    {
+        double a = top.A / 255.0;
+        return System.Drawing.Color.FromArgb((int)(top.R * a + under.R * (1 - a)), (int)(top.G * a + under.G * (1 - a)), (int)(top.B * a + under.B * (1 - a)));
+    }
+
+    [TestMethod]
+    public void ButtonStylesFollowTheRedesign()
+    {
+        int mode = Settings.ThemeMode;
+        try
+        {
+            foreach (int m in new[] { 1, 2 })
+            {
+                Settings.ThemeMode = m;
+                System.Drawing.Color bg, text, edge;
+                FlatButton danger = new FlatButton("Désinstaller", false) { Danger = true };
+                danger.Style(out bg, out text, out edge);
+                Assert.IsTrue(bg.A < 128, "Danger sobre : fond rouge translucide, pas plein.");
+                Assert.IsTrue(edge.A > 0, "Danger sobre : bordure rouge fine.");
+                System.Drawing.Color under = Over(bg, Theme.Card);
+                double ratio = (Math.Max(Lum(text), Lum(under)) + 0.05) / (Math.Min(Lum(text), Lum(under)) + 0.05);
+                Assert.IsTrue(ratio >= 4.5, "Texte « danger » lisible (" + ratio.ToString("0.00") + ":1, thème " + m + ").");
+
+                FlatButton ghost = new FlatButton("Quitter", false) { Ghost = true };
+                ghost.Style(out bg, out text, out edge);
+                Assert.AreEqual(0, bg.A, "Discret : transparent hors survol.");
+
+                FlatButton secondary = new FlatButton("Aperçu", false);
+                secondary.Style(out bg, out text, out edge);
+                Assert.AreEqual(Theme.Edge, edge, "Secondaire : bordure fine lumineuse.");
+            }
+        }
+        finally { Settings.ThemeMode = mode; }
+    }
 }

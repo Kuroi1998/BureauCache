@@ -211,7 +211,7 @@ partial class SettingsForm
             iconAccent = Settings.Accent.ToArgb();
             if (old != null) old.Dispose();
         }
-        if (IsHandleCreated) Native.SetDarkTitleBar(Handle, Settings.Dark && !SystemInformation.HighContrast);
+        if (IsHandleCreated) Ui.ThemeTitleBar(Handle);
         foreach (Panel p in pages) if (p.IsHandleCreated) Native.SetDarkScrollbars(p.Handle, Settings.Dark && !SystemInformation.HighContrast);
         Invalidate(true);
     }
@@ -239,7 +239,7 @@ partial class SettingsForm
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        Native.SetDarkTitleBar(Handle, Settings.Dark && !SystemInformation.HighContrast);
+        Ui.ThemeTitleBar(Handle);
     }
 
     protected override void OnSystemColorsChanged(EventArgs e)
