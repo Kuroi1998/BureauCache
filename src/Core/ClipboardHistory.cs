@@ -1,6 +1,7 @@
 // BureauCache — ClipboardHistory
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -68,10 +69,19 @@ static class ClipboardHistory
     // Une ligne lisible pour le panneau : premier contenu non vide, espaces réduits, coupé à max caractères
     public static string Preview(string text, int max)
     {
-        if (string.IsNullOrEmpty(text)) return "";
+        if (string.IsNullOrEmpty(text) || max <= 0) return "";
         string line = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0) ?? "";
         line = string.Join(" ", line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries));
-        return line.Length <= max ? line : line.Substring(0, max - 1) + "…";
+        if (line.Length <= max) return line;
+        TextElementEnumerator elements = StringInfo.GetTextElementEnumerator(line);
+        int end = 0;
+        while (elements.MoveNext())
+        {
+            int next = elements.ElementIndex + elements.GetTextElement().Length;
+            if (next >= max) break;
+            end = next;
+        }
+        return line.Substring(0, end) + "…";
     }
 
     // Formats par lesquels une application demande à ne pas être enregistrée dans un historique

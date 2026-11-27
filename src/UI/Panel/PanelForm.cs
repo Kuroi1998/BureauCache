@@ -138,6 +138,7 @@ partial class PanelForm : Form
         Native.SetRoundCorners(Handle);
         appliedAffinity = uint.MaxValue;   // nouveau handle : aucune affinité encore donnée à Windows
         ApplyCaptureSettings();
+        if (loadDeferredForHandle) RequestLoad();
     }
 
     public void RefreshCatalog()

@@ -83,7 +83,7 @@ partial class App
         lastPoll = now;
         // L'essai demande 10 s de fonctionnement réel, mesurées en ticks traités : la veille ne compte pas (Q26-01)
         if (pollCount >= 500 && now >= 10000) ConfirmTrial();
-        if (pollCount % 50 == 0) ApplyIconVisibility();
+        if (pollCount % 50 == 0) { ApplyIconVisibility(); KeepWindowsBarHidden(); }
         // Épinglé, le panneau suit le changement de bureau virtuel (D-011)
         if (pollCount % 10 == 0 && Settings.Pinned && panel.Visible) Native.MoveToActiveDesktop(panel.Handle);
         if (pollCount % 250 == 0) RefreshTray(); // point « nouveaux fichiers » sur l'icône

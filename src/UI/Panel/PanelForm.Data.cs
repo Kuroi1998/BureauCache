@@ -6,9 +6,14 @@ using System.Linq;
 
 partial class PanelForm
 {
+    bool loadDeferredForHandle;
+
     // ---------- Chargement en arrière-plan ----------
     public void RequestLoad()
     {
+        if (IsDisposed || Disposing) return;
+        if (!IsHandleCreated) { Dirty = true; loadDeferredForHandle = true; return; }
+        loadDeferredForHandle = false;
         if (loading) { loadPending = true; return; }
         loading = true;
         Dirty = false;
@@ -35,6 +40,7 @@ partial class PanelForm
                     if (r != null) Recent = r;
                     loading = false;
                     Rebuild(true);
+                    IconCache.ReleaseRetired();   // anciennes versions d'icônes : plus aucune liste ne les montre (CDX-29)
                     if (loadPending) { loadPending = false; RequestLoad(); }
                 });
             }
@@ -63,8 +69,30 @@ partial class PanelForm
         if (IsOpen && glass == null && !liveBlurActive) RefreshStaticGlass();
         UpdateWidgetTimer(IsOpen);
         ApplyTheme();
+        SyncPinnedState();
         if (Dirty) RequestLoad();
         Rebuild(true);
+    }
+
+    // « Épinglé » changé ailleurs que par le bouton (restauration, import) : la réservation d'écran suit. Sans cela,
+    // les fenêtres pouvaient continuer d'éviter une bande vide, ou un panneau « épinglé » ne rien réserver (CDX-27).
+    internal static string PinAction(bool wanted, bool registered)
+    {
+        if (wanted && !registered) return "pin";
+        if (!wanted && registered) return "unpin";
+        return "";
+    }
+
+    void SyncPinnedState()
+    {
+        string action = PinAction(Settings.Pinned, appbar);
+        if (action == "pin")
+        {
+            if (!IsOpen) ShowPanel(System.Windows.Forms.Screen.FromPoint(System.Windows.Forms.Cursor.Position));
+            Pin();
+            if (!appbar) { Settings.Pinned = false; Settings.SaveQuiet(); }   // refus de Windows, comme TogglePin (Q24-04)
+        }
+        else if (action == "unpin") Unpin();
     }
 
     public void ReloadNow() { Dirty = true; RequestLoad(); }
@@ -161,7 +189,7 @@ partial class PanelForm
             foreach (string kw in it.NormKeywords) s = Math.Max(s, Search.ScoreNormalized(nq, kw) - 150);
             if (s < 0) continue;
             long[] u;
-            if (Settings.Usage.TryGetValue(it.Key, out u)) s += (int)Math.Min(u[0] * 15, 120);
+            if (Settings.Usage.TryGetValue(it.Key, out u)) s += (int)Math.Min(Math.Max(0, u[0]), 8) * 15;
             res.Add(new KeyValuePair<DesktopItem, int>(it, s));
         }
         return res.OrderByDescending(k => k.Value).ThenBy(k => k.Key.Name, StringComparer.CurrentCultureIgnoreCase).Take(max).ToList();

@@ -18,10 +18,11 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-029 | Durcissement de sécurité issu de l'audit (import, désinstallation, SEC-01 à 12) | Fait (3.10.1) ; essais réels faits sur le binaire et la 3.10.1 installée | Claude | PR #24 | QA-44, QA-46, QA-47, QA-53 |
 | T-030 | Expérience issue de l'audit (Premiers pas au clavier, lecteurs d'écran, contraste, erreurs réseau) | Fait (3.10.1) ; essais réels faits sur le binaire et la 3.10.1 installée | Claude | PR #24 | QA-45, QA-48, QA-53 |
 | T-031 | Refonte visuelle « Windows 11 » en quatre étapes | Fait (3.10.1) ; essais réels faits sur le binaire et la 3.10.1 installée | Claude puis Toi | PR #24 | D-012, QA-49 à QA-53 |
-| T-032 | Barre BureauCache, étape 1 : masquer et restaurer la barre Windows, barre AppBar, bouton Démarrer (ouvre le panneau), horloge | À faire (conception à valider) | Claude puis Toi | `feat/T-032-barre-des-taches` | D-013 |
-| T-033 | Barre, étape 2 : fenêtres ouvertes (activer, réduire, fermer, clignotement, bureaux virtuels) | À faire | Claude puis Toi | — | D-013 |
-| T-034 | Barre, étape 3 : compte et alimentation dans le pied du panneau | À faire | Claude puis Toi | — | D-013 |
+| T-032 | Barre BureauCache, étape 1 : masquer et restaurer la barre Windows, barre AppBar, bouton Démarrer (ouvre le panneau), horloge | En cours : code, tests et revue ChatGPT faits (QA-54, QA-55) ; essai réel à faire | Claude puis Toi | `feat/T-032-barre-des-taches` | D-013, QA-54, QA-55 |
+| T-033 | Barre, étape 2 : fenêtres ouvertes (activer, réduire, fermer, clignotement, bureaux virtuels) | En cours : code et tests faits (QA-56) ; revue ChatGPT et essai réel à faire | Claude puis Toi | `feat/T-033-fenetres-demarrer` | D-013, QA-56 |
+| T-034 | Barre, étape 3 : menu Démarrer avec compte et alimentation | En cours : code et tests faits (QA-56) ; revue ChatGPT et essai réel à faire | Claude puis Toi | `feat/T-033-fenetres-demarrer` | D-013, QA-56 |
 | T-035 | Barre, étape 4 : bouton « ^ » avec les vraies icônes de notification (prototype, recherche Gemini, puis version finale) | À faire | Gemini, Claude, Toi | — | D-013 |
+| T-036 | Chasse aux bugs hors de la barre : mises à jour, installation, panneau, Paramètres, recherche, presse-papiers, météo (Codex en lecture seule, puis Claude) | Code et tests faits (QA-68) ; essais réels à faire | Codex, Claude | `fix/T-036-chasse-bugs` | QA-68 |
 | T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel fait sur la 3.9 installée | Claude puis Toi | PR #19 | D-007, QA-32, QA-33 |
 | T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |
 | T-018 | Verbes du shell sur un fil dédié, liste des écrans suivie (QA-28, QA-29) | Fait (3.8) ; essais manuels encore à faire | Claude | PR #16 | QA-28 |
@@ -107,6 +108,29 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-27 · Toi · Publication demandée en 3.10.1 (Refonte UIX).
 - 2026-11-27 · Claude · PR #24 fusionnée (T-028 à T-031 en une seule PR) ; CI au vert.
 - 2026-11-27 · Toi · Version 3.10.1 (Refonte UIX) publiée et signée ; mise à jour installée depuis la 3.10.
+- 2026-11-27 · Claude · T-032 à T-035 : conception de la barre BureauCache proposée (D-013).
+- 2026-11-27 · Gemini puis Claude · T-035 : recherche sur l'hôte d'icônes de notification ; six points vérifiés dans le code de ManagedShell. Retenus : ordre Z, format 32 bits, `TaskbarCreated` sans retransmission des icônes, réponse à `SHAppBarMessage`, clics. Écartés : lecture de la mémoire d'Explorer, structure 64 bits « brute » (complément de D-013).
+- 2026-11-27 · Toi · D-013 validée ; T-032 lancée.
+- 2026-11-27 · Claude · T-032 : `WindowsBar` (fichier `barre.etat` écrit avant tout changement, restauration à la sortie, en fin de session, par la surveillance et par `--restore`), `BarForm` (AppBar, Démarrer, Paramètres rapides, horloge), option avec confirmation, menu « Rétablir la barre des tâches de Windows », import protégé (QA-54). Compilé ; suite : 489 réussis. Essai réel à faire.
+- 2026-11-27 · ChatGPT puis Claude · Revue de T-032 : 12 constats, 5 échecs reproduits ; 9 retenus, 2 en partie, 1 écarté (BAR-04) ; copie de l'état en mémoire, restauration constatée, surveillance obligatoire, réservation vérifiée (QA-55). Suite : 497 réussis.
+- 2026-11-27 · Toi · Essai de T-032 : la barre s'affiche (Démarrer, Paramètres rapides, horloge). Demande : fenêtres ouvertes dans la barre et un menu Démarrer propre avec compte et alimentation (D-013 révisée).
+- 2026-11-27 · Claude · T-033 et T-034 : `WindowList` (événements hors contexte, filtre testé, clignotement), boutons des fenêtres avec icône, trait actif, « +N », menu Fermer ; `StartMenuForm` (photo et nom, raccourcis, Verrouiller, Se déconnecter, Veille, Redémarrer, Arrêter avec mises à jour en attente et démarrage rapide) (QA-56). Compilé ; suite : 506 réussis.
+- 2026-11-27 · Toi · Essai de T-033 et T-034 : fenêtres et menu visibles ; menu trop petit (textes coupés) ; demande d'un aperçu au survol.
+- 2026-11-27 · ChatGPT puis Claude · Tests de revue `WindowStartReviewTests.cs` (BAR-03, 04, 05, 12) : 6 échecs reproduits, tous corrigés. Texte de la revue non reçu : les autres constats restent à trier (QA-57).
+- 2026-11-27 · Claude · Menu Démarrer agrandi (600 px à 100 %, tuiles de 96 px) avec recherche et 6 raccourcis ; aperçu en direct par vignette DWM au survol (QA-57). Suite : 515 réussis.
+- 2026-11-27 · Toi puis Claude · Icônes de la barre jugées trop petites : barre de 56 px (au lieu de 48), icônes des fenêtres de 32 px (au lieu de 24), logo, icônes de droite et horloge agrandis (QA-58). Suite : 515 réussis.
+- 2026-11-27 · Toi puis Claude · Menu Démarrer : textes des tuiles coupés en bas (« Applications et recherche », « Gestionnaire des tâches ») ; icône et texte centrés ensemble selon la hauteur mesurée du texte, menu réduit (540 px, tuiles de 88 px) (QA-59). Suite : 516 réussis.
+- 2026-11-27 · Toi puis Claude · Épingles et déplacement des icônes (D-014) : `TaskbarModel` (épingles d'abord, clé AppUserModelID ou exe, un bouton par fenêtre), clic droit Épingler/Détacher/Nouvelle fenêtre, glisser pour réordonner, épingles gardées à l'import (QA-60). Suite : 525 réussis.
+- 2026-11-27 · T-032 à T-034 · Cinq régressions reproduites et corrigées dans le remplacement de la barre, les épingles et les clics. Résultats et limites dans QA-61.
+- 2026-11-27 · T-032 à T-034, D-007 · Corrections de la restauration Windows, du suivi des fenêtres, des aperçus, du menu Démarrer et de la rotation des sauvegardes. Détails dans QA-62.
+- 2026-11-27 · Correctifs de stabilité de la calculatrice, de la recherche dans les fichiers, du presse-papiers, du parseur JSON, de la météo et du relevé d’encombrement. Détails dans QA-63.
+- 2026-11-27 · Correctifs de l’historique d’utilisation, de la restauration, du glisser-déposer et du cycle de vie du panneau. Surveillance de la barre vérifiée aussi pendant son fonctionnement. Détails dans QA-64.
+- 2026-11-27 · Audit du dépôt local et correctifs du rangement, du catalogue, du chargement WinForms, de la météo, du cache d’icônes et des scripts CI et publication. Inventaire dans QA-65.
+- 2026-11-27 · Claude · Lot externe QA-61 à QA-65 relu et commité à part. Chasse aux bugs de la barre : icônes retentées, hôtes sans clé, noms d'applications par Windows, fermeture différée du menu, veille moderne, fin de session annulée (QA-66). Suite : 570 réussis.
+- 2026-11-27 · Toi · Gemini non connecté (connexion Google fermée aux particuliers, clé en prépaiement sans crédit) : Codex seul est appelé directement, Gemini par prompt (D-015).
+- 2026-11-27 · Codex puis Claude · Revue de la barre en lecture seule : 13 constats, tous retenus (certains en partie), 4 reproduits sur l'ancien code (QA-67). Suite : 582 réussis.
+- 2026-11-27 · Claude puis Codex · T-036 : corbeille restaurée au bon endroit, renommage de casse ; revue Codex hors barre : 10 constats, 9 retenus, 1 écarté (QA-68). Suite : 603 réussis.
+- 2026-11-27 · Toi · Publication demandée en 3.10.2 (Barre des tâches BureauCache) : T-032 à T-034 et T-036 réunis dans la PR #26.
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.

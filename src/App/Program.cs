@@ -25,7 +25,7 @@ static class Program
         string cmd = args.Length > 0 ? args[0].ToLowerInvariant() : "";
         if (cmd == "--watchdog" && args.Length > 1) { Watchdog(args[1]); return; }
         if (cmd == "--make-icon" && args.Length > 1) { Ui.WriteIco(args[1]); return; }
-        if (cmd == "--restore") { Native.RestoreDesktopIcons(); return; }
+        if (cmd == "--restore") { Native.RestoreDesktopIcons(); WindowsBar.Restore(); return; }
         Settings.Load();
         L.Refresh();
         if (cmd == "--uninstall") { UninstallFromCommandLine(); return; }
@@ -52,9 +52,11 @@ static class Program
                 Updater.TrialStarted = start == Updater.StartState.Trial;
                 if (start == Updater.StartState.RolledBack)
                 {
-                    // L'ancienne version est revenue à la place de l'exe : on la relance, une fois le mutex libéré
-                    Dialogs.Warn(null, L.T("La nouvelle version de BureauCache n'a pas réussi à démarrer.\nLa version précédente a été restaurée.",
-                                           "The new version of BureauCache failed to start.\nThe previous version has been restored.", "La nueva versión de BureauCache no pudo iniciarse.\nSe restauró la versión anterior."));
+                    // L'ancienne version est revenue à la place de l'exe : on la relance, une fois le mutex libéré.
+                    // La barre Windows est rendue AVANT l'avertissement : la surveillance de la version plantée a vu notre
+                    // mutex et s'est arrêtée, et l'ancienne version peut ne pas connaître la barre BureauCache (CDX-01).
+                    PrepareRollback(WindowsBar.Restore, RetryRestore, () => Dialogs.Warn(null, L.T("La nouvelle version de BureauCache n'a pas réussi à démarrer.\nLa version précédente a été restaurée.",
+                                           "The new version of BureauCache failed to start.\nThe previous version has been restored.", "La nueva versión de BureauCache no pudo iniciarse.\nSe restauró la versión anterior.")));
                     App.RelaunchPath = Application.ExecutablePath;
                 }
                 else
@@ -62,22 +64,46 @@ static class Program
                     if (Installer.RunningFromInstall) try { Installer.RegisterVersion(); } catch { }
                     StartWatchdog();
                     try { Application.Run(new App(show, quit)); }
-                    finally { Native.RestoreDesktopIcons(); }
+                    finally
+                    {
+                        if (watchdogProcess != null) watchdogProcess.Dispose();
+                        Native.RestoreDesktopIcons();
+                        WindowsBar.Restore();
+                    }
                 }
             }
         }
         if (App.RelaunchPath != null)
-            try { Process.Start(App.RelaunchPath); } catch { }
+        {
+            if (App.RelaunchAfterUpdate)
+                RelaunchUpdate(App.RelaunchPath, p => { using (Process.Start(p)) { } }, Updater.RollBack, msg => Dialogs.Warn(null, msg));
+            else try { Process.Start(App.RelaunchPath); } catch { }
+        }
         Installer.StartFolderRemoval();
+    }
+
+    // Vrai si le processus de surveillance tourne : la barre BureauCache en a besoin (D-013, BAR-07)
+    static Process watchdogProcess;
+    internal static bool WatchdogRunning
+    {
+        get
+        {
+            try { return watchdogProcess != null && !watchdogProcess.HasExited; }
+            catch (InvalidOperationException) { return false; }
+            catch (System.ComponentModel.Win32Exception) { return false; }
+        }
     }
 
     static void StartWatchdog()
     {
         try
         {
-            ProcessStartInfo psi = new ProcessStartInfo(Application.ExecutablePath, "--watchdog " + Process.GetCurrentProcess().Id);
-            psi.UseShellExecute = false;
-            Process.Start(psi);
+            using (Process current = Process.GetCurrentProcess())
+            {
+                ProcessStartInfo psi = new ProcessStartInfo(Application.ExecutablePath, "--watchdog " + current.Id);
+                psi.UseShellExecute = false;
+                watchdogProcess = Process.Start(psi);
+            }
         }
         catch { }
     }
@@ -86,9 +112,49 @@ static class Program
     {
         int pid;
         if (!int.TryParse(pidText, out pid)) return;
-        try { Process.GetProcessById(pid).WaitForExit(); } catch { }
+        try { using (Process parent = Process.GetProcessById(pid)) parent.WaitForExit(); } catch { }
         Thread.Sleep(1500);
-        if (!InstanceExists()) Native.RestoreDesktopIcons();
+        if (InstanceExists()) return;
+        Native.RestoreDesktopIcons();   // plantage : icônes et barre Windows reviennent
+        // Explorer absent ou restauration non constatée : nouvel essai pendant 2 minutes, sauf si une instance a repris
+        for (int i = 0; i < 60 && !WindowsBar.Restore(); i++)
+        {
+            Thread.Sleep(2000);
+            if (InstanceExists()) return;
+        }
+    }
+
+    // Windows refuse de lancer la version installée (binaire inutilisable sur ce PC) : sans ce filet, l'exe resterait
+    // cassé, car la nouvelle version n'atteint jamais le code d'essai qui sait revenir en arrière (CDX-22). L'ancienne
+    // version, gardée en « .old », est remise en place et lancée une seule fois.
+    internal static void RelaunchUpdate(string exe, Action<string> start, Action<string> rollBack, Action<string> warn)
+    {
+        try { start(exe); return; }
+        catch { }
+        bool restored = false;
+        try { rollBack(exe); restored = true; } catch { }
+        warn(restored
+            ? L.T("Windows n'a pas pu lancer la nouvelle version de BureauCache. La version précédente a été remise en place.",
+                  "Windows couldn't start the new version of BureauCache. The previous version has been put back.",
+                  "Windows no pudo iniciar la nueva versión de BureauCache. Se restauró la versión anterior.")
+            : L.T("Windows n'a pas pu lancer la nouvelle version de BureauCache, et la version précédente n'a pas pu être remise en place. Réinstalle BureauCache depuis GitHub.",
+                  "Windows couldn't start the new version of BureauCache, and the previous version couldn't be put back. Reinstall BureauCache from GitHub.",
+                  "Windows no pudo iniciar la nueva versión de BureauCache y no se pudo restaurar la anterior. Reinstala BureauCache desde GitHub."));
+        if (restored) try { start(exe); } catch { }
+    }
+
+    internal static void PrepareRollback(Func<bool> restore, Action retry, Action warn)
+    {
+        bool restored = false;
+        try { restored = restore(); } catch { }
+        if (!restored) try { retry(); } catch { }
+        warn();
+    }
+
+    // Explorer absent ou restauration non constatée : quelques essais avant l'avertissement (10 s au plus)
+    static void RetryRestore()
+    {
+        for (int i = 0; i < 5 && !WindowsBar.Restore(); i++) Thread.Sleep(2000);
     }
 
     static bool InstanceExists()

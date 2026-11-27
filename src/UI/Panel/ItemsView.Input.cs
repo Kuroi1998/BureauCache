@@ -116,6 +116,11 @@ partial class ItemsView
     {
         base.OnMouseCaptureChanged(e);
         if (Capture) return;
+        CancelPointerGesture();
+    }
+
+    void CancelPointerGesture()
+    {
         downRow = -1;
         if (!dragging && !scrollDragging) return;
         if (dragging) owner.Busy = false;

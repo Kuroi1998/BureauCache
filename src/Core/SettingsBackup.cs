@@ -37,13 +37,22 @@ static class SettingsBackup
     // Même critère que Settings.Load : un fichier que Load refuserait ne vaut pas la peine d'être gardé
     public static bool IsValid(string path)
     {
+        bool unavailable;
+        return IsValid(path, out unavailable);
+    }
+
+    static bool IsValid(string path, out bool unavailable)
+    {
+        unavailable = false;
         try
         {
             FileInfo f = new FileInfo(path);
-            if (!f.Exists || f.Length > Settings.MaxFileSize) return false;
+            if (f.Length > Settings.MaxFileSize) return false;
             return File.ReadLines(path).Any(line => line.Trim() == "HideIcons=0" || line.Trim() == "HideIcons=1");
         }
-        catch { return false; }
+        catch (FileNotFoundException) { return false; }
+        catch (DirectoryNotFoundException) { return false; }
+        catch { unavailable = true; return false; }
     }
 
     // ---------- Copie quotidienne ----------
@@ -58,7 +67,8 @@ static class SettingsBackup
             try
             {
                 string today = DailyPath(DateTime.Now);
-                if (!IsValid(today) && IsValid(Settings.FilePath))
+                bool unavailable;
+                if (!IsValid(today, out unavailable) && !unavailable && IsValid(Settings.FilePath))
                 {
                     Directory.CreateDirectory(Folder);
                     string tmp = TempPath;
@@ -95,19 +105,25 @@ static class SettingsBackup
 
     // Garde les Kept copies quotidiennes lisibles les plus récentes ; une copie illisible ne prend pas de place
     // (D007-03). « protect », la copie que l'on vient de faire, n'est jamais supprimée, même si l'horloge a reculé
-    // et que des copies portent une date future (D007-02). Une copie illisible plus récente que la plus ancienne
-    // gardée est laissée : elle est peut-être seulement verrouillée.
+    // et que des copies portent une date future (D007-02). Une copie temporairement inaccessible reste en place.
     internal static void Prune(string protect = null)
     {
         List<Entry> all = Daily();
-        List<Entry> valid = all.Where(e => IsValid(e.Path)).ToList();
+        List<Entry> valid = new List<Entry>();
+        HashSet<Entry> unavailable = new HashSet<Entry>();
+        foreach (Entry e in all)
+        {
+            bool inaccessible;
+            if (IsValid(e.Path, out inaccessible)) valid.Add(e);
+            else if (inaccessible) unavailable.Add(e);
+        }
         List<Entry> keep = valid.Take(Kept).ToList();
         Entry mine = protect == null ? null : valid.FirstOrDefault(e => string.Equals(e.Path, protect, StringComparison.OrdinalIgnoreCase));
         if (mine != null && !keep.Contains(mine)) { keep.RemoveAt(keep.Count - 1); keep.Add(mine); }
         DateTime oldestKept = keep.Count == 0 ? DateTime.MaxValue : keep.Min(e => e.Date);
         foreach (Entry e in all)
         {
-            if (keep.Contains(e)) continue;
+            if (keep.Contains(e) || unavailable.Contains(e)) continue;
             bool readable = valid.Contains(e);
             if (readable || e.Date < oldestKept)
                 try { File.Delete(e.Path); } catch { }
@@ -193,16 +209,19 @@ static class SettingsBackup
     }
 
     // Réglages sensibles d'un import : dépôt et mises à jour automatiques (un dépôt tiers n'exige pas de signature),
-    // presse-papiers, rangement automatique et journal d'annulation (il désigne des fichiers à déplacer)
+    // presse-papiers, barre des tâches (D-013), rangement automatique et journal d'annulation (il désigne des fichiers à déplacer)
     sealed class LocalChoices
     {
-        string repo, archiveName; bool autoUpdate, clipboard, archive; int archiveDays; List<string> log; List<ArchiveRule> rules;
+        string repo, archiveName; bool autoUpdate, clipboard, archive, taskbar; List<string> pins; int archiveDays; List<string> log; List<ArchiveRule> rules;
+        List<string> favorites; Dictionary<string, long[]> usage;
 
         public static LocalChoices Capture()
         {
-            return new LocalChoices { repo = Settings.UpdateRepo, autoUpdate = Settings.AutoUpdate, clipboard = Settings.ClipboardOn,
+            return new LocalChoices { repo = Settings.UpdateRepo, autoUpdate = Settings.AutoUpdate, clipboard = Settings.ClipboardOn, taskbar = Settings.TaskbarOn, pins = Settings.TaskbarPins.ToList(),
                                       archive = Settings.ArchiveOn, log = Settings.ArchiveLog.ToList(), rules = Settings.ArchiveRules.ToList(),
-                                      archiveName = Settings.ArchiveName, archiveDays = Settings.ArchiveDays };
+                                      archiveName = Settings.ArchiveName, archiveDays = Settings.ArchiveDays,
+                                      favorites = Settings.Favorites.ToList(),
+                                      usage = Settings.Usage.ToDictionary(e => e.Key, e => (long[])e.Value.Clone(), StringComparer.OrdinalIgnoreCase) };
         }
 
         static string Sig(List<ArchiveRule> r) { return string.Join("|", r.Select(x => x.Serialize()).ToArray()); }
@@ -213,6 +232,8 @@ static class SettingsBackup
                 kept.Add(L.T("le dépôt des mises à jour", "the update repository", "el repositorio de actualizaciones"));
             if (Settings.AutoUpdate != autoUpdate) kept.Add(L.T("la vérification automatique des mises à jour", "automatic update checks", "la comprobación automática de actualizaciones"));
             if (Settings.ClipboardOn != clipboard) kept.Add(L.T("l'historique du presse-papiers", "the clipboard history", "el historial del portapapeles"));
+            if (!Settings.TaskbarPins.SequenceEqual(pins)) kept.Add(L.T("les applications épinglées à la barre", "the apps pinned to the taskbar", "las aplicaciones ancladas a la barra"));
+            if (Settings.TaskbarOn != taskbar) kept.Add(L.T("la barre des tâches BureauCache", "the BureauCache taskbar", "la barra de tareas de BureauCache"));
             if (Settings.ArchiveOn != archive) kept.Add(L.T("le rangement automatique", "automatic tidy-up", "la organización automática"));
             if (Settings.ArchiveLog.Count > 0) kept.Add(L.T("le journal d'annulation du rangement", "the tidy-up undo log", "el registro para deshacer la organización"));
             // Rangement automatique actif sur ce PC : ses règles, son dossier et son ancienneté restent les siens, sinon
@@ -221,16 +242,43 @@ static class SettingsBackup
             bool keepPolicy = archive;
             if (keepPolicy && (Sig(Settings.ArchiveRules) != Sig(rules) || Settings.ArchiveName != archiveName || Settings.ArchiveDays != archiveDays))
                 kept.Add(L.T("les règles et le dossier du rangement automatique", "the automatic tidy-up rules and folder", "las reglas y la carpeta de la organización automática"));
-            Settings.UpdateRepo = repo; Settings.AutoUpdate = autoUpdate; Settings.ClipboardOn = clipboard;
+            Settings.UpdateRepo = repo; Settings.AutoUpdate = autoUpdate; Settings.ClipboardOn = clipboard; Settings.TaskbarOn = taskbar; Settings.TaskbarPins = pins;
             Settings.ArchiveOn = archive; Settings.ArchiveLog = log;
             if (keepPolicy) { Settings.ArchiveRules = rules; Settings.ArchiveName = archiveName; Settings.ArchiveDays = archiveDays; }
+            // Rangement actif : les favoris et les dates d'usage de ce PC protègent des fichiers du rangement. Un import
+            // les remplaçait, et des fichiers protégés pouvaient partir au passage suivant (CDX-25) : on fusionne.
+            if (keepPolicy && MergeProtections(favorites, usage))
+                kept.Add(L.T("les favoris et les dates d'utilisation qui protègent tes fichiers du rangement",
+                             "the favorites and usage dates that protect your files from tidy-up",
+                             "los favoritos y las fechas de uso que protegen tus archivos de la organización"));
+        }
+
+        // Vrai si une protection locale manquait dans l'import. Favoris : ceux de l'import, puis les locaux absents.
+        // Usage : pour chaque élément, la date la plus récente et le plus grand nombre d'ouvertures.
+        internal static bool MergeProtections(List<string> localFavorites, Dictionary<string, long[]> localUsage)
+        {
+            bool added = false;
+            foreach (string f in localFavorites)
+                if (Settings.FavIndex(f) < 0) { Settings.Favorites.Add(f); added = true; }
+            foreach (KeyValuePair<string, long[]> e in localUsage)
+            {
+                long[] imported;
+                if (!Settings.Usage.TryGetValue(e.Key, out imported)) { Settings.Usage[e.Key] = (long[])e.Value.Clone(); added = true; continue; }
+                if (e.Value[1] > imported[1]) { imported[1] = e.Value[1]; added = true; }
+                if (e.Value[0] > imported[0]) imported[0] = e.Value[0];
+            }
+            return added;
         }
     }
+
+    static bool SameCoordinate(double a, double b) { return (double.IsNaN(a) && double.IsNaN(b)) || a == b; }
 
     static bool RestoreFrom(string path, List<string> kept)
     {
         lock (gate)
         {
+            // Choix explicite de l'utilisateur : les réglages restaurés peuvent remplacer un fichier resté illisible
+            Settings.ProfileUnreadable = false;
             if (!IsValid(path)) return false;
             string source = null, undo = null;
             try
@@ -246,6 +294,8 @@ static class SettingsBackup
                 if (!IsValid(undo)) return false;
 
                 LocalChoices local = kept != null ? LocalChoices.Capture() : null;
+                bool weatherOn = Settings.WeatherOn;
+                double weatherLat = Settings.WeatherLat, weatherLon = Settings.WeatherLon;
                 bool loaded = LoadReplacing(source);
                 if (loaded && local != null) local.Reapply(kept);
                 if (!loaded || !Settings.Save())
@@ -253,6 +303,10 @@ static class SettingsBackup
                     LoadReplacing(undo);               // le disque n'a pas changé : la mémoire seulement
                     return false;
                 }
+                // Autre lieu ou météo coupée : la prévision en cache (et une réponse en route) est celle de l'ancien
+                // lieu ; sans cela, la tuile pouvait afficher la météo de Bruxelles sous le nom de Madrid (CDX-28)
+                if (Settings.WeatherOn != weatherOn || !SameCoordinate(Settings.WeatherLat, weatherLat) || !SameCoordinate(Settings.WeatherLon, weatherLon))
+                    Weather.Reset();
                 try { KeepUndo(undo); }
                 catch
                 {
@@ -301,6 +355,7 @@ static class SettingsBackup
         Settings.CustomCats = new List<CustomCat>();
         Settings.ArchiveLog = new List<string>();
         Settings.ArchiveRules = new List<ArchiveRule>();
+        Settings.TaskbarPins = new List<string>();
         return Settings.Load(path);
     }
 

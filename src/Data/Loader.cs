@@ -58,7 +58,7 @@ static class Loader
                     if (fn.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase)) continue;
                     string ext = Path.GetExtension(f).ToLowerInvariant();
                     string n = (ext == ".lnk" || ext == ".url") ? Path.GetFileNameWithoutExtension(f) : fn;
-                    string nameKey = "f:" + n;
+                    string nameKey = "f:" + fn;
                     if (seen.Contains(nameKey)) continue;
                     try
                     {

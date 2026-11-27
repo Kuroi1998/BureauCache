@@ -155,6 +155,7 @@ static class Json
         {
             char c = s[i++];
             if (c == '"') return sb.ToString();
+            if (c < ' ') throw new FormatException("Caractère de contrôle non échappé.");
             if (c != '\\') { sb.Append(c); continue; }
             if (i >= s.Length) break;
             char e = s[i++];
@@ -168,7 +169,7 @@ static class Json
                 case 't': sb.Append('\t'); break;
                 case 'u':
                     int code;
-                    if (i + 4 > s.Length || !int.TryParse(s.Substring(i, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out code))
+                    if (i + 4 > s.Length || !int.TryParse(s.Substring(i, 4), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out code))
                         throw new FormatException("Échappement \\u invalide.");
                     sb.Append((char)code);
                     i += 4;
@@ -182,7 +183,6 @@ static class Json
     // Décode le contenu d'une chaîne JSON (sans les guillemets)
     public static string Decode(string content)
     {
-        int i = 0;
-        return String("\"" + content + "\"", ref i);
+        return (string)Parse("\"" + content + "\"");
     }
 }

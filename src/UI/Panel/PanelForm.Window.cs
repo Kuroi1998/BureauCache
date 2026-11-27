@@ -12,6 +12,28 @@ partial class PanelForm
     // Images de travail réutilisées d'une capture à l'autre (le flou en direct en refait une toutes les 120 ms)
     Bitmap capBuf, smallBuf, spareBuf;
 
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing && !IsDisposed)
+        {
+            anim.Dispose();
+            blurTimer.Dispose();
+            widgetTimer.Dispose();
+            contentTimer.Dispose();
+            if (IsHandleCreated) AppBarRemove();
+        }
+        base.Dispose(disposing);
+        if (disposing)
+        {
+            preview.Dispose();
+            if (menu != null) menu.Dispose();
+            SetGlass(null);
+            if (capBuf != null) { capBuf.Dispose(); capBuf = null; }
+            if (smallBuf != null) { smallBuf.Dispose(); smallBuf = null; }
+            if (spareBuf != null) { spareBuf.Dispose(); spareBuf = null; }
+        }
+    }
+
     static Bitmap Reuse(ref Bitmap buf, int w, int h, PixelFormat fmt)
     {
         if (buf == null || buf.Width != w || buf.Height != h)
@@ -154,6 +176,14 @@ partial class PanelForm
         Native.SetForegroundWindow(Handle);
         search.Focus();
         StartAnim(true);
+    }
+
+    // Recherche lancée depuis le menu Démarrer de la barre (D-013) : le texte tapé arrive dans le panneau ouvert
+    public void SearchFor(string text)
+    {
+        search.Text = text ?? "";
+        search.Focus();
+        search.SelectionStart = search.Text.Length;
     }
 
     public DateTime LastHidden = DateTime.MinValue;

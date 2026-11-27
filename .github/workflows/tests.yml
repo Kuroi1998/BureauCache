@@ -22,7 +22,7 @@ jobs:
       - name: Compiler et tester
         shell: pwsh
         # Un test WinForms figé produit un rapport de blocage au lieu de faire attendre la CI jusqu'au délai global
-        run: dotnet test tests/BureauCache.Tests --configuration Release --logger "console;verbosity=normal" --blame-hang-timeout 60s
+        run: dotnet test tests/BureauCache.Tests --configuration Release --logger "console;verbosity=normal" --logger "trx;LogFileName=resultats.trx" --blame-hang-timeout 60s
 
       # En cas d'échec ou de blocage, les résultats et les rapports de blocage restent consultables (QA34-11)
       - name: Publier les résultats des tests

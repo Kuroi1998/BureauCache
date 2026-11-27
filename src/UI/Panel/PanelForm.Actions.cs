@@ -193,7 +193,43 @@ partial class PanelForm
 
     static void Recycle(string stash)
     {
-        foreach (string p in Directory.GetFileSystemEntries(stash)) FileOps.Recycle(p, false);
+        FinishDelete(stash, FileOps.Move, p => FileOps.Recycle(p, false));
+    }
+
+    // Disposition d'une mise de côté : l'élément dans « contenu », l'emplacement d'origine dans « origine » à la racine.
+    // Contenu et métadonnées sont séparés : un fichier de l'utilisateur ne peut jamais être pris pour le marqueur
+    // (CDX-20 : un fichier nommé comme le marqueur était effacé définitivement au lieu de partir à la corbeille).
+    internal const string OriginFile = "origine", ContentDir = "contenu";
+
+    internal static string HeldPath(string stash, string original) { return Path.Combine(stash, ContentDir, Path.GetFileName(original)); }
+
+    // Fin d'une suppression annulable : l'élément retourne d'abord à son emplacement d'origine, puis part à la
+    // corbeille DE LÀ. Envoyé depuis le dossier de mise de côté, « Restaurer » dans la Corbeille de Windows le remettait
+    // dans AppData\BureauCache\suppression au lieu du bureau (QA-68). Si la place d'origine a été reprise entre-temps
+    // (ou si l'origine est inconnue, mise de côté d'une ancienne version), il part depuis le dossier de mise de côté.
+    internal static void FinishDelete(string stash, Action<string, string, bool> move, Action<string> recycle)
+    {
+        string originPath = Path.Combine(stash, OriginFile), content = Path.Combine(stash, ContentDir), origin = null;
+        bool layout = Directory.Exists(content);   // sinon : mise de côté d'une ancienne version, tout est du contenu
+        if (layout) try { if (File.Exists(originPath)) origin = File.ReadAllText(originPath).Trim(); } catch { }
+        foreach (string p in Directory.GetFileSystemEntries(layout ? content : stash))
+        {
+            bool folder = Directory.Exists(p);
+            if (origin != null && string.Equals(Path.GetFileName(origin), Path.GetFileName(p), StringComparison.OrdinalIgnoreCase) &&
+                !File.Exists(origin) && !Directory.Exists(origin) && Directory.Exists(Path.GetDirectoryName(origin)))
+            {
+                bool movedBack = false;
+                try { move(p, origin, folder); movedBack = true; } catch { }
+                // Revenu sur le bureau : s'il ne part pas à la corbeille, il y reste, visible (rien n'est perdu)
+                if (movedBack) { recycle(origin); continue; }
+            }
+            recycle(p);
+        }
+        if (layout)
+        {
+            Directory.Delete(content);   // vide : sinon une exception, et rien n'est effacé
+            if (File.Exists(originPath)) File.Delete(originPath);
+        }
         Directory.Delete(stash);
     }
 
@@ -216,10 +252,12 @@ partial class PanelForm
         string original = it.Target, name = it.Name;
         bool folder = it.IsFolder;
         string stash = Path.Combine(StashRoot, Guid.NewGuid().ToString("N"));
-        string held = Path.Combine(stash, Path.GetFileName(original));
+        string held = HeldPath(stash, original);
         try
         {
-            Directory.CreateDirectory(stash);
+            Directory.CreateDirectory(Path.Combine(stash, ContentDir));
+            // Origine notée AVANT le déplacement : même après une fermeture brutale, l'élément repart du bureau (QA-68)
+            File.WriteAllText(Path.Combine(stash, OriginFile), original, new System.Text.UTF8Encoding(false));
             FileOps.Move(original, held, folder);
         }
         catch

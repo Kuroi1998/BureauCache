@@ -49,9 +49,19 @@ namespace BureauCache.Tests
         [DataRow("{\"error\":true,\"reason\":\"Latitude must be in range\"}")]
         [DataRow("{\"current\":{\"temperature_2m\":\"abc\"}}")]
         [DataRow("<html>erreur</html>")]
+        [DataRow("{\"current\":{\"temperature_2m\":18,\"weather_code\":1.5}}")]
+        [DataRow("{\"current\":{\"temperature_2m\":18,\"weather_code\":1e100}}")]
         public void Reponse_invalide_ignoree(string json)
         {
             Assert.IsNull(Weather.ParseForecast(json));
+        }
+
+        [TestMethod]
+        public void DayNameHandlesTheLastRepresentableDate()
+        {
+            var report = new WeatherReport { LocalToday = DateTime.MaxValue.Date };
+            DateTime previous = report.LocalToday.AddDays(-1);
+            Assert.AreEqual(previous.ToString("dddd", L.Culture), Weather.DayName(report, previous));
         }
 
         [TestMethod]

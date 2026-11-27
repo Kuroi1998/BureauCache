@@ -17,10 +17,24 @@ partial class SettingsForm
     void BuildPlaceRow()
     {
         placeBox = new InputBox(S(190));
+        placeBox.Box.TextChanged += (s, e) =>
+        {
+            placeSearch++;
+            if (placeMenu != null && placeMenu.Visible) placeMenu.Close();
+            UpdateWeatherPlaceText();
+        };
         placeBox.Box.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; SearchPlace(); } };
         placeBox.Box.HandleCreated += (s, e) => Native.SendMessage(placeBox.Box.Handle, 0x1501, (IntPtr)1, T("Ville…", "City…", "Ciudad…"));
         bPlace = Button(T("Rechercher", "Search", "Buscar"), false, S(110), SearchPlace);
         lWeatherPlace = Row(T("Lieu de la météo", "Weather location", "Ubicación para el tiempo"), "-", bPlace, null, null, placeBox);
+    }
+
+    void UpdateWeatherPlaceText()
+    {
+        if (lWeatherPlace != null)
+            lWeatherPlace.Text = string.IsNullOrEmpty(Settings.WeatherPlace)
+                ? T("Aucun lieu choisi.", "No place chosen.", "Ningún lugar seleccionado.")
+                : Settings.WeatherPlace;
     }
 
     // Météo activée sans lieu : on invite à chercher juste en dessous

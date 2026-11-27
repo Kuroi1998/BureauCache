@@ -41,6 +41,8 @@ static partial class Settings
     // Météo (D-005) : désactivée tant qu'aucun lieu n'est choisi
     public static bool WeatherOn = false;
     public static bool ClipboardOn = false;   // historique du presse-papiers, en mémoire seulement (D-011)
+    public static bool TaskbarOn = false;     // barre BureauCache à la place de celle de Windows (D-013)
+    public static List<string> TaskbarPins = new List<string>();   // applications épinglées, « clé>nom » (D-014)
     public static string WeatherPlace = "", WeatherShort = "";   // libellé complet et « Ville, Pays » (QA52-05)
     public static double WeatherLat = double.NaN, WeatherLon = double.NaN;
     public static Color Accent = Color.FromArgb(59, 130, 246);
@@ -179,7 +181,8 @@ static partial class Settings
     {
         long[] u;
         if (!Usage.TryGetValue(key, out u)) u = new long[] { 0, 0 };
-        Usage[key] = new long[] { u[0] + 1, DateTime.Now.Ticks };
+        long count = Math.Max(0, u[0]);
+        Usage[key] = new long[] { count == long.MaxValue ? count : count + 1, DateTime.Now.Ticks };
         PruneUsage();
         SaveQuiet();
     }

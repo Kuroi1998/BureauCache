@@ -24,6 +24,7 @@ static class Archiver
     {
         List<string> res = new List<string>();
         DateTime limit = Limit;
+        string folder = Folder;
         string[] entries;
         try { entries = Directory.GetFileSystemEntries(Desk); } catch { return res; }
         List<ArchiveRule> rules = Settings.ArchiveRules.ToList();
@@ -31,7 +32,8 @@ static class Archiver
         {
             // Une règle dont le filtre correspond décide seule, avec son propre âge (D-009)
             ArchiveRule rule = ArchiveRules.For(p, rules);
-            if (IsCandidate(p, rule != null ? rule.Limit : limit)) res.Add(p);
+            if (CanArchiveTo(rule != null ? rule.Destination(folder) : folder, Desk) &&
+                IsCandidate(p, rule != null ? rule.Limit : limit)) res.Add(p);
         }
         return res;
     }
@@ -54,6 +56,7 @@ static class Archiver
             {
                 if (favorites.Contains(p) || !PassesFilters(p, folder)) continue;
                 ArchiveRule rule = ArchiveRules.For(p, rules);
+                if (!CanArchiveTo(rule != null ? rule.Destination(folder) : folder, Desk)) continue;
                 DateTime itemLimit = rule != null ? rule.Limit : limit;
                 long[] u;
                 if (usage.TryGetValue(p, out u) && new DateTime(u[1], DateTimeKind.Local).ToUniversalTime() >= itemLimit) continue;
@@ -153,15 +156,20 @@ static class Archiver
         int n = 0;
         List<string> log = new List<string>();
         bool journalChecked = false;
-        foreach (string p in items)
+        foreach (string item in items)
         {
             // Seuls les éléments posés directement sur le bureau sont rangés, quelle que soit la liste reçue (QA34-02)
-            if (!Paths.SameFolder(Path.GetDirectoryName(Path.GetFullPath(p)), Desk)) continue;
+            string p;
+            try { p = Path.GetFullPath(item); }
+            catch (ArgumentException) { continue; }
+            catch (NotSupportedException) { continue; }
+            catch (PathTooLongException) { continue; }
+            if (!Paths.SameFolder(Path.GetDirectoryName(p), Desk)) continue;
             // Une règle dont le filtre correspond décide seule : son âge et sa destination (D-009). Sinon,
             // le rangement par ancienneté vers le dossier d'archive.
             ArchiveRule rule = ArchiveRules.For(p, rules);
-            string target = rule != null ? rule.Destination() : folder;
-            if (target == null || !IsCandidate(p, rule != null ? rule.Limit : limit)) continue;
+            string target = rule != null ? rule.Destination(folder) : folder;
+            if (!CanArchiveTo(target, Desk) || !IsCandidate(p, rule != null ? rule.Limit : limit)) continue;
             bool ok;
             if (!ready.TryGetValue(target, out ok)) ready[target] = ok = PrepareFolder(target);
             if (!ok) continue;
@@ -210,6 +218,15 @@ static class Archiver
         return n;
     }
 
+    static bool CanArchiveTo(string target, string desktop)
+    {
+        if (string.IsNullOrWhiteSpace(target)) return false;
+        try { return !Paths.SameFolder(Path.GetFullPath(target), desktop); }
+        catch (ArgumentException) { return false; }
+        catch (NotSupportedException) { return false; }
+        catch (PathTooLongException) { return false; }
+    }
+
     // Crée le dossier d'archive. Refusé si c'est une jonction ou un lien (les éléments partiraient ailleurs).
     // Un dossier OneDrive « à la demande » est aussi un point d'analyse, mais ce n'est pas un lien : il est accepté.
     static bool PrepareFolder(string folder)
@@ -254,14 +271,24 @@ static class Archiver
                 // Dossier de destination absent (disque débranché, OneDrive pas encore synchronisé) : l'entrée est
                 // gardée pour un nouvel essai (QA42-07)
                 if (!Directory.Exists(parent)) { pending.Add(e); continue; }
-                if ((File.GetAttributes(parent) & FileAttributes.ReparsePoint) != 0) continue;
+                // Même règle qu'à l'aller (PrepareFolder) : seuls les liens et les jonctions sont refusés. Un dossier
+                // OneDrive « à la demande » est un point d'analyse sans être un lien : il était refusé ici, et l'entrée
+                // quittait le journal, ce qui rendait l'annulation impossible (CDX-26). Un lien ou un dossier illisible
+                // garde l'entrée, pour un nouvel essai, sans rien déplacer.
+                if (IsLink(new DirectoryInfo(parent))) { pending.Add(e); continue; }
                 // Autre élément à la place de celui qui a été rangé (renommé puis remplacé) : on n'y touche pas.
                 // L'empreinte est l'identité NTFS du fichier ; une identité illisible compte comme un conflit (QA39-02, QA42-06).
-                if (print != null && (print.Length == 0 || print != Fingerprint(dest))) continue;
+                if (print != null)
+                {
+                    if (print.Length == 0) continue;
+                    string current = Fingerprint(dest);
+                    if (current.Length == 0) { pending.Add(e); continue; }
+                    if (print != current) continue;
+                }
                 if (File.Exists(src) || Directory.Exists(src)) { pending.Add(e); continue; }
                 if (Directory.Exists(dest)) Directory.Move(dest, src);
                 else if (File.Exists(dest)) File.Move(dest, src);
-                else continue;
+                else { pending.Add(e); continue; }
                 Settings.RenameKey(dest, src);
                 n++;
             }

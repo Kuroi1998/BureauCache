@@ -47,9 +47,9 @@ class ArchiveRule
     public DateTime Limit { get { return Days <= 0 ? DateTime.UtcNow.AddHours(-1) : DateTime.UtcNow.AddDays(-Days); } }
 
     // Dossier de destination, ou null si le dossier connu est introuvable
-    public string Destination()
+    public string Destination(string archiveFolder = null)
     {
-        string root = ArchiveRules.TargetFolder(Target);
+        string root = Target == RuleTarget.Archive && archiveFolder != null ? archiveFolder : ArchiveRules.TargetFolder(Target);
         if (string.IsNullOrEmpty(root)) return null;
         return Sub.Trim().Length == 0 ? root : Path.Combine(root, Sub.Trim());
     }

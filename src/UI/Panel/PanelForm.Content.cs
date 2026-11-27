@@ -27,10 +27,14 @@ partial class PanelForm
         {
             contentHooked = true;
             contentTimer.Tick += (s, e) => StartContentSearch();
-            Disposed += (s, e) => contentTimer.Dispose();
         }
         // Nouveau texte : la recherche en cours ne pourra plus remplir le cache (ticket avancé tout de suite)
-        if (q != contentAsked) { contentAsked = q; contentTicket++; contentTimer.Stop(); contentTimer.Start(); }
+        if (q != contentAsked)
+        {
+            CancelContentSearch();
+            contentAsked = q;
+            contentTimer.Start();
+        }
         if (q != contentFor || contentItems.Count == 0) return null;
 
         HashSet<string> already = new HashSet<string>(shown.SelectMany(g => g.Items).Select(i => i.Key ?? ""), StringComparer.OrdinalIgnoreCase);
@@ -54,6 +58,8 @@ partial class PanelForm
         contentTimer.Stop();
         if (contentAsked != null) contentTicket++;
         contentAsked = null;
+        contentFor = null;
+        contentItems.Clear();
     }
 
     void StartContentSearch()

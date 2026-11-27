@@ -49,6 +49,34 @@ public class ContentClipboardReviewTests
 
     [TestMethod]
     [TestCategory("Review")]
+    public void ReturningToAnOldQueryDoesNotShowItsStaleFileResults()
+    {
+        RunSta(() =>
+        {
+            bool previous = Settings.SearchContent;
+            try
+            {
+                Settings.SearchContent = true;
+                using (var panel = new PanelForm())
+                {
+                    TextBox search = Field<TextBox>(panel, "search");
+                    search.Text = "facture";
+                    string file = Path.Combine(Paths.Desktop, "ancien.txt");
+                    Field<List<DesktopItem>>(panel, "contentItems").Add(new DesktopItem { Key = file, Target = file, Name = "ancien.txt" });
+                    typeof(PanelForm).GetField("contentFor", Private).SetValue(panel, "facture");
+                    panel.Rebuild(true);
+                    Assert.IsTrue(Field<List<Group>>(panel.View, "groups").Any(g => g.Key == "s:content"));
+                    search.Text = "autre";
+                    search.Text = "facture";
+                    Assert.IsFalse(Field<List<Group>>(panel.View, "groups").Any(g => g.Key == "s:content"));
+                }
+            }
+            finally { Settings.SearchContent = previous; }
+        });
+    }
+
+    [TestMethod]
+    [TestCategory("Review")]
     public void QA42_03_ScopeUsesTheCanonicalPath()
     {
         AssertSandbox();

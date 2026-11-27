@@ -61,6 +61,147 @@ La revue porte sur les 38 fichiers C# de `src/` (7 263 lignes après correction)
 | QA-51 | Basse | Refonte, étape 3 (T-031, D-012) : fenêtre des Paramètres. **Barre de titre** : `Ui.ThemeTitleBar` applique le mode sombre (attribut 20, sinon 19 pour Windows 10 1809 à 1909) et, sous Windows 11, `DWMWA_CAPTION_COLOR` (35) et `DWMWA_TEXT_COLOR` (36) avec le fond et le texte de `Theme` : la couleur d'accentuation affichée sur les barres de titre (bordeaux chez le chef de projet) ne casse plus le thème ; en contraste élevé, Windows garde ses couleurs. Appliqué aux Paramètres (aussi à chaque changement de thème), aux dialogues et aux Premiers pas. **Boutons** (`FlatButton.Style`) : « Aperçu du panneau » secondaire (gris translucide, bordure fine), « Quitter » discret (transparent, rouge au survol), danger sobre pour Désinstaller et les suppressions (rouge translucide, texte rouge clair, bordure rouge fine, au moins 4,5:1 vérifié dans les deux thèmes). **Navigation** : onglet actif translucide avec bordure fine, la barre d'accent de 3 px reste ; cadre de focus en pointillés seulement en navigation au clavier (`ShowFocusCues`), dans la navigation et les contrôles. | `RefonteTests.cs` (+2 tests). Suite : 470 réussis, 6 ignorés. **À vérifier sur le binaire**, en particulier la barre de titre avec la couleur d'accentuation activée. |
 | QA-52 | Basse | Refonte, étape 4 (T-031, D-012) : icônes. `Ui.GlyphFont` choisit Segoe Fluent Icons si elle est installée (cas du PC du chef de projet), sinon Segoe MDL2 Assets ; mêmes points de code pour les icônes utilisées. Les pastilles `= ? >` du champ de recherche deviennent les icônes calculatrice, aide (`Glyphs.Help`, U+E897) et commande, avec la bordure fine de l'étape 2 ; le clic écrit toujours le préfixe et l'infobulle le rappelle. | `RefonteTests.cs` (+2 tests). Suite : 472 réussis, 6 ignorés. **À vérifier sur le binaire** : toutes les icônes (panneau, Paramètres, menus) rendues par Segoe Fluent Icons. |
 | QA-53 | Moyenne | Revue critique de T-029 à T-031 par ChatGPT : 9 constats et 9 tests (`AuditRefonteReviewTests.cs`), 8 échecs reproduits sur le binaire, le 9e (minuteur) confirmé par lecture ; tous retenus. **QA52-01** : un import remplaçait les règles d'un rangement automatique actif ; si le rangement est actif sur ce PC, ses règles, son dossier et son ancienneté sont gardés et nommés à l'utilisateur ; s'il est inactif, les règles importées sont reprises (elles ne s'exécutent qu'avec « Ranger maintenant », qui liste et confirme). **QA52-02** : Entrée bascule l'interrupteur focalisé une seule fois (Premiers pas, Paramètres). **QA52-03** : les annonces d'accessibilité sont faites aux changements de valeur ou d'état, plus à chaque image redessinée. **QA52-04** : pas de repère de dépôt sur le presse-papiers ; l'axe du repère suit le mode du groupe. **QA52-05** : forme courte « Ville, Pays » construite à partir des champs (`WeatherPlace.Short`) et enregistrée au choix du lieu (`WeatherShort`, remis à zéro quand un fichier n'en a pas) ; repli premier et dernier morceaux pour un lieu de la 3.10. Test de ChatGPT adapté : le libellé seul est ambigu (virgule possible dans le nom comme dans la région, cas réel du chef de projet). **QA52-06** : échéance vérifiée aussi en fin de flux ; budget de l'exe porté à 30 min (50 Mo à environ 28 Ko/s), le délai par lecture sans progression reste de 15 s. **QA52-07** : en contraste élevé, la sélection prend `Highlight` / `HighlightText` (fond, texte, icône) dans les lignes, tuiles et presse-papiers. **QA52-08** : la liste expose chaque élément (`ListItem`, nom, détail, état sélectionné, position) et l'élément sélectionné ; annonce par identité et libellé, avec l'indice de l'élément. **QA52-09** : désactiver l'historique, ou une nouvelle copie, annule la relecture en attente. **Remarque retenue** : une bascule du Contraste élevé redessine maintenant les fenêtres ouvertes (couleurs, barre de titre), même sans changement clair/sombre. | Tests de ChatGPT gardés (test 05 adapté) ; +1 test d'import. Suite : 482 réussis, 6 ignorés. |
+| QA-54 | Moyenne | Barre BureauCache, étape 1 (T-032, D-013). Risque traité : la barre Windows ne doit jamais rester cachée. `WindowsBar.Hide` écrit l'état d'origine dans `barre.etat` avant tout changement et ne cache rien si l'écriture échoue ; `Restore` (sortie, fin de session, `Program.Main`, surveillance après plantage, `--restore`, démarrage avec l'option coupée) remet l'état d'origine, et un fichier abîmé donne la barre toujours visible. Le bac à sable bloque le masquage réel. L'import ne peut pas activer l'option. Comme l'icône près de l'horloge n'est plus accessible quand la barre Windows est cachée, son menu s'ouvre par clic droit sur la barre BureauCache. Limites connues : écran principal seulement (les autres barres Windows passent en masquage automatique) ; pas encore de fenêtres ouvertes ni d'icônes de notification (T-033, T-035). | `TaskbarTests.cs` (7 tests). Suite : 489 réussis, 6 ignorés. Essai réel et revue ChatGPT à faire. |
+| QA-55 | Haute | Revue critique de T-032 par ChatGPT : 12 constats (BAR-01 à 12) et 6 tests (`TaskbarRecoveryReviewTests.cs`, qui recompile `WindowsBar.cs` contre un faux Explorer). 5 échecs reproduits sur le code (BAR-01 à 05), BAR-06 réussi. **Retenus et corrigés** : BAR-01 et 05, copie de l'état d'origine en mémoire tant que la barre est cachée ; elle prime sur le fichier, le fichier effacé est réécrit, et un second masquage ne remplace jamais l'original. BAR-02 : un fichier illisible interdit le masquage, et `Restore` le solde en rendant la barre visible (réglage par défaut de Windows). BAR-03 : le fichier n'est effacé qu'une fois la restauration constatée ; `Restore` renvoie faux sinon. BAR-07 : l'option refuse de démarrer sans processus de surveillance, et la surveillance réessaie pendant 2 min si Explorer est absent. BAR-09 : la barre n'est gardée que si Windows accepte sa réservation, sinon la barre Windows revient aussitôt (aussi après un redémarrage d'Explorer). BAR-10 : en plein écran, la barre passe sous toutes les fenêtres (`HWND_BOTTOM`) ; la réservation suit la vie du handle. BAR-11 : en fin de session, plus de masquage, chaque restauration est isolée. BAR-12 : pas de réservation en test. **Retenu en partie** : BAR-06, l'état « caché » est remis à zéro même si l'effacement du fichier échoue ; un fichier qui resterait est appliqué au lancement suivant. BAR-08 : la copie en mémoire couvre la course entre la surveillance et une relance ; pas de verrou entre processus ni entre sessions (BureauCache partage déjà ses réglages entre les sessions d'un même compte). **Écarté** : BAR-04, garder la barre cachée si elle l'était au départ ; on ne connaît pas la cause (ce peut être notre propre arrêt brutal), et l'exigence n° 1 l'emporte : la restauration réaffiche toujours la barre (test adapté). **Risque accepté** : si le processus principal ET la surveillance disparaissent, la barre est rendue au lancement suivant de BureauCache ou par `--restore`. | 6 tests de ChatGPT gardés (Bar04 inversé), +2 tests. Suite : 497 réussis, 6 ignorés. Essai réel à faire. |
+| QA-56 | Moyenne | Barre, étapes 2 et 3 (T-033, T-034, D-013 révisée). **Fenêtres** : suivi par `SetWinEventHook` hors contexte (aucune injection), sans titre écrit nulle part ; filtre séparé et testé (visible, non masquée par DWM, pas enfant, `WS_EX_APPWINDOW` prioritaire, ni fenêtre outil, ni sans activation, ni possédée, titre non vide, fenêtres du shell exclues) ; icône demandée avec un délai de 100 ms au plus (`SMTO_ABORTIFHUNG`) pour ne jamais geler la barre ; exe lu avec `PROCESS_QUERY_LIMITED_INFORMATION` seulement. Activation par `SetForegroundWindow`, repli `SwitchToThisWindow` ; fermeture par `WM_CLOSE` (l'application peut proposer d'enregistrer). **Menu Démarrer** : actions bloquées par le bac à sable ; arrêt et redémarrage par `InitiateShutdown` (privilège d'arrêt de l'utilisateur activé pour le processus, sans droits administrateur), mises à jour en attente et démarrage rapide lus dans le registre en lecture seule ; photo du compte copiée en mémoire. **Limites connues** : les boutons des fenêtres ne sont pas encore exposés aux lecteurs d'écran (les tuiles du menu le sont) ; pas de regroupement ni d'épinglage ; une icône introuvable au premier passage reste le glyphe générique ; pas de confirmation avant arrêt ou déconnexion, comme dans Windows. | `TaskbarWindowsStartTests.cs` (9 tests). Suite : 506 réussis, 6 ignorés. Revue ChatGPT et essai réel à faire. |
+| QA-57 | Moyenne | Essai réel de T-033 et T-034 par le chef de projet, puis tests de revue de ChatGPT (`WindowStartReviewTests.cs`, qui recompile `WindowList.cs` contre des doubles). **Reproduits et corrigés (6 échecs)** : BAR-03, le cache d'icônes est indexé par fenêtre ET taille, et vidé quand la barre s'arrête (images libérées, icône absente recherchée de nouveau) ; BAR-04, une plage d'événements refusée est retentée au démarrage suivant ; BAR-05, une énumération en échec garde la dernière liste ; BAR-12, initiales en caractères Unicode entiers. **Retours de l'essai** : menu Démarrer agrandi (textes coupés), avec une recherche qui passe le texte au panneau et 3 raccourcis de plus ; aperçu en direct au survol par vignette DWM (rien n'est copié ni enregistré ; l'aperçu ne prend pas le focus ; sa copie d'icône est indépendante du cache). **Non trié** : le texte de la revue n'a pas été reçu ; les autres constats (BAR-01, 02, 06 à 11 d'après la numérotation) restent à examiner. | 6 tests de ChatGPT gardés, +3 tests. Suite : 515 réussis, 6 ignorés. Essai réel à refaire. |
+| QA-58 | Basse | Essai réel : icônes de la barre trop petites. Barre de 56 px à 100 % (48 auparavant, comme Windows 11), boutons de fenêtre de 56 px avec des icônes de 32 px (24 auparavant), logo de 34 px, Wi-Fi/son/cloche en 13 pt, horloge en 9,75 pt. Les icônes sont demandées à leur taille d'affichage (cache par taille, QA-57). | Suite : 515 réussis. Essai réel à refaire. |
+| QA-59 | Basse | Essai réel : texte des tuiles du menu Démarrer coupé en bas sur deux lignes. Cause : la tuile réservait 55 % de sa hauteur à l'icône, quelle que soit la place prise par le texte ; à 150 %, deux lignes ne tenaient plus. Le test précédent ne mesurait que le nombre de lignes, pas la zone réellement dessinée : il passait à tort. Correction : icône de hauteur fixe, texte mesuré à la largeur de la tuile (deux lignes au plus), bloc centré verticalement ; menu réduit à la demande (540 px, tuiles de 88 px, polices un peu plus petites). | `TextFits` vérifie la zone dessinée, en français, anglais et espagnol. Suite : 516 réussis. Essai réel à refaire. |
+| QA-60 | Moyenne | Épingles et ordre des boutons (D-014, T-033). **Sécurité** : une épingle ne lance qu'une application du Store (`shell:AppsFolder`) ou un exe local désigné par un chemin complet (pas de partage réseau, pas de chemin relatif, pas d'autre extension) ; les entrées abîmées ou en double sont ignorées ; les épingles sont un choix local, gardé à l'import (une épingle importée pourrait désigner un exe inconnu) ; le lancement passe par le bac à sable. **Fiabilité** : la liste des boutons n'est pas reconstruite pendant un glissement ; la perte de la capture (Alt+Tab) termine le glissement en gardant l'ordre atteint ; un clic tremblé reste un clic (seuil `SystemInformation.DragSize`) ; les descriptions d'exe sont lues une seule fois. **Limites** : pas de regroupement des fenêtres d'une même application ; pas d'épinglage depuis le panneau ; une application qui change d'exe à chaque mise à jour sans AppUserModelID perd son épingle. | `TaskbarPinsTests.cs` (9 tests). Suite : 525 réussis, 6 ignorés. Essai réel à faire. |
+
+## QA-61 · Revue de la barre des tâches et du menu Démarrer
+
+Cinq tests de régression échouent sur `380b250` et réussissent après correction.
+
+| Cas reproduit | Comportement vérifié |
+|---|---|
+| Explorer ignore le masquage | BureauCache annule le remplacement et rétablit le mode initial. |
+| Explorer garde sa barre cachée après la demande de restauration | Le journal reste disponible pour une nouvelle tentative. |
+| Une épingle contient un chemin relatif au lecteur | Le chargement exige un chemin d’exécutable avec lettre de lecteur et séparateur de racine. |
+| Une clé contient un séparateur du format des épingles | L’ajout conserve la liste précédente. |
+| Le clic commence sur une épingle et finit sur Démarrer | Le menu reste fermé. Un clic entier sur Démarrer fonctionne. |
+
+Les cas Explorer utilisent le double de `TaskbarRecoveryReviewTests`. Les cas d’épingles et de clic utilisent `TaskbarPinsTests`. Suite MSTest complète sur le binaire recompilé, 524 réussites, 0 échec, 12 cas ignorés. L’intégration après redémarrage réel d’Explorer reste à vérifier.
+
+## QA-62 · Restauration, suivi des fenêtres et sauvegardes
+
+| Zone | Défaut et correction | Vérification |
+|---|---|---|
+| Barre Windows | Un second masquage pouvait continuer malgré la perte du journal. Le masquage exige un journal valide et cohérent avec l’état d’origine. Si nécessaire, BureauCache abandonne le remplacement et retente la restauration depuis sa boucle de vérification. | [Tests avec Explorer simulé](tests/BureauCache.Tests/TaskbarRecoveryReviewTests.cs). |
+| Suivi des fenêtres | Une inscription refusée au démarrage pouvait ne jamais être retentée. La liste retente les inscriptions manquantes et signale les échecs d’énumération pour un nouvel essai. | [Tests du suivi](tests/BureauCache.Tests/WindowStartReviewTests.cs). |
+| Aperçus | Le passage entre l’icône et l’aperçu pouvait déclencher sa fermeture. La zone de survol couvre aussi l’espace entre les deux. La fermeture libère l’image et la vignette, et le passage en plein écran masque l’aperçu. La vignette conserve ses proportions. | [Tests de la barre](tests/BureauCache.Tests/TaskbarPinsTests.cs) et [test de libération de l’image](tests/BureauCache.Tests/WindowStartReviewTests.cs). |
+| Réservation de la barre | La réservation était renvoyée même sans changement de position. BureauCache mémorise la dernière position demandée et interroge toujours Explorer avant de décider de la renouveler. | Revue de [BarForm](src/Taskbar/BarForm.cs) et de la documentation Microsoft sur [ABM_SETPOS et ABN_POSCHANGED](https://learn.microsoft.com/fr-fr/windows/win32/shell/abm-setpos). |
+| Menu Démarrer | Sur une zone de travail trop basse, le menu pouvait dépasser du haut de l’écran. Le menu reste dans la zone de travail et devient défilable si nécessaire. | [Test avec une zone de travail réduite](tests/BureauCache.Tests/TaskbarWindowsStartTests.cs). |
+| Sauvegardes | Une copie verrouillée en lecture pouvait être supprimée par la rotation. La rotation et la copie quotidienne préservent les sauvegardes temporairement inaccessibles. | [Test de verrouillage dans un dossier temporaire](tests/BureauCache.Tests/SettingsBackupReviewTests.cs). |
+
+Huit tests ajoutés. Cinq échecs reproduits avant correction dans les essais ciblés. Suite complète sur le binaire recompilé avec VSTest de Visual Studio, 532 réussites, 0 échec et 12 cas ignorés sur 544. Résultats locaux dans `tests/BureauCache.Tests/TestResults/qa62-after.trx`.
+
+Les essais sur Explorer réel, en particulier son redémarrage, la réservation AppBar et l’affichage des vignettes DWM, restent à effectuer en session interactive.
+
+## QA-63 · Calculatrice, recherche et données incomplètes
+
+| Zone | Défaut corrigé | Vérification |
+|---|---|---|
+| Calculatrice | Le panneau omettait le résultat automatique pour `2**3`, `2 * -3`, `2^-3` et `2--3`. La détection reconnaît ces expressions et accepte une entrée absente sans exception. | [Tests de détection](tests/BureauCache.Tests/CalcTests.cs). |
+| Recherche dans les fichiers | Revenir à une ancienne requête pouvait afficher ses anciens résultats, même si la nouvelle recherche ne trouvait rien. Le cache est vidé à chaque changement de requête. Les termes composés de séparateurs sont écartés et les chemins identiques sont dédupliqués. | [Test WinForms du cache](tests/BureauCache.Tests/ContentClipboardReviewTests.cs) et [tests de construction de la requête](tests/BureauCache.Tests/ContentClutterTests.cs). La déduplication a été relue dans le code. |
+| Presse-papiers | L’aperçu pouvait couper un emoji ou séparer une lettre de son accent au moment de la troncature. La coupure retombe sur une limite d’élément de texte et la largeur nulle donne un aperçu vide. | [Tests du presse-papiers](tests/BureauCache.Tests/ClipboardDesktopTests.cs). |
+| JSON | Un saut de ligne brut, un échappement Unicode mal formé et un guillemet non échappé pouvaient être acceptés, avec une chaîne tronquée dans le dernier cas. Le parseur rejette ces entrées. | [Tests du parseur](tests/BureauCache.Tests/JsonTests.cs). |
+| Météo | Un code décimal ou hors plage était converti en entier et une date à la limite de `DateTime` pouvait lever une exception. Les codes invalides sont écartés et l’étiquette « Demain » compare les dates sans dépasser la plage. | [Tests de lecture météo](tests/BureauCache.Tests/WeatherTests.cs). |
+| Encombrement du bureau | Un fichier disparu pendant le relevé pouvait être compté comme s’il occupait zéro octet. Le rapport signale désormais un résultat partiel quand une taille reste inconnue. | [Test sur fichier temporaire](tests/BureauCache.Tests/ContentClutterTests.cs). |
+
+Les 15 nouveaux cas ont échoué avant correction dans les essais ciblés. Compilation sans avertissement. Suite complète sur le binaire recompilé avec VSTest de Visual Studio, 547 réussites, 0 échec et 12 cas ignorés sur 559. Résultats locaux dans `tests/BureauCache.Tests/TestResults/qa63-after.trx`. Les essais de recherche et de météo utilisent des données de test.
+
+## QA-64 · État des réglages et cycle de vie du panneau
+
+| Zone | Défaut corrigé | Vérification |
+|---|---|---|
+| Historique d’utilisation | Une date hors plage pouvait empêcher l’évaluation d’un fichier pour le rangement. Les dates invalides sont écartées et une date valide reste conservée si seul le compteur est négatif. Un compteur élevé ne déborde plus au classement ni à l’ouverture d’un élément. | [Tests des réglages et du classement](tests/BureauCache.Tests/SettingsBackupReviewTests.cs). |
+| Restauration | Une sauvegarde antérieure aux épingles laissait les épingles du profil courant. La restauration vide désormais cette liste absente et son point d’annulation permet de la retrouver. | [Test de restauration et de retour arrière](tests/BureauCache.Tests/SettingsBackupReviewTests.cs). |
+| Réglages météo | Le libellé court pouvait disparaître si sa ligne précédait celle du lieu dans le fichier INI. Les deux ordres produisent le même résultat. | [Test de lecture INI](tests/BureauCache.Tests/SettingsBackupReviewTests.cs). |
+| Panneau | Une reconstruction ou un redimensionnement de la liste annule le geste en cours. Le relâchement ne déclenche plus une action sur un ancien groupe. Les minuteurs, l’aperçu et les images possédées par le panneau sont libérés à la fermeture. | [Tests WinForms du glissement et de la libération](tests/BureauCache.Tests/InterfaceReviewTests.cs). |
+| Fermeture automatique | La perte du focus vérifie aussi l’option « Fermer quand la souris s’éloigne », y compris dans le rappel différé. | Revue de [PanelForm.Input.cs](src/UI/Panel/PanelForm.Input.cs). |
+| Barre Windows | BureauCache vérifie que le processus de surveillance est toujours actif. S’il disparaît, le remplacement est arrêté et la restauration de la barre Windows est engagée. | Revue de [Program.cs](src/App/Program.cs) et [App.Taskbar.cs](src/App/App.Taskbar.cs). Essai avec Explorer réel à faire. |
+
+Les sept nouveaux tests ont été reproduits en échec avant les corrections correspondantes. Les méthodes de dessin des éléments ont été déplacées dans `ItemsView.Tiles.cs` pour ramener `ItemsView.cs` à 475 lignes.
+
+Compilation sans avertissement. Suite MSTest sur le binaire recompilé, 554 réussites, 0 échec et 12 cas ignorés sur 566. Résultats dans `tests/BureauCache.Tests/TestResults/qa64-after.trx`.
+
+## QA-65 · Audit du dépôt dans son état local
+
+Base Git `380b250` avec les correctifs locaux QA-61 à QA-64. Périmètre arrêté au dépôt courant, incluant l’application, la suite de tests, les scripts et les workflows. La compilation couvre tous les fichiers sous `src`. La revue manuelle a priorisé les parcours de déplacement, de chargement, de recherche et de publication.
+
+### 1. Inventaire exhaustif des bugs constatés pendant cette passe
+
+- **Bug #1 — Perte de l’annulation lorsque le fichier archivé est indisponible**
+  - **Sévérité :** Majeur
+  - **Localisation :** `src/Core/Archiver.cs`, `RestoreArchived`
+  - **Problème :** L’identité illisible du fichier était traitée comme une identité différente.
+  - **Impact :** Un fichier momentanément indisponible perdait son entrée de retour.
+  - **Correction appliquée :** Le journal conserve l’entrée jusqu’à ce que la source soit de nouveau accessible. Un fichier dont l’identité diffère reste exclu.
+- **Bug #2 — Rangement vers le bureau lui-même**
+  - **Sévérité :** Majeur
+  - **Localisation :** `src/Core/Archiver.cs`, `Candidates`, `CountCandidates`, `Run`
+  - **Problème :** La destination résolue pouvait désigner le dossier source.
+  - **Impact :** Le rangement pouvait renommer le fichier sur place et annoncer son déplacement.
+  - **Correction appliquée :** Le décompte et le déplacement excluent une destination résolue égale au bureau.
+- **Bug #3 — Un chemin invalide interrompt un lot entier**
+  - **Sévérité :** Majeur
+  - **Localisation :** `src/Core/Archiver.cs`, `Run`
+  - **Problème :** La résolution du chemin pouvait lever une exception hors du traitement par élément.
+  - **Impact :** Les fichiers valides suivants étaient ignorés et une exception pouvait remonter au panneau.
+  - **Correction appliquée :** Les erreurs de normalisation du chemin sont traitées par élément.
+- **Bug #4 — Un fichier distinct disparaît du catalogue**
+  - **Sévérité :** Majeur
+  - **Localisation :** `src/Data/Loader.cs`, `Desktop`
+  - **Problème :** La déduplication des fichiers utilisait le libellé affiché.
+  - **Impact :** Un raccourci et un fichier différents portant le même libellé ne pouvaient pas tous deux apparaître.
+  - **Correction appliquée :** Le catalogue déduplique les fichiers par nom complet, extension comprise.
+- **Bug #5 — Demande de chargement perdue avant la création du handle**
+  - **Sévérité :** Majeur
+  - **Localisation :** `src/UI/Panel/PanelForm.Data.cs`, `RequestLoad`
+  - **Problème :** Le chargement démarrait lorsque son résultat ne pouvait pas être publié sur le fil WinForms.
+  - **Impact :** Le panneau pouvait rester bloqué en état de chargement.
+  - **Correction appliquée :** Une demande précoce est mémorisée puis exécutée à la création du handle.
+- **Bug #6 — Destination erronée dans la confirmation de rangement**
+  - **Sévérité :** Majeur
+  - **Localisation :** `src/UI/Settings/SettingsForm.Clutter.cs`, `TidyNow`
+  - **Problème :** Le texte annonçait le dossier d’archive générique pour tous les fichiers.
+  - **Impact :** Le consentement affiché pouvait décrire une autre destination que celle réellement utilisée par une règle.
+  - **Correction appliquée :** La confirmation annonce l’application des règles, puis le bilan indique le nombre déplacé.
+- **Bug #7 — Reprise impossible après un échec de publication**
+  - **Sévérité :** Majeur
+  - **Localisation :** `publier.ps1`
+  - **Problème :** L’échec du transfert laissait un tag local que l’exécution suivante refusait systématiquement.
+  - **Impact :** La même commande ne pouvait plus reprendre un envoi interrompu.
+  - **Correction appliquée :** L’envoi atomique peut être rejoué avec le même commit et le même tag si le dépôt est propre, si le tag désigne HEAD et si la version source correspond.
+- **Bug #8 — Résultats météo obsolètes dans les Paramètres**
+  - **Sévérité :** Mineur
+  - **Localisation :** `src/UI/Settings/SettingsForm.Weather.cs`, `BuildPlaceRow`
+  - **Problème :** Éditer le texte ne périmait pas la recherche en cours.
+  - **Impact :** L’ancien menu de villes pouvait être proposé après avoir tapé une autre ville.
+  - **Correction appliquée :** La modification ferme le menu, invalide les réponses en attente et rétablit le libellé du lieu.
+- **Bug #9 — Extraction d’icône mise en échec définitivement**
+  - **Sévérité :** Mineur
+  - **Localisation :** `src/Shell/Icons.cs`, `IconCache.Get`
+  - **Problème :** Une extraction qui renvoyait `null` était mémorisée.
+  - **Impact :** L’icône restait absente après la disparition de la cause temporaire.
+  - **Correction appliquée :** Le cache conserve les images obtenues et retente une extraction précédemment infructueuse.
+- **Bug #10 — Rapport CI absent lors d’un échec ordinaire**
+  - **Sévérité :** Mineur
+  - **Localisation :** `.github/workflows/tests.yml`, étape de test
+  - **Problème :** L’artefact attendait un fichier dans `TestResults` alors que la commande ne demandait qu’une sortie console.
+  - **Impact :** Un échec d’assertion pouvait ne produire aucun rapport à télécharger.
+  - **Correction appliquée :** Le workflow demande explicitement un rapport TRX dans le dossier publié. [Documentation VSTest](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test-vstest).
+
+### 2. Code corrigé et vérification
+
+Les correctifs sont dans les fichiers du dépôt. Sept tests MSTest ont reproduit les défauts avant correction. Suite complète sur le binaire recompilé sans avertissement, 561 réussites, 0 échec et 12 cas ignorés sur 573. Rapport dans `tests/BureauCache.Tests/TestResults/qa65-after.trx`.
+
+La reprise du script a été vérifiée dans un dépôt temporaire avec un commit et un tag réels et deux réponses d’envoi simulées. Les reprises avec un fichier modifié ou avec HEAD distinct du tag sont refusées. Les cinq scripts PowerShell ont passé l’analyse syntaxique. La confirmation du rangement et le workflow CI ont fait l’objet d’une revue du code.
+
+### 3. Points de vigilance
+
+La revue ne démontre pas l’absence de défaut. Restent à vérifier en situation réelle le redémarrage d’Explorer, les vignettes DWM, un lot de rangement interrompu entre le déplacement et l’écriture de son journal, ainsi qu’une publication complète sur GitHub. Les tests météo ne sollicitent pas le service distant.
 
 ## Risques et défauts encore ouverts
 
@@ -134,3 +275,66 @@ Les tests WinForms ont reproduit le défaut de géométrie et la reconstruction 
 - Microsoft, [Capture de la souris dans Windows Forms](https://learn.microsoft.com/en-us/dotnet/desktop/winforms/mouse-capture-in-windows-forms).
 - Microsoft, [SHGetImageList](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetimagelist) et [Marshal.Release](https://learn.microsoft.com/en-us/dotnet/api/system.runtime.interopservices.marshal.release).
 - GitHub Docs, [Injections dans les scripts GitHub Actions](https://docs.github.com/en/actions/concepts/security/script-injections) et [utilisation d’une variable d’environnement intermédiaire](https://docs.github.com/en/actions/reference/security/secure-use#use-an-intermediate-environment-variable).
+
+## QA-66 · Chasse aux bugs de la barre (Claude)
+
+Le lot externe QA-61 à QA-65 a d'abord été relu dans le code (barre Windows, surveillance, épingles, glisser-déposer, rangement, sauvegardes, publication) puis commité à part : compilé, 567 réussis. Ensuite, nouveaux défauts trouvés à la relecture :
+
+| Défaut | Correction | Vérification |
+|---|---|---|
+| Une fenêtre dont l'icône n'est pas prête à son ouverture gardait l'icône générique toute la session. | Nouvel essai toutes les 2 s, 3 fois au plus, puis abandon (pas de requêtes répétées vers une fenêtre sans icône). | 2 tests sur doubles (`WindowStartReviewTests`). |
+| Les fenêtres des applis du Store sans identifiant, des boîtes de dialogue COM ou des consoles MMC avaient pour clé l'exe hôte (`ApplicationFrameHost.exe`, `dllhost.exe`…) : une épingle les aurait toutes regroupées, et « Nouvelle fenêtre » lançait l'hôte. | Ces hôtes ne donnent plus de clé : fenêtre ni épinglable ni relançable, jamais confondue. | `HostProcessesGiveNoAppKey`. |
+| Le nom d'une application à identifiant venait de la fin du titre de sa fenêtre (titre du morceau pour un lecteur de musique, par exemple), et une épingle le gardait. | Nom donné par Windows (`shell:AppsFolder`, `SIGDN_NORMALDISPLAY`), mis en cache ; le titre reste le repli. | Test existant du repli ; essai réel à faire. |
+| Le menu Démarrer se fermait, donc détruisait la tuile ou la recherche, pendant qu'elle traitait encore son clic ou sa frappe ; deux frappes rapides lançaient deux recherches. | Fermeture différée et unique (`Finish`) : le menu disparaît tout de suite, l'action part après. | Test de double frappe. |
+| « Mettre en veille » ne faisait rien sur les PC en veille moderne (fréquente sur les portables récents) : Windows y refuse la veille classique. | Repli : extinction de l'écran (`SC_MONITORPOWER`), qui fait entrer le PC en veille comme le bouton d'alimentation. | Relu seulement : à essayer sur le PC du chef de projet. |
+| Une déconnexion ou un arrêt annulé laissait la barre Windows réaffichée sous la barre BureauCache, sans retour. | Une minute après une fin de session restée sans suite, la barre est remise en place. | Relu seulement. |
+
+Suite : 570 réussis, 6 ignorés. Restent à essayer en vrai : veille, déconnexion annulée, noms des applis du Store.
+
+## QA-67 · Revue de la barre par Codex (ChatGPT), appelé directement en lecture seule
+
+Première revue lancée depuis le terminal (D-015) : 13 constats (CDX-01 à 13), aucun fichier modifié par Codex. Chaque constat a été vérifié dans le code ; **les 13 sont retenus**, certains en partie. Quatre défauts sont reproduits sur l'ancien code par des tests qui recompilent la source contre des doubles (CDX-02, 03, 07, 08 : échec avant, réussite après). Les autres reposent sur des fonctions extraites pour être testées.
+
+| Constat | Gravité | Correction | Vérification |
+|---|---|---|---|
+| CDX-01 · Retour à l'ancienne version après un plantage : la surveillance s'arrête (mutex repris), l'avertissement reste ouvert, la barre Windows reste cachée | Haute | `Program.PrepareRollback` rend la barre avant l'avertissement, avec 5 essais si Explorer ne répond pas | Test d'ordre des opérations ; relu |
+| CDX-02 · Un ancien `barre.etat` remis en place pendant le masquage passait la vérification | Haute | `Reapply` contrôle le fichier avant tout retour anticipé | Reproduit puis corrigé |
+| CDX-03 · `ShowWindow` vers une application figée pouvait geler la barre et le panneau | Haute | `ShowWindowAsync` pour réduire et restaurer | Reproduit puis corrigé |
+| CDX-04 · Le message `TaskbarCreated` envoyé lors d'un changement d'échelle faisait redemander une réservation existante, refusée comme doublon : barre retirée à tort | Moyenne | La réservation est rendue avant d'être redemandée | Relu seulement |
+| CDX-05 · Le délai d'une minute (QA-66) pouvait recacher la barre pendant une fin de session encore en négociation | Moyenne | `WM_ENDSESSION` décide : session annulée, la barre revient ; session terminée, plus aucun masquage | Relu seulement |
+| CDX-06 · Arrêt ou redémarrage refusé (autres utilisateurs connectés, privilège retiré) sans aucun message, avec un nouvel essai inutile | Moyenne | `RequestShutdown` signale l'erreur traduite et ne retente que pour le mode hybride, mises à jour comprises | 2 tests ; *en partie : le privilège n'est pas remis dans son état précédent* |
+| CDX-07 · `FromHIcon` détruisait l'icône que la fenêtre déclare (handle emprunté) | Moyenne | Conversion d'une copie (`CopyIcon`) | Reproduit puis corrigé |
+| CDX-08 · L'ordre choisi des fenêtres était perdu au retour d'un autre bureau virtuel | Moyenne | Ordre de session gardé pour les fenêtres masquées par DWM | Reproduit puis corrigé |
+| CDX-09 · Un AppUserModelID sans entrée dans `shell:AppsFolder` donnait une épingle qui ne lance rien | Moyenne | Lancement et épinglage exigent une entrée connue de Windows ; une épingle introuvable reste détachable | Test |
+| CDX-10 · Fermer une fenêtre lancée en administrateur échouait en silence | Moyenne | `TryClose` lit l'erreur et la barre explique la cause | Test |
+| CDX-11 · Le repli de veille de QA-66 éteignait l'écran même sur un PC sans veille moderne | Moyenne | Repli seulement si Windows annonce la veille moderne (`GetPwrCapabilities`, AoAc) ; sinon message | Test |
+| CDX-12 · Les images des épingles et applications disparues restaient en mémoire | Basse | `PruneKeys` à chaque reconstruction des boutons | Test |
+| CDX-13 · Un appui dans le vide relâché sur Démarrer ouvrait le menu | Basse | Un clic n'agit que s'il est relâché dans la zone où il a commencé | Test |
+
+Suite : 582 réussis, 6 ignorés. Restent à essayer en vrai : changement d'échelle avec la barre active, déconnexion annulée, veille sur le PC du chef de projet, fermeture d'une fenêtre administrateur.
+
+## QA-68 · Chasse aux bugs hors de la barre (T-036) : Claude, puis Codex en lecture seule
+
+**Trouvés par Claude** (reproduits par des tests) :
+
+| Défaut | Correction | Vérification |
+|---|---|---|
+| Une suppression depuis le panneau envoyait l'élément à la corbeille depuis `AppData\BureauCache\suppression` : « Restaurer » dans la Corbeille de Windows le remettait dans ce dossier caché, pas sur le bureau | L'élément revient à sa place, puis part à la corbeille de là ; place reprise : depuis la mise de côté ; corbeille refusée : l'élément reste visible sur le bureau | 7 tests (`PanelDeleteTests`) |
+| Renommer un dossier en changeant seulement la casse échouait (`Directory.Move` le refuse sous .NET Framework) | Passage par un nom temporaire, ancien nom remis en cas d'échec | Reproduit, puis 3 tests (`FileOpsCaseTests`) |
+
+**Revue de Codex** (10 constats, CDX-20 à 29, aucun fichier modifié par Codex). Chacun vérifié dans le code : 9 retenus, 1 écarté.
+
+| Constat | Gravité | Correction | Vérification |
+|---|---|---|---|
+| CDX-20 · Le marqueur d'origine de la correction précédente pouvait être confondu avec un fichier de l'utilisateur du même nom, alors effacé définitivement | Haute | Contenu (`contenu\`) et marqueur (`origine`) séparés ; ancienne disposition : tout est du contenu | Test (fichier et dossier, deux noms) |
+| CDX-21 · Un `%TEMP%` redirigé vers un dossier de données sous AppData était nettoyé (suppression définitive des fichiers de plus de 24 h) | Haute | Seul `AppData\Local\Temp` ou un sous-dossier ; sinon la catégorie est désactivée et l'explique | Test |
+| CDX-22 · Une version que Windows refuse de lancer juste après une mise à jour laissait BureauCache inutilisable | Haute | `Program.RelaunchUpdate` : retour à l'ancienne version, avertissement, relance unique. *En partie : un processus qui meurt avant `Main` n'est pas couvert (il faudrait un processus de récupération à part).* | 3 tests |
+| CDX-23 · Un `settings.ini` verrouillé au démarrage (antivirus, OneDrive) faisait écrire les valeurs par défaut par-dessus les vrais réglages | Haute | Relecture pendant 3 s ; s'il reste illisible, aucune écriture jusqu'à une restauration ou un import, et une bulle l'explique. Un fichier abîmé (et non verrouillé) reste réécrit comme avant | 2 tests |
+| CDX-24 · Annuler un renommage pourrait déplacer un autre fichier si un programme remplace le fichier dans les secondes du bandeau | Moyenne | **Écarté** : il faut qu'un autre programme déplace puis recrée ce fichier exactement pendant les quelques secondes du bandeau d'annulation ; à reconsidérer si un cas réel se présente | — |
+| CDX-25 · Avec le rangement actif, un import remplaçait les favoris et les dates d'usage qui protègent des fichiers | Moyenne | Fusion : favoris locaux gardés, date la plus récente par élément ; le bilan de l'import le dit | Test |
+| CDX-26 · Annuler un rangement vers un dossier OneDrive « à la demande » était refusé et l'entrée quittait le journal | Moyenne | Même règle qu'à l'aller : seuls liens et jonctions refusés, et l'entrée est gardée | Relu seulement (attribut OneDrive impossible à simuler en test) |
+| CDX-27 · Restaurer des réglages qui changent « épinglé » ne réservait ou ne libérait pas la place à l'écran | Moyenne | `SyncPinnedState` à chaque changement de réglages | Test de la décision |
+| CDX-28 · Un import vers un autre lieu pouvait afficher la météo de l'ancien lieu sous le nouveau nom | Moyenne | `Weather.Reset` si le lieu ou l'activation change | 2 tests |
+| CDX-29 · Chaque version d'un fichier modifié gardait son image en mémoire | Basse | L'ancienne version sort du cache et n'est libérée qu'après la publication des nouvelles listes | Test |
+
+Les défauts CDX-20, 23, 25, 28 et 29 sont établis par la lecture du code : leurs tests utilisent des fonctions nouvelles et ne peuvent pas tourner sur l'ancien binaire. Suite : 603 réussis, 6 ignorés. Restent à essayer en vrai : supprimer puis restaurer depuis la Corbeille, annuler un rangement vers OneDrive.

@@ -1,5 +1,31 @@
 ﻿# Nouveautés
 
+## 3.10.2 — Barre des tâches BureauCache
+
+**Nouvelle barre des tâches** (option « Remplacer la barre des tâches », Paramètres → Général, désactivée par défaut)
+
+- La barre de Windows est cachée tant que BureauCache est ouvert et remplacée par la sienne : bouton Démarrer, fenêtres ouvertes, Paramètres rapides, notifications et horloge.
+- Fenêtres ouvertes avec de grandes icônes : clic pour afficher une fenêtre (ou la réduire si elle est déjà devant), clic droit pour la fermer. La fenêtre active est soulignée, une fenêtre qui demande ton attention passe en orange, et « +N » regroupe celles qui ne tiennent pas.
+- Au survol d'une fenêtre, un aperçu en direct s'affiche : clic pour y aller, croix pour la fermer.
+- Épingle tes applications (clic droit, « Épingler à la barre des tâches ») : elles restent même fermées, et un clic les lance. Maj + clic ou clic du milieu ouvre une nouvelle fenêtre. Glisse les icônes pour les réordonner.
+- Nouveau menu Démarrer : recherche (le texte tapé part dans le panneau), ta photo et ton nom, raccourcis (applications, Paramètres, Explorateur, Documents, Téléchargements, Gestionnaire des tâches), Verrouiller, Se déconnecter, Mettre en veille, Redémarrer et Arrêter, avec « Mettre à jour et… » quand Windows a des mises à jour en attente.
+- La barre de Windows revient toujours : en quittant BureauCache, par clic droit sur la barre puis « Rétablir la barre des tâches de Windows », et même si BureauCache plante.
+- Arrêt, redémarrage, mise en veille et fermeture d'une fenêtre expliquent pourquoi Windows refuse, au lieu d'échouer sans rien dire.
+
+**Corrections**
+
+- Un fichier supprimé depuis le panneau puis restauré depuis la Corbeille de Windows revient bien sur le bureau.
+- Renommer un dossier en changeant seulement ses majuscules fonctionne.
+- Si tes réglages sont momentanément illisibles au démarrage (antivirus, synchronisation), BureauCache ne les écrase plus par les valeurs par défaut.
+- Le nettoyage ne touche plus à un dossier temporaire inhabituel.
+- Une mise à jour que Windows refuse de lancer remet l'ancienne version en place.
+- Quand le rangement automatique est actif, un import de réglages garde les favoris et les dates d'utilisation qui protègent tes fichiers ; il met aussi la météo à jour si le lieu change.
+- Annuler un rangement vers un dossier OneDrive fonctionne.
+- Les sauvegardes de réglages momentanément verrouillées ne sont plus supprimées par la rotation automatique.
+- Le panneau respecte la fermeture automatique quand il perd le focus et annule proprement un glisser-déposer pendant un rechargement.
+- La calculatrice reconnaît davantage d'expressions (puissances avec `**`, nombres négatifs) ; les anciens résultats de recherche dans les fichiers disparaissent quand la recherche change ; les aperçus du presse-papiers gardent les emoji et les accents.
+- La météo écarte les codes invalides, et le relevé d'encombrement signale les tailles qu'il n'a pas pu lire.
+
 ## 3.10.1 — Refonte UIX
 
 - Importer des réglages ne change plus le dépôt ni la vérification des mises à jour, l'historique du presse-papiers, le rangement automatique ni le journal d'annulation : ces choix restent ceux de ton PC, et la fenêtre dit lesquels ont été gardés.

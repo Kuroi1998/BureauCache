@@ -13,4 +13,5 @@ static class Glyphs
     public const string Box = "", Pin = "", Pinned = "", Undo = "", Check = "";
     public const string Add = "", Terminal = "", TaskManager = "", Copy = "";
     public const string Help = "\uE897";   // pastille « ? » (D-012)
+    public const string Wifi = "", Volume = "", Bell = "";   // barre des tâches (D-013)
 }

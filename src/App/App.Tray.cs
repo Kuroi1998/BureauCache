@@ -108,7 +108,11 @@ partial class App
             trayMenu.Items.Add(Menus.Item(L.T("Rechercher une mise à jour", "Check for updates", "Buscar actualizaciones"), Glyphs.Restart, CheckUpdateNow));
         trayMenu.Items.Add(Menus.Item(L.T("Visite guidée", "Guided tour", "Visita guiada"), Glyphs.School, ShowWelcome));
         trayMenu.Items.Add(new ToolStripSeparator());
-        trayMenu.Items.Add(Menus.Item(L.T("Quitter (réaffiche les icônes)", "Quit (shows icons again)", "Salir (vuelve a mostrar los iconos)"), Glyphs.Power, QuitByUser));
+        if (Settings.TaskbarOn)
+            trayMenu.Items.Add(Menus.Item(L.T("Rétablir la barre des tâches de Windows", "Bring back the Windows taskbar", "Restablecer la barra de tareas de Windows"), Glyphs.Undo, RestoreWindowsBarByUser));
+        trayMenu.Items.Add(Menus.Item(Settings.TaskbarOn
+            ? L.T("Quitter (réaffiche les icônes et la barre Windows)", "Quit (shows icons and the Windows taskbar again)", "Salir (vuelve a mostrar los iconos y la barra de Windows)")
+            : L.T("Quitter (réaffiche les icônes)", "Quit (shows icons again)", "Salir (vuelve a mostrar los iconos)"), Glyphs.Power, QuitByUser));
     }
 
     // Vérification demandée depuis le menu : on répond toujours par une bulle

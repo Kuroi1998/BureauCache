@@ -62,6 +62,16 @@ static class FileOps
     public static void Move(string from, string to, bool folder)
     {
         Sandbox.GuardPath(from, "déplacement"); Sandbox.GuardPath(to, "déplacement");
+        // Changement de casse seule (« projet » → « Projet ») : Directory.Move le refuse sous .NET Framework (même
+        // chemin, sans tenir compte de la casse). Passage par un nom temporaire, remis en place en cas d'échec (QA-68).
+        if (folder && !string.Equals(from, to, StringComparison.Ordinal) && string.Equals(from, to, StringComparison.OrdinalIgnoreCase))
+        {
+            string temp = from.TrimEnd('\\') + ".bc-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            Directory.Move(from, temp);
+            try { Directory.Move(temp, to); }
+            catch { Directory.Move(temp, from); throw; }
+            return;
+        }
         if (folder) Directory.Move(from, to); else File.Move(from, to);
     }
 

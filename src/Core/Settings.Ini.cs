@@ -12,13 +12,34 @@ using Microsoft.Win32;
 
 static partial class Settings
 {
-    public static void Load() { Load(FilePath); }
+    // Chargement au démarrage. Un settings.ini présent mais momentanément illisible (antivirus, synchronisation
+    // OneDrive) est relu quelques fois ; s'il le reste, plus rien ne l'écrit pendant cette session : sinon les valeurs
+    // par défaut remplaceraient les vrais réglages dès que le verrou disparaît (CDX-23).
+    public static void Load() { LoadWithRetries(FilePath, 10, 300); }
+
+    internal static void LoadWithRetries(string path, int attempts, int pauseMs)
+    {
+        ProfileUnreadable = false;
+        for (int i = 0; i < attempts; i++)
+        {
+            if (Load(path) || !LastLoadUnreadable) return;
+            if (i + 1 < attempts) Thread.Sleep(pauseMs);
+        }
+        ProfileUnreadable = true;
+    }
+
+    // Vrai si le dernier Load a échoué faute de pouvoir LIRE le fichier (verrou, droits), et non parce qu'il est abîmé
+    internal static bool LastLoadUnreadable;
+    // Réglages illisibles au démarrage : aucune écriture jusqu'à une restauration ou un import explicite (CDX-23)
+    public static bool ProfileUnreadable;
 
     public static bool Load(string path)
     {
+        LastLoadUnreadable = false;
         RefreshSystemTheme();
         if (!File.Exists(path)) { FirstRun = true; return false; }
         bool hasThemeMode = false;
+        bool hasWeatherPlace = false, hasWeatherShort = false;
         string oldDark = null;
         bool hidePanelInCapture = false;
         try
@@ -62,6 +83,8 @@ static partial class Settings
                     case "SearchCommands": SearchCommands = b; break;
                     case "SearchContent": SearchContent = b; break;
                     case "ClipboardOn": ClipboardOn = b; break;
+                    case "TaskbarOn": TaskbarOn = b; break;
+                    case "TaskbarPins": TaskbarPins = SplitList(v); break;
                     case "NewBadge": NewBadge = b; break;
                     case "ArchiveOn": ArchiveOn = b; break;
                     case "HoverPreview": HoverPreview = b; break;
@@ -91,8 +114,8 @@ static partial class Settings
                     case "ArchiveName": if (FileOps.IsValidName(v)) ArchiveName = v; break;
                     case "UpdateRepo": UpdateRepo = v; break;
                     case "WeatherOn": WeatherOn = b; break;
-                    case "WeatherPlace": WeatherPlace = v.Length > 200 ? v.Substring(0, 200) : v; WeatherShort = ""; break;   // la forme courte suit, si le fichier l'a
-                    case "WeatherShort": WeatherShort = v.Length > 200 ? v.Substring(0, 200) : v; break;
+                    case "WeatherPlace": WeatherPlace = v.Length > 200 ? v.Substring(0, 200) : v; hasWeatherPlace = true; break;
+                    case "WeatherShort": WeatherShort = v.Length > 200 ? v.Substring(0, 200) : v; hasWeatherShort = true; break;
                     case "WeatherLat": WeatherLat = Coord(v, 90); break;
                     case "WeatherLon": WeatherLon = Coord(v, 180); break;
                     case "Accent": Accent = ParseColor(v, Accent); break;
@@ -115,8 +138,9 @@ static partial class Settings
                             if (j <= 0) continue;
                             string[] p = e.Substring(j + 1).Split(',');
                             long c, t;
-                            if (p.Length == 2 && long.TryParse(p[0], out c) && long.TryParse(p[1], out t))
-                                Usage[e.Substring(0, j)] = new long[] { c, t };
+                            if (p.Length == 2 && long.TryParse(p[0], out c) && long.TryParse(p[1], out t) &&
+                                t >= 0 && t <= DateTime.MaxValue.Ticks)
+                                Usage[e.Substring(0, j)] = new long[] { Math.Max(0, c), t };
                         }
                         break;
                     case "ArchiveRules":
@@ -140,7 +164,10 @@ static partial class Settings
                 }
             }
         }
+        catch (IOException) { LastLoadUnreadable = true; return false; }
+        catch (UnauthorizedAccessException) { LastLoadUnreadable = true; return false; }
         catch { return false; }
+        if (hasWeatherPlace && !hasWeatherShort) WeatherShort = "";
         if (!hasThemeMode && oldDark != null) ThemeMode = oldDark == "1" ? 1 : 2;
         Delay = Math.Max(0, Math.Min(1000, Delay));
         PanelWidth = Math.Max(260, Math.Min(560, PanelWidth));
@@ -202,7 +229,7 @@ static partial class Settings
 
     public static bool Save()
     {
-        if (SaveBlocked) return false;
+        if (SaveBlocked || ProfileUnreadable) return false;
         if (DirOverride == null) Sandbox.Guard("écriture des vrais réglages");   // défense en profondeur (QA-32)
         Sandbox.GuardPath(Dir, "écriture des réglages");                       // dossier isolé sous %TEMP% (QA34-01)
         string tmp = null;
@@ -262,7 +289,7 @@ static partial class Settings
                 "GridView=" + B(GridView), "Glass=" + B(Glass), "LiveBlur=" + B(LiveBlur), "HidePanelInCapture=" + B(HidePanelInCapture), "Animations=" + B(Animations),
                 "NoFullscreen=" + B(NoFullscreen), "HotkeyOn=" + B(HotkeyOn),
                 "SearchApps=" + B(SearchApps), "SearchRecent=" + B(SearchRecent), "SearchSettings=" + B(SearchSettings),
-                "SearchCommands=" + B(SearchCommands), "SearchContent=" + B(SearchContent), "ClipboardOn=" + B(ClipboardOn), "NewBadge=" + B(NewBadge), "ArchiveOn=" + B(ArchiveOn),
+                "SearchCommands=" + B(SearchCommands), "SearchContent=" + B(SearchContent), "ClipboardOn=" + B(ClipboardOn), "TaskbarOn=" + B(TaskbarOn), "TaskbarPins=" + string.Join("|", TaskbarPins), "NewBadge=" + B(NewBadge), "ArchiveOn=" + B(ArchiveOn),
                 "HoverPreview=" + B(HoverPreview), "Widgets=" + B(Widgets), "AutoUpdate=" + B(AutoUpdate),
                 "Pinned=" + B(Pinned), "QuietStart=" + B(QuietStart), "TrayHintShown=" + B(TrayHintShown), "LastVersion=" + LastVersion, "ArchiveLog=" + string.Join("|", ArchiveLog),
                 "ThemeMode=" + ThemeMode, "Language=" + Language, "Delay=" + Delay, "PanelWidth=" + PanelWidth,

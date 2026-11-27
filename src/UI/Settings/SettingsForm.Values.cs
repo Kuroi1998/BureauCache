@@ -47,6 +47,7 @@ partial class SettingsForm
         tSCmd.Checked = Settings.SearchCommands;
         tSContent.Checked = Settings.SearchContent;
         tClip.Checked = Settings.ClipboardOn;
+        tTaskbar.Checked = Settings.TaskbarOn;
         sEngine.Selected = Settings.WebEngine;
         tGroups.Checked = Settings.GroupCats;
         tRecents.Checked = Settings.ShowRecents;
@@ -67,7 +68,7 @@ partial class SettingsForm
     {
         lDelay.Text = Settings.Delay + " ms";
         lWidth.Text = Settings.PanelWidth + " px";
-        lWeatherPlace.Text = string.IsNullOrEmpty(Settings.WeatherPlace) ? T("Aucun lieu choisi.", "No place chosen.", "Ningún lugar seleccionado.") : Settings.WeatherPlace;
+        UpdateWeatherPlaceText();
         bool ok = act.HotkeyOk == null || act.HotkeyOk();
         if (!Settings.HotkeyOn) { lHotStatus.Text = T("Raccourci désactivé.", "Shortcut turned off.", "Atajo desactivado."); lHotStatus.Tag = null; }
         else if (ok) { lHotStatus.Text = T("Clique dans le champ puis appuie sur tes touches.", "Click the box, then press your keys.", "Haz clic en el campo y pulsa las teclas."); lHotStatus.Tag = null; }

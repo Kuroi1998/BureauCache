@@ -14,6 +14,8 @@ using Microsoft.Win32;
 class HotkeyWindow : NativeWindow
 {
     public event Action Pressed;
+    // WM_ENDSESSION : vrai si la session se termine vraiment, faux si la déconnexion ou l'arrêt a été annulé (CDX-05)
+    public event Action<bool> SessionEnded;
     public HotkeyWindow() { CreateHandle(new CreateParams()); }
 
     public bool Register(bool on, int mods, int key)
@@ -26,6 +28,7 @@ class HotkeyWindow : NativeWindow
     protected override void WndProc(ref Message m)
     {
         if (m.Msg == 0x0312 && Pressed != null) Pressed();
+        if (m.Msg == 0x0016 /*WM_ENDSESSION*/ && SessionEnded != null) SessionEnded(m.WParam != IntPtr.Zero);
         base.WndProc(ref m);
     }
 }
@@ -52,6 +55,7 @@ partial class App : ApplicationContext
     Action balloonAction;
     const int PollMs = 20;
     public static string RelaunchPath;
+    public static bool RelaunchAfterUpdate;   // la relance suit un remplacement de l'exe par une mise à jour (CDX-22)
     bool installingUpdate;
     Screen[] screens = Screen.AllScreens; // mis en cache : la détection du bord tourne 50 fois par seconde
 
@@ -91,6 +95,7 @@ partial class App : ApplicationContext
         Settings.Changed += OnSettingsChanged;
         ClipboardHistory.Changed += panel.OnClipboardChanged;
         ApplyClipboard();
+        ApplyTaskbar();
         bool lastContrast = SystemInformation.HighContrast;
         SystemEvents.UserPreferenceChanged += (s, e) =>
         {
@@ -101,12 +106,13 @@ partial class App : ApplicationContext
             if ((Settings.RefreshSystemTheme() && Settings.ThemeMode == 0) || contrastChanged)
                 panel.BeginInvoke(new Action(Settings.Fire));
         };
-        SystemEvents.SessionEnding += delegate { Settings.Flush(); Native.RestoreDesktopIcons(); };
+        SystemEvents.SessionEnding += delegate { OnSessionEnding(); };
+        hotkey.SessionEnded += OnSessionEnded;
         screenSignature = ScreenSignature(screens);
         SystemEvents.DisplaySettingsChanged += delegate
         {
             screens = Screen.AllScreens;
-            try { panel.BeginInvoke(new Action(OnDisplaysChanged)); } catch { }
+            try { panel.BeginInvoke(new Action(OnDisplaysChanged)); panel.BeginInvoke(new Action(OnDisplaysChangedForBar)); } catch { }
         };
 
         ApplyIconVisibility();
@@ -129,10 +135,14 @@ partial class App : ApplicationContext
         });
 
         PanelForm.RecycleLeftovers();
-        bool updated = !Settings.FirstRun && Settings.LastVersion != Installer.Version;
+        bool updated = !Settings.FirstRun && !Settings.ProfileUnreadable && Settings.LastVersion != Installer.Version;
         Settings.LastVersion = Installer.Version;
         if (Settings.Pinned) panel.ShowPinned(TargetScreen(Cursor.Position));
-        if (Settings.FirstRun) { Settings.Save(); ShowWelcome(); }
+        if (Settings.ProfileUnreadable)
+            Balloon(L.T("Tes réglages n'ont pas pu être lus (fichier occupé par un autre programme). BureauCache utilise les réglages par défaut sans rien écraser : relance-le pour les retrouver.",
+                        "Your settings couldn't be read (file in use by another program). BureauCache uses the defaults without overwriting anything: restart it to get them back.",
+                        "No se pudo leer tu configuración (otro programa usa el archivo). BureauCache usa los valores predeterminados sin sobrescribir nada: reinícialo para recuperarla."), null);
+        else if (Settings.FirstRun) { Settings.Save(); ShowWelcome(); }
         else if (updated)
         {
             Settings.SaveQuiet();
@@ -158,6 +168,7 @@ partial class App : ApplicationContext
         ApplyIconVisibility();
         RegisterHotkey();
         ApplyClipboard();
+        ApplyTaskbar();
         panel.OnSettingsChanged();
         RefreshTray();
         if (L.CurrentLanguage != lastLanguage)
@@ -288,7 +299,7 @@ partial class App : ApplicationContext
             panel.BeginInvoke(new Action(() =>
             {
                 installingUpdate = false;
-                if (error == null) { RelaunchPath = exe; ExitThread(); }
+                if (error == null) { RelaunchPath = exe; RelaunchAfterUpdate = true; ExitThread(); }
                 else Dialogs.Warn(null, L.T("La mise à jour a échoué :\n", "Update failed:\n", "Error de actualización:\n") + error);
             }));
         });
@@ -367,6 +378,7 @@ partial class App : ApplicationContext
         try { panel.Unpin(); } catch { }
         try { hotkey.Register(false, 0, 0); hotkey.DestroyHandle(); } catch { }
         try { clipboard.Close(); } catch { }
+        CloseBar();
         Native.RestoreDesktopIcons();
         foreach (FileSystemWatcher w in watchers) w.Dispose();
         tray.Visible = false;

@@ -112,6 +112,59 @@ public class ArchiveRulesTests
     }
 
     [TestMethod]
+    public void RunSkipsInvalidPathsAndStillArchivesTheNextFile()
+    {
+        Settings.ArchiveRules = new List<ArchiveRule>();
+        string source = NewFile("ancien.txt", 100);
+        Assert.AreEqual(1, Archiver.Run(new List<string> { "invalide\0", source }));
+        Assert.IsTrue(File.Exists(Path.Combine(Archiver.Folder, "ancien.txt")));
+    }
+
+    [TestMethod]
+    public void ATargetResolvingToTheDesktopDoesNotRenameItsFiles()
+    {
+        string previous = Settings.ArchiveName;
+        try
+        {
+            Settings.ArchiveRules = new List<ArchiveRule>();
+            Settings.ArchiveName = ".";
+            string source = NewFile("ancien.txt", 100);
+            Assert.AreEqual(0, Archiver.Candidates().Count);
+            Assert.AreEqual(0, Archiver.CountCandidates(new HashSet<string>(), new Dictionary<string, long[]>(),
+                Archiver.Limit, Archiver.Folder));
+            Assert.AreEqual(0, Archiver.RunNow());
+            Assert.IsTrue(File.Exists(source));
+        }
+        finally { Settings.ArchiveName = previous; }
+    }
+
+    [TestMethod]
+    public void UndoCanRetryWhenOnlyTheArchivedFileIsTemporarilyMissing()
+    {
+        Settings.ArchiveRules = new List<ArchiveRule>();
+        string source = NewFile("ancien.txt", 100);
+        Assert.AreEqual(1, Archiver.Run(new List<string> { source }));
+        string archived = Path.Combine(Archiver.Folder, "ancien.txt");
+        string offline = Path.Combine(Archiver.Folder, "indisponible.txt");
+        FileOps.Move(archived, offline, false);
+        Assert.AreEqual(0, Archiver.Undo());
+        Assert.IsTrue(Archiver.CanUndo);
+        FileOps.Move(offline, archived, false);
+        Assert.AreEqual(1, Archiver.Undo());
+        Assert.IsTrue(File.Exists(source));
+    }
+
+    [TestMethod]
+    public void DesktopKeepsDistinctFilesWithIdenticalDisplayNames()
+    {
+        string document = NewFile("rapport.txt", 1);
+        string shortcut = NewFile("rapport.txt.url", 1);
+        var files = Loader.Desktop(32, false);
+        Assert.IsTrue(files.Any(item => item.Key == document));
+        Assert.IsTrue(files.Any(item => item.Key == shortcut));
+    }
+
+    [TestMethod]
     public void RulesAreSavedAndLoadedWithTheSettings()
     {
         Settings.ArchiveRules = new List<ArchiveRule> { Screenshots(7) };
