@@ -121,7 +121,7 @@ partial class BarForm
             Bitmap img = IconOf(b, icon);
             if (img != null) g.DrawImage(img, ir);
             else Ui.Glyph(g, Glyphs.Apps, 17f, Theme.Fg, ir);
-            PaintBadge(g, r, ir, b.Window != null ? b.Window.Handle : IntPtr.Zero);
+            PaintBadge(g, r, ir, b.Window);
             // Trait sous l'icône : long et coloré pour la fenêtre active, court et gris pour une fenêtre ouverte,
             // aucun pour une épingle dont l'application est fermée
             if (b.Window == null) continue;
@@ -206,7 +206,7 @@ partial class BarForm
     // La fenêtre montrée a disparu : l'aperçu aussi
     void OnWindowsChanged()
     {
-        if (windows != null) ForgetBadges(new HashSet<IntPtr>(windows.Items.Select(w => w.Handle)));
+        if (windows != null) ForgetClosedWindowBadges();
         if (preview == null || preview.Target == IntPtr.Zero || windows == null) return;
         if (!windows.Items.Exists(w => w.Handle == preview.Target)) HidePreview();
     }

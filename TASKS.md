@@ -26,7 +26,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-037 | Gestionnaire des tâches dans le menu de BureauCache (icône et barre) | Code fait ; essai réel à faire | Claude puis Toi | `feat/T-037-gestionnaire-taches` | — |
 | T-038 | Visite guidée à jour (6 écrans) ; fenêtre réduite rouverte dans son état d'avant (plein écran compris) | Code et tests faits ; essai réel à faire | Claude puis Toi | `feat/T-037-gestionnaire-taches` | — |
 | T-039 | Menu Démarrer : sections BureauCache / Windows / Session / Alimentation | Code et tests faits ; essai réel à faire | Claude puis Toi | `feat/T-037-gestionnaire-taches` | — |
-| T-040 | Paramètres rapides propres à la barre (volume, batterie, Wi-Fi, lecture, luminosité ; Bluetooth, Avion, Éclairage nocturne selon la recherche) | Recherche Gemini en cours, conception ensuite | Gemini, Claude, Toi | — | — |
+| T-040 | Paramètres rapides propres à la barre (volume, luminosité, multimédia, Wi-Fi et Bluetooth) | Compilé, 9 tests ciblés réussis, essais matériels à faire | Gemini, ChatGPT, Toi | - | D-017 |
 | T-041 | Badges (« 1 » de Discord) et barres de progression des applications dans la barre BureauCache | Prototype en cours (D-016) | Claude puis Toi | `feat/T-041-badges` | D-016 |
 | T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel fait sur la 3.9 installée | Claude puis Toi | PR #19 | D-007, QA-32, QA-33 |
 | T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |

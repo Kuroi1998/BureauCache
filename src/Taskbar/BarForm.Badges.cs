@@ -25,8 +25,13 @@ partial class BarForm
 
     void StartBadges()
     {
-        if (Sandbox.Active) return;
-        TaskbandRoute.Install(Handle);
+        if (Sandbox.Active || !TaskbandRoute.Install(Handle)) return;
+
+        // Les fenêtres déjà ouvertes ont pu envoyer leur badge à Explorer avant le remplacement de sa barre.
+        uint created = Native.RegisterWindowMessage("TaskbarButtonCreated");
+        if (created == 0) return;
+        foreach (TaskWindow window in windows.Items)
+            Native.PostMessage(window.Handle, (int)created, IntPtr.Zero, IntPtr.Zero);
     }
 
     void StopBadges()
@@ -37,8 +42,26 @@ partial class BarForm
     }
 
     // Vrai si le message venait d'ITaskbarList3 et a été traité
+    // PROTOTYPE (T-041) : journal des messages WM_USER à WM_USER + 255 reçus par la barre, pour savoir ce que Windows
+    // envoie vraiment. Numéro du message et identifiants de fenêtres seulement. À retirer avant toute publication.
+    static int loggedMessages;
+
+    static void LogTaskbarMessage(Message m)
+    {
+        if (Sandbox.Active || loggedMessages >= 500 || m.Msg < 0x400 || m.Msg > 0x4FF) return;
+        loggedMessages++;
+        try
+        {
+            System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "BureauCache-badges.log"),
+                DateTime.Now.ToString("HH:mm:ss.fff") + "  WM_USER+" + (m.Msg - 0x400) + "  wParam=0x" + m.WParam.ToInt64().ToString("X") +
+                "  lParam=0x" + m.LParam.ToInt64().ToString("X") + "  route=" + TaskbandRoute.Installed + "\r\n");
+        }
+        catch { }
+    }
+
     bool HandleTaskbarList(ref Message m)
     {
+        LogTaskbarMessage(m);
         if (m.Msg != MsgProgressValue && m.Msg != MsgProgressState && m.Msg != MsgOverlayIcon && m.Msg != MsgOverlayText) return false;
         if (!TaskbandRoute.Installed) return false;
         IntPtr hwnd = m.WParam;
@@ -49,6 +72,7 @@ partial class BarForm
         switch (m.Msg)
         {
             case MsgOverlayIcon:
+                if (b.Icon != null && m.LParam == IntPtr.Zero && windows != null) windows.ClearDiscordAlerts(hwnd);
                 if (b.Icon != null) { b.Icon.Dispose(); b.Icon = null; }
                 // L'icône appartient à l'application : on en convertit une copie (comme CDX-07)
                 if (m.LParam != IntPtr.Zero)
@@ -78,9 +102,9 @@ partial class BarForm
     }
 
     // Fenêtres fermées : leurs badges disparaissent
-    void ForgetBadges(HashSet<IntPtr> alive)
+    void ForgetClosedWindowBadges()
     {
-        foreach (IntPtr h in badges.Keys.Where(k => !alive.Contains(k)).ToList())
+        foreach (IntPtr h in badges.Keys.Where(k => !Native.IsWindow(k)).ToList())
         {
             if (badges[h].Icon != null) badges[h].Icon.Dispose();
             badges.Remove(h);
@@ -102,18 +126,38 @@ partial class BarForm
         return (int)Math.Round(full * Math.Max(0, Math.Min(ProgressScale, value)) / (double)ProgressScale);
     }
 
-    // Badge en haut à droite de l'icône, progression sous l'icône (au-dessus du trait de fenêtre active)
-    void PaintBadge(Graphics g, Rectangle button, Rectangle icon, IntPtr hwnd)
+    internal static string DiscordAlertText(TaskWindow window, bool hasOverlay)
     {
+        if (hasOverlay || window == null || window.DiscordAlerts == 0) return null;
+        return window.DiscordAlerts >= TaskWindow.MaxDiscordAlerts
+            ? "99+" : window.DiscordAlerts.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    // Badge en haut à droite de l'icône, progression sous l'icône (au-dessus du trait de fenêtre active)
+    void PaintBadge(Graphics g, Rectangle button, Rectangle icon, TaskWindow window)
+    {
+        if (window == null) return;
         Badge b;
-        if (hwnd == IntPtr.Zero || !badges.TryGetValue(hwnd, out b)) return;
-        if (b.Icon != null)
+        badges.TryGetValue(window.Handle, out b);
+        bool hasOverlay = b != null && b.Icon != null;
+        string alertText = DiscordAlertText(window, hasOverlay);
+        if (hasOverlay)
         {
             int s = Ui.S(16);
             Rectangle r = new Rectangle(icon.Right - s + Ui.S(4), icon.Top - Ui.S(3), s, s);
             try { g.DrawImage(b.Icon, r); } catch { }
         }
-        if (b.State != ProgressNone)
+        else if (alertText != null)
+        {
+            int height = Ui.S(17), width = Ui.S(alertText.Length == 1 ? 17 : alertText.Length == 2 ? 21 : 26);
+            var bounds = new Rectangle(icon.Right - width + Ui.S(4), icon.Top - Ui.S(3), width, height);
+            Ui.Fill(g, Theme.Bg, bounds, height / 2f);
+            bounds.Inflate(-Ui.S(1), -Ui.S(1));
+            Ui.Fill(g, Color.FromArgb(196, 34, 49), bounds, bounds.Height / 2f);
+            TextRenderer.DrawText(g, alertText, Ui.Font("Segoe UI Semibold", 8f), bounds, Color.White,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+        }
+        if (b != null && b.State != ProgressNone)
         {
             int full = button.Width - Ui.S(16), h = Ui.S(3), y = button.Bottom - Ui.S(9);
             Ui.Fill(g, Color.FromArgb(70, 128, 128, 128), new RectangleF(button.Left + Ui.S(8), y, full, h), Ui.S(1));

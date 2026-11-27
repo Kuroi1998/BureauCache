@@ -2,6 +2,10 @@
 
 ## Non publié
 
+- Les Paramètres rapides affichent les réseaux Wi-Fi et les appareils Bluetooth dans deux vues dédiées. Le panneau donne davantage de place aux libellés.
+- Les icônes réseau et son de la barre BureauCache ouvrent un panneau de paramètres rapides assorti au thème de l’application, avec volume, luminosité selon l’écran, batterie, lecture multimédia et raccourcis Windows. La cloche ouvre les notifications.
+- La barre BureauCache lit la description des pastilles sans se bloquer et conserve la pastille reçue tant que la fenêtre de l’application existe, même si celle-ci est temporairement masquée.
+- La pastille rouge de Discord compte les alertes reçues depuis la dernière activation de sa fenêtre lorsque Discord ne transmet pas sa propre pastille.
 - Le menu de BureauCache (clic droit sur son icône ou sur la barre BureauCache) ouvre le Gestionnaire des tâches.
 - Visite guidée refaite : 6 écrans, avec la nouvelle barre des tâches (activable depuis la visite), le menu Démarrer, la recherche dans le contenu des fichiers, le rangement automatique, la météo, le nettoyage et le presse-papiers.
 - Menu Démarrer plus clair : sections « BureauCache » (panneau, Paramètres de BureauCache, visite guidée), « Windows » (Paramètres Windows, Explorateur, Gestionnaire des tâches, Documents, Téléchargements, Panneau de configuration), « Session Windows » et « Alimentation », chacune avec une courte légende.

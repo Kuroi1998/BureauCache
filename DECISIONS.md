@@ -10,6 +10,14 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 **Conséquences :** ce que ça impose ensuite.
 -->
 
+## D-017 — Paramètres rapides de la barre BureauCache (2026-11-27) · Statut : Proposée
+
+Le groupe réseau/son ouvre `QuickSettingsForm`, ancré à la barre. La cloche et l’horloge ouvrent les notifications et le calendrier Windows. Les lectures et écritures de volume et de luminosité s’exécutent en arrière-plan. La luminosité passe par WMI (`System.Management.dll`, déjà référencé par le fichier de réponse du compilateur .NET Framework) ou par DDC/CI sur un écran compatible. La carte multimédia charge les API Windows Runtime à l’exécution. Quand Windows refuse l’accès à la session multimédia, les commandes utilisent les touches multimédias Windows.
+
+Les tuiles Wi-Fi, Bluetooth, avion, énergie, éclairage nocturne et accessibilité ouvrent les pages Windows correspondantes. Cette version laisse Windows gérer les autorisations et la disponibilité des réglages. Sources : [Core Audio](https://learn.microsoft.com/windows/win32/api/endpointvolume/nn-endpointvolume-iaudioendpointvolume), [WMI](https://learn.microsoft.com/windows/win32/wmicoreprov/wmisetbrightness-method-in-class-wmimonitorbrightnessmethods), [DDC/CI](https://learn.microsoft.com/windows/win32/api/highlevelmonitorconfigurationapi/nf-highlevelmonitorconfigurationapi-setmonitorbrightness), [sessions multimédias](https://learn.microsoft.com/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessionmanager), [URI Paramètres](https://learn.microsoft.com/windows/apps/develop/launch/launch-settings).
+
+**Sous-vues Wi-Fi et Bluetooth (T-040).** Native Wi-Fi découvre les réseaux et ouvre les profils enregistrés, les réseaux ouverts et les profils temporaires WPA2/WPA3 personnels. Les mots de passe saisis restent en mémoire. Si Windows refuse l'accès aux réseaux, la vue donne accès aux réglages de localisation. Bluetooth Classic et Low Energy passent par DeviceInformation et l'appairage système. La reconnexion d'un appareil associé ouvre les paramètres Bluetooth. Sources : [Native Wi-Fi](https://learn.microsoft.com/windows/win32/api/wlanapi/nf-wlanapi-wlanconnect), [localisation](https://learn.microsoft.com/windows/win32/nativewifi/wi-fi-access-location-changes), [appairage](https://learn.microsoft.com/windows/apps/develop/devices-sensors/pair-devices).
+
 ## D-016 — Badges et progressions des applications dans la barre BureauCache (2026-11-27) · Statut : Proposée (prototype)
 
 **Contexte :** les applications posent un badge sur leur bouton de la barre (le « 1 » de Discord) et une barre de progression (téléchargements, copies) par `ITaskbarList3::SetOverlayIcon`, `SetProgressState` et `SetProgressValue`. Ces demandes arrivent à la barre d'Explorer, cachée : la barre BureauCache ne les voit pas.

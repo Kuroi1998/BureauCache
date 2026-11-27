@@ -246,7 +246,7 @@ class StartMenuForm : Form
 // Tuile du menu : icône et texte, au clavier (Tab, Entrée, Espace) et lue par les lecteurs d'écran comme un bouton
 class StartTile : FlatControl
 {
-    readonly string glyph;
+    string glyph;
     readonly bool stacked;   // icône au-dessus du texte, sinon à gauche
     bool hover;
 
@@ -261,6 +261,13 @@ class StartTile : FlatControl
         Font = Ui.Font("Segoe UI", 10f);
         BackColor = Theme.Bg;
         EnableSettingsKeyboard();
+    }
+
+    public void SetGlyph(string value)
+    {
+        if (glyph == value) return;
+        glyph = value;
+        Invalidate();
     }
 
     protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
@@ -278,16 +285,18 @@ class StartTile : FlatControl
     {
         Graphics g = Prep(e);
         RectangleF r = new RectangleF(0, 0, Width - 1, Height - 1);
-        Ui.Fill(g, hover || Focused ? Theme.Hover : Theme.Surface, r, Ui.S(Ui.RadiusControl));
+        bool highlight = Enabled && (hover || Focused);
+        Color text = Enabled ? Theme.SelText(highlight, Theme.Fg) : Theme.FgDim;
+        Ui.Fill(g, highlight ? Theme.Hover : Theme.Surface, r, Ui.S(Ui.RadiusControl));
         if (stacked)
         {
-            Ui.Glyph(g, glyph, 17f, Theme.Fg, GlyphArea);
-            TextRenderer.DrawText(g, Text, Font, TextArea, Theme.Fg, TextFlags | TextFormatFlags.HorizontalCenter);
+            Ui.Glyph(g, glyph, 17f, text, GlyphArea);
+            TextRenderer.DrawText(g, Text, Font, TextArea, text, TextFlags | TextFormatFlags.HorizontalCenter);
         }
         else
         {
-            Ui.Glyph(g, glyph, 14f, Theme.Fg, new Rectangle(Ui.S(10), 0, Ui.S(30), Height));
-            TextRenderer.DrawText(g, Text, Font, TextArea, Theme.Fg, TextFlags | TextFormatFlags.VerticalCenter);
+            Ui.Glyph(g, glyph, 14f, text, new Rectangle(Ui.S(10), 0, Ui.S(30), Height));
+            TextRenderer.DrawText(g, Text, Font, TextArea, text, TextFlags | TextFormatFlags.VerticalCenter);
         }
         DrawSettingsFocus(g);
     }

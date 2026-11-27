@@ -29,6 +29,9 @@ static class Native {
         return new IntPtr(a);
     }
     public static bool UnhookWinEvent(IntPtr h) {return true;}
+    public const uint EVENT_OBJECT_DESTROY=32769;
+    public static int FlashStops;
+    public static void StopTaskbarFlash(IntPtr h){FlashStops++;}
     public static bool TwoWindows, Cloaked, Iconic, Maximized;
     public static bool RestoresToMaximized(IntPtr h){return Maximized;}
     public const int SW_SHOWMAXIMIZED=3;

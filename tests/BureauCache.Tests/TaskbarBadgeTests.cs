@@ -1,13 +1,24 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
+using System.Windows.Forms;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 // T-041 : badges et progressions des applications (D-016). La vraie barre d'Explorer n'est jamais touchée en test.
 [TestClass]
 public class TaskbarBadgeTests
 {
+    [DllImport("shlwapi.dll", EntryPoint = "#7", ExactSpelling = true)]
+    static extern IntPtr SHAllocShared(byte[] data, uint bytes, uint processId);
+
+    [DllImport("shlwapi.dll", EntryPoint = "#10", ExactSpelling = true)]
+    static extern bool SHFreeShared(IntPtr handle, uint processId);
+
     string previousDir, dir;
 
     [TestInitialize]
@@ -57,6 +68,75 @@ public class TaskbarBadgeTests
         Assert.IsTrue(TaskbandRoute.Restore());
         Assert.IsTrue(File.Exists(TaskbandRoute.StatePath), "En test, ni la vraie barre ni le fichier ne sont touchés.");
         Assert.IsFalse(TaskbandRoute.Installed);
+    }
+
+    [TestMethod]
+    public void ReadsUnicodeBadgeDescriptionFromSharedMemory()
+    {
+        const string description = "1 notification reçue";
+        byte[] data = Encoding.Unicode.GetBytes(description + "\0");
+        using (var process = System.Diagnostics.Process.GetCurrentProcess())
+        {
+            uint pid = (uint)process.Id;
+            IntPtr handle = SHAllocShared(data, (uint)data.Length, pid);
+            Assert.AreNotEqual(IntPtr.Zero, handle);
+            try { Assert.AreEqual(description, Native.SharedText(handle, pid)); }
+            finally { SHFreeShared(handle, pid); }
+        }
+    }
+
+    [TestMethod]
+    public void HiddenWindowKeepsItsBadgeUntilItCloses()
+    {
+        Exception failure = null;
+        Thread thread = new Thread(() =>
+        {
+            try
+            {
+                using (var bar = new BarForm())
+                using (var window = new Form())
+                {
+                    const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                    var badges = (Dictionary<IntPtr, BarForm.Badge>)typeof(BarForm).GetField("badges", flags).GetValue(bar);
+                    var prune = typeof(BarForm).GetMethod("ForgetClosedWindowBadges", flags);
+                    IntPtr hwnd = window.Handle;
+                    Assert.IsFalse(window.Visible);
+                    using (var icon = new Bitmap(16, 16))
+                    {
+                        badges.Add(hwnd, new BarForm.Badge { Icon = icon });
+                        prune.Invoke(bar, null);
+                        Assert.AreSame(icon, badges[hwnd].Icon);
+                        window.Dispose();
+                        prune.Invoke(bar, null);
+                        Assert.IsFalse(badges.ContainsKey(hwnd));
+                    }
+                }
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        if (failure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    [TestMethod]
+    public void DiscordAttentionCountsAlertsUntilClearedAndLetsTheNativeBadgeWin()
+    {
+        var window = new TaskWindow { AppKey = "aumid:com.squirrel.Discord.Discord" };
+        Assert.IsNull(BarForm.DiscordAlertText(window, false));
+        Assert.IsTrue(window.RegisterDiscordAlert());
+        Assert.AreEqual("1", BarForm.DiscordAlertText(window, false));
+        Assert.IsTrue(window.RegisterDiscordAlert());
+        Assert.AreEqual("2", BarForm.DiscordAlertText(window, false));
+        Assert.IsNull(BarForm.DiscordAlertText(window, true));
+        for (int i = 0; i < 200; i++) window.RegisterDiscordAlert();
+        Assert.AreEqual("99+", BarForm.DiscordAlertText(window, false));
+        window.ClearDiscordAlerts();
+        Assert.IsNull(BarForm.DiscordAlertText(window, false));
+        Assert.IsNull(BarForm.DiscordAlertText(null, false));
+        Assert.IsTrue(new TaskWindow { AppKey = @"exe:C:\Discord\app-1.0.9269\DISCORD.EXE" }.RegisterDiscordAlert());
+        Assert.IsFalse(new TaskWindow { AppKey = @"exe:C:\Example\NotDiscord.exe" }.RegisterDiscordAlert());
     }
 
     [TestMethod]
