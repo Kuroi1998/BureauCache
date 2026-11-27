@@ -36,7 +36,7 @@ BureauCache cache les icônes du bureau Windows et les réaffiche dans un pannea
 
 - Une classe par responsabilité. Les grandes fenêtres sont découpées en `partial class` avec un fichier `Classe.Aspect.cs` par aspect.
 - Aucun fichier ne dépasse **500 lignes**. Au-delà d'environ 400 lignes, on prévoit un découpage.
-- Les réglages sont copiés une fois par jour avant leur première réécriture, dans `sauvegardes\` (7 jours, `SettingsBackup`, D-007). Restaurer ou importer met d'abord l'état actuel de côté. Les tests isolent le dossier des réglages (`Settings.DirOverride`).
+- Les réglages sont copiés une fois par jour avant leur première réécriture, dans `sauvegardes\` (7 jours, `SettingsBackup`, D-007). Restaurer ou importer met d'abord l'état actuel de côté. Les tests isolent le dossier des réglages et le bureau (`Settings.DirOverride`, `Paths.DesktopOverride`), et `Sandbox` bloque tout effet de bord réel pendant les tests (QA-34).
 - Les tâches de fond passent par `Background` (`src/Core/Helpers.cs`). Le retour sur le fil UI se fait par `BeginInvoke`, et l'UI n'est jamais touchée depuis un autre fil.
 - Les opérations sur fichiers passent par `FileOps`. Les noms sont validés (noms réservés Windows refusés).
 - Les réglages se modifient par `Settings`. L'écriture est groupée par minuteur et atomique.

@@ -9,11 +9,36 @@ using VbFs = Microsoft.VisualBasic.FileIO.FileSystem;
 using VbUi = Microsoft.VisualBasic.FileIO.UIOption;
 using VbRecycle = Microsoft.VisualBasic.FileIO.RecycleOption;
 
+// Bac à sable des tests (QA-34) : pendant les tests, aucun effet de bord réel. Le bureau et les réglages pointent
+// vers des dossiers temporaires, et ce qui toucherait au registre, au menu Démarrer ou à l'installation lève une
+// exception qui fait échouer le test au lieu de modifier le PC.
+static class Sandbox
+{
+    internal static bool Active;
+
+    public static void Guard(string what)
+    {
+        if (Active) throw new InvalidOperationException("Effet de bord bloqué pendant les tests : " + what);
+    }
+
+    // En mode test, on n'écrit que sous %TEMP% : les tests y créent leurs fichiers, et aucun fichier de
+    // l'utilisateur ne s'y trouve (QA34-01 à 03)
+    public static void GuardPath(string path, string what)
+    {
+        if (!Active) return;
+        string full = System.IO.Path.GetFullPath(path), temp = System.IO.Path.GetFullPath(System.IO.Path.GetTempPath());
+        if (!full.StartsWith(temp, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Effet de bord bloqué pendant les tests : " + what + " hors de %TEMP% (" + full + ")");
+    }
+}
+
 static class Paths
 {
-    public static string Desktop { get { return Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory); } }
+    internal static string DesktopOverride;   // posé par les tests (Sandbox)
+    public static string Desktop { get { return DesktopOverride ?? Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory); } }
     public static string CommonDesktop { get { return Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory); } }
-    public static string[] Desktops { get { return new[] { Desktop, CommonDesktop }.Where(d => !string.IsNullOrEmpty(d) && Directory.Exists(d)).ToArray(); } }
+    // En mode test, le bureau commun (réel) n'est jamais parcouru (QA34-02)
+    public static string[] Desktops { get { if (DesktopOverride != null) return new[] { DesktopOverride }; return new[] { Desktop, CommonDesktop }.Where(d => !string.IsNullOrEmpty(d) && Directory.Exists(d)).ToArray(); } }
 
     public static bool SameFolder(string a, string b)
     {
@@ -36,12 +61,14 @@ static class FileOps
 
     public static void Move(string from, string to, bool folder)
     {
+        Sandbox.GuardPath(from, "déplacement"); Sandbox.GuardPath(to, "déplacement");
         if (folder) Directory.Move(from, to); else File.Move(from, to);
     }
 
     // Envoie à la corbeille ; confirm = afficher les fenêtres de Windows (confirmation, progression)
     public static void Recycle(string path, bool confirm)
     {
+        Sandbox.Guard("corbeille");
         VbUi ui = confirm ? VbUi.AllDialogs : VbUi.OnlyErrorDialogs;
         if (Directory.Exists(path)) VbFs.DeleteDirectory(path, ui, VbRecycle.SendToRecycleBin);
         else VbFs.DeleteFile(path, ui, VbRecycle.SendToRecycleBin);
@@ -50,12 +77,14 @@ static class FileOps
     // Copie silencieuse d'un fichier de l'application (export des réglages, installation), remplace la cible
     public static void CopyFile(string src, string dest)
     {
+        Sandbox.GuardPath(dest, "copie");
         File.Copy(src, dest, true);
     }
 
     // Copie ou déplace vers dest avec les fenêtres de Windows (conflits de noms, progression)
     public static void CopyOrMove(string src, string dest, bool move)
     {
+        Sandbox.GuardPath(src, "copie ou déplacement"); Sandbox.GuardPath(dest, "copie ou déplacement");
         if (Directory.Exists(src))
         {
             if (move) VbFs.MoveDirectory(src, dest, VbUi.AllDialogs); else VbFs.CopyDirectory(src, dest, VbUi.AllDialogs);

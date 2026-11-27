@@ -134,8 +134,9 @@ static class SettingsBackup
         List<Entry> list = new List<Entry>();
         try
         {
-            if (File.Exists(BeforeRestorePath))
-                list.Add(new Entry { Path = BeforeRestorePath, Date = File.GetLastWriteTime(BeforeRestorePath), BeforeRestore = true });
+            for (int i = 1; i <= UndoKept; i++)
+                if (File.Exists(UndoPath(i)))
+                    list.Add(new Entry { Path = UndoPath(i), Date = File.GetLastWriteTime(UndoPath(i)), BeforeRestore = true });
             list.AddRange(Daily());
         }
         catch { }
@@ -202,12 +203,13 @@ static class SettingsBackup
                     LoadReplacing(undo);               // le disque n'a pas changé : la mémoire seulement
                     return false;
                 }
-                try { File.Copy(undo, BeforeRestorePath, true); }
+                try { KeepUndo(undo); }
                 catch
                 {
-                    // Point de retour impossible à écrire : on ne garde pas une restauration sans retour possible
-                    LoadReplacing(undo);
-                    Settings.Save();
+                    // Point de retour impossible à écrire : on ne garde pas une restauration sans retour possible.
+                    // Si le retour arrière ne s'enregistre pas non plus, l'état d'avant est gardé à part (QA34-05).
+                    if (!LoadReplacing(undo) || !Settings.Save())
+                        try { File.Copy(undo, Path.Combine(Folder, "settings-avant-restauration-secours.ini"), true); } catch { }
                     return false;
                 }
                 return true;
@@ -219,6 +221,21 @@ static class SettingsBackup
                 if (undo != null) try { File.Delete(undo); } catch { }
             }
         }
+    }
+
+    // Trois points de retour : importer puis restaurer ne fait plus disparaître l'état d'origine (QA34-05)
+    const int UndoKept = 3;
+
+    static string UndoPath(int i)
+    {
+        return i <= 1 ? BeforeRestorePath : Path.Combine(Folder, "settings-avant-restauration-" + i + ".ini");
+    }
+
+    static void KeepUndo(string undo)
+    {
+        for (int i = UndoKept - 1; i >= 1; i--)
+            if (File.Exists(UndoPath(i))) File.Copy(UndoPath(i), UndoPath(i + 1), true);
+        File.Copy(undo, BeforeRestorePath, true);
     }
 
     // Charge un fichier de réglages complet : les listes absentes d'une ancienne sauvegarde repartent vides au

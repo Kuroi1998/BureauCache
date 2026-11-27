@@ -60,7 +60,7 @@ class BackupDialog : ThemedDialog
     {
         string when;
         if (e.BeforeRestore)
-            when = L.T("Avant la dernière restauration", "Before the last restore", "Antes de la última restauración") + " (" + e.Date.ToString("g", L.Culture) + ")";
+            when = L.T("Avant une restauration", "Before a restore", "Antes de una restauración") + " (" + e.Date.ToString("g", L.Culture) + ")";
         else if (e.Date.Date == DateTime.Today) when = L.T("Aujourd'hui", "Today", "Hoy");
         else if (e.Date.Date == DateTime.Today.AddDays(-1)) when = L.T("Hier", "Yesterday", "Ayer");
         else when = e.Date.ToString("D", L.Culture);
@@ -72,8 +72,7 @@ class BackupDialog : ThemedDialog
     {
         int i = list.SelectedIndex;
         if (i < 0 || i >= entries.Count) return;
-        if (!Dialogs.Ask(this, L.T("Remplacer tes réglages actuels par cette sauvegarde ?\n\n", "Replace your current settings with this backup?\n\n", "¿Sustituir tu configuración actual por esta copia?\n\n") + list.Items[i]))
-            return;
+        // Pas de seconde confirmation : la restauration est réversible (« Avant la dernière restauration ») (Gemini A1)
         if (!SettingsBackup.Restore(entries[i]))
         {
             Dialogs.Warn(this, L.T("Cette sauvegarde n'a pas pu être restaurée.", "This backup could not be restored.", "No se pudo restaurar esta copia."));

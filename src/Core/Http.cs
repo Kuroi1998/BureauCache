@@ -12,6 +12,7 @@ static class Http
     // Redirections suivies une à une : chaque saut doit rester en HTTPS sur un hôte autorisé
     public static string FetchText(string url, string[] hosts, long maximum)
     {
+        Sandbox.Guard("accès réseau");   // les tests n'appellent jamais les vrais services
         ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072; // TLS 1.2
         string firstHost = null;
         for (int redirect = 0; redirect <= 3; redirect++)

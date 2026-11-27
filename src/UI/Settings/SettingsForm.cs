@@ -33,7 +33,7 @@ partial class SettingsForm : Form
     Swatches swatch;
     HotkeyBox hk;
     InputBox repo;
-    Label lDelay, lWidth, lHotStatus, lInstall, lArchive, lUpdate, lTray, lWeatherPlace;
+    Label lDelay, lWidth, lHotStatus, lInstall, lArchive, lUpdate, lTray, lWeatherPlace, lExport, lImport, lRestore, lArchiveUndo;
     FlatButton bInstall, bArchiveNow, bArchiveUndo, bCheck;
     Card customCard;
     string customSig;

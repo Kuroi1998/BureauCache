@@ -63,11 +63,11 @@ partial class SettingsForm
     {
         NewPage(T("Avancé", "Advanced", "Opciones avanzadas"), T("Sauvegardes et mises à jour.", "Backups and updates.", "Copias de seguridad y actualizaciones."));
         Section(T("SAUVEGARDE", "BACKUP", "COPIA DE SEGURIDAD"));
-        Row(T("Exporter mes réglages", "Export my settings", "Exportar mi configuración"), T("Réglages, favoris, catégories et ordre.", "Settings, favorites, categories and order.", "Configuración, favoritos, categorías y orden."),
+        lExport = Row(T("Exporter mes réglages", "Export my settings", "Exportar mi configuración"), T("Réglages, favoris, catégories et ordre.", "Settings, favorites, categories and order.", "Configuración, favoritos, categorías y orden."),
             Button(T("Exporter…", "Export…", "Exportar…"), false, S(130), Export), null);
-        Row(T("Importer des réglages", "Import settings", "Importar configuración"), T("Remplace les réglages actuels.", "Replaces the current settings.", "Sustituye la configuración actual."),
+        lImport = Row(T("Importer des réglages", "Import settings", "Importar configuración"), T("Remplace les réglages actuels.", "Replaces the current settings.", "Sustituye la configuración actual."),
             Button(T("Importer…", "Import…", "Importar…"), false, S(130), Import), null);
-        Row(T("Restaurer une sauvegarde", "Restore a backup", "Restaurar una copia de seguridad"),
+        lRestore = Row(T("Restaurer une sauvegarde", "Restore a backup", "Restaurar una copia de seguridad"),
             T("Une copie automatique par jour, sur les " + SettingsBackup.Kept + " derniers jours.", "One automatic copy per day, for the last " + SettingsBackup.Kept + " days.", "Una copia automática al día, durante los últimos " + SettingsBackup.Kept + " días."),
             Button(T("Restaurer…", "Restore…", "Restaurar…"), false, S(130), RestoreBackup), null);
 
@@ -89,6 +89,7 @@ partial class SettingsForm
 
     void Export()
     {
+        Begin(lExport);
         if (!Settings.Save())
         {
             Dialogs.Warn(this, T("Impossible de sauvegarder les réglages.", "Could not save settings.", "No se pudo guardar la configuración."));
@@ -99,13 +100,14 @@ partial class SettingsForm
             d.FileName = T("BureauCache-reglages", "BureauCache-settings", "BureauCache-configuracion") + ".ini";
             d.Filter = T("Réglages BureauCache", "BureauCache settings", "Configuración de BureauCache") + " (*.ini)|*.ini";
             if (d.ShowDialog(this) != DialogResult.OK) return;
-            try { Settings.Flush(); FileOps.CopyFile(Settings.FilePath, d.FileName); Dialogs.Info(this, T("Réglages exportés.", "Settings exported.", "Configuración exportada.")); }
-            catch (Exception ex) { Dialogs.Info(this, ex.Message); }
+            try { Settings.Flush(); FileOps.CopyFile(Settings.FilePath, d.FileName); Done(lExport, T("Réglages exportés dans ", "Settings exported to ", "Configuración exportada en ") + System.IO.Path.GetFileName(d.FileName) + "."); }
+            catch (Exception ex) { Dialogs.Warn(this, ex.Message); }
         }
     }
 
     void Import()
     {
+        Begin(lImport);
         using (OpenFileDialog d = new OpenFileDialog())
         {
             d.Filter = T("Réglages BureauCache", "BureauCache settings", "Configuración de BureauCache") + " (*.ini)|*.ini";
@@ -117,24 +119,42 @@ partial class SettingsForm
                 Dialogs.Warn(this, T("Fichier de réglages invalide ou trop volumineux.", "Invalid or oversized settings file.", "Archivo de configuración no válido o demasiado grande."));
                 return;
             }
-            if (!Ask(T("Remplacer tes réglages actuels par ceux de ce fichier ?", "Replace your current settings with this file?", "¿Sustituir la configuración actual por la de este archivo?"))) return;
+            // Pas de confirmation : l'import est réversible par « Restaurer une sauvegarde… » (Gemini A1, A6)
             if (!SettingsBackup.RestoreFrom(d.FileName))
             {
-                Dialogs.Warn(this, T("Les réglages n'ont pas pu être importés : rien n'a été changé.", "The settings couldn't be imported: nothing was changed.", "No se pudo importar la configuración: no se ha cambiado nada."));
+                Dialogs.Warn(this, T("Les réglages n'ont pas pu être importés.", "The settings couldn't be imported.", "No se pudo importar la configuración."));
                 return;
             }
             L.Refresh();
             Settings.Notify();
-            Dialogs.Info(this, T("Réglages importés. Tes réglages précédents sont dans « Restaurer une sauvegarde… ».", "Settings imported. Your previous settings are in \"Restore a backup…\".", "Configuración importada. La anterior está en «Restaurar una copia de seguridad…»."));
+            if (!IsDisposed) Done(lImport, T("Réglages importés. Les précédents sont dans « Restaurer une sauvegarde… ».", "Settings imported. The previous ones are in \"Restore a backup…\".", "Configuración importada. La anterior está en «Restaurar una copia de seguridad…»."));
         }
     }
 
     void RestoreBackup()
     {
+        Begin(lRestore);
         if (!BackupDialog.Run(this)) return;
         L.Refresh();
         Settings.Notify();
-        Dialogs.Info(this, T("Réglages restaurés.", "Settings restored.", "Configuración restaurada."));
+        if (!IsDisposed) Done(lRestore, T("Réglages restaurés. « Avant une restauration » permet de revenir en arrière.", "Settings restored. \"Before a restore\" lets you go back.", "Configuración restaurada. «Antes de una restauración» permite volver atrás."));
+    }
+
+    // Résultat d'une action affiché sous son réglage, au lieu d'une boîte à valider (Gemini A2, A6). Le texte
+    // d'origine est gardé, et revient au début de la tentative suivante (QA34-06).
+    readonly Dictionary<Label, string> doneOriginal = new Dictionary<Label, string>();
+
+    void Done(Label description, string text)
+    {
+        if (description == null || description.IsDisposed) return;
+        if (!doneOriginal.ContainsKey(description)) doneOriginal[description] = description.Text;
+        description.Text = "✓ " + text;
+    }
+
+    void Begin(Label description)
+    {
+        string original;
+        if (description != null && !description.IsDisposed && doneOriginal.TryGetValue(description, out original)) description.Text = original;
     }
 
     void ResetUpdateButton()

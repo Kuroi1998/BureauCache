@@ -56,7 +56,7 @@ partial class ItemsView : Control
                  ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
         SetStyle(ControlStyles.Selectable, false);
         AllowDrop = true;
-        scrollAnim.Interval = 10;
+        scrollAnim.Interval = 16;   // la résolution du minuteur de Windows est de 15,6 ms : 10 ms ne servait à rien (Gemini C6)
         scrollAnim.Tick += (s, e) => AdvanceScroll();
         hoverTimer.Interval = 450;
         hoverTimer.Tick += (s, e) =>

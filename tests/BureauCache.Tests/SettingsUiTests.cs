@@ -189,7 +189,7 @@ namespace BureauCache.Tests
             });
             ui.SetApartmentState(ApartmentState.STA);
             ui.Start();
-            ui.Join();
+            Assert.IsTrue(ui.Join(30000), "Le fil d'interface du test n'a pas terminé en 30 s (QA34-11).");
             if (failure != null) ExceptionDispatchInfo.Capture(failure).Throw();
         }
 
