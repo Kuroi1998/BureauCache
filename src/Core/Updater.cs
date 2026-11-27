@@ -160,7 +160,7 @@ static class Updater
             // Version plus récente publiée sans ses fichiers d'installation : ne pas annoncer « à jour » (R-06)
             result.Incomplete = newer && !result.Available;
         }
-        catch (Exception ex) { result.Error = ex.Message; }
+        catch (Exception ex) { result.Error = Http.FriendlyError(ex); }
         return result;
     }
 

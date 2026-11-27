@@ -79,6 +79,9 @@ class FlatButton : FlatControl
     public bool Primary, Danger;
     bool hover;
 
+    protected override AccessibleRole FlatRole { get { return AccessibleRole.PushButton; } }
+    protected override string FlatDefaultAction { get { return L.T("Appuyer", "Press", "Pulsar"); } }
+
     public FlatButton(string text, bool primary, int width = 0)
     {
         Text = text;
@@ -116,7 +119,7 @@ class FlatButton : FlatControl
         Color bg = Primary || Danger ? (hover ? Theme.Mix(fill, Color.Black, 0.12f) : fill) : (hover ? Theme.Hover : Theme.Surface);
         if (!Enabled) bg = Theme.Surface;
         Color text = !Enabled ? Theme.FgDim : Primary || Danger ? Color.White : Theme.Fg;
-        if (SettingsKeyboard && Enabled && (Primary || Danger)) text = SettingsPalette.OnFill(bg);
+        if (Enabled && (Primary || Danger)) text = SettingsPalette.OnFill(bg);   // accent clair : texte sombre (GEM-10)
         if (SettingsHighContrast)
         {
             bg = Primary && Enabled ? SystemColors.Highlight : SystemColors.Control;

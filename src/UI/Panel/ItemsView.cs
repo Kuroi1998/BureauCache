@@ -233,6 +233,39 @@ partial class ItemsView : Control
     // ---------- Dessin ----------
     protected override void OnPaintBackground(PaintEventArgs e) { owner.PaintBg(e.Graphics, e.ClipRectangle, Location); }
 
+    // Lecteurs d'écran (GEM-07) : la liste annonce l'élément sélectionné (nom et détail) à chaque changement
+    int announced = -2;
+
+    protected override AccessibleObject CreateAccessibilityInstance() { return new ListAccessible(this); }
+
+    protected override void OnInvalidated(InvalidateEventArgs e)
+    {
+        base.OnInvalidated(e);
+        if (sel == announced || !IsHandleCreated) return;
+        announced = sel;
+        AccessibilityNotifyClients(AccessibleEvents.Selection, -1);
+        AccessibilityNotifyClients(AccessibleEvents.ValueChange, -1);
+    }
+
+    internal string SelectionText
+    {
+        get
+        {
+            DesktopItem it = Selected;
+            if (it == null) return null;
+            return string.IsNullOrEmpty(it.Detail) ? it.Name : it.Name + ", " + it.Detail;
+        }
+    }
+
+    sealed class ListAccessible : ControlAccessibleObject
+    {
+        readonly ItemsView v;
+        public ListAccessible(ItemsView owner) : base(owner) { v = owner; }
+        public override AccessibleRole Role { get { return AccessibleRole.List; } }
+        public override string Name { get { return L.T("Éléments du bureau", "Desktop items", "Elementos del escritorio"); } set { } }
+        public override string Value { get { return v.SelectionText ?? (string.IsNullOrEmpty(v.EmptyText) ? "" : v.EmptyText); } set { } }
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         Graphics g = e.Graphics;

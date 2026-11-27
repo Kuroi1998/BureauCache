@@ -66,6 +66,10 @@ class CleanupDialog : ThemedDialog
         AddButtons(DoClean, L.T("Nettoyer", "Clean up", "Limpiar"));
         bClean = Controls.OfType<FlatButton>().First(b => b.Primary);
         Controls.OfType<FlatButton>().First(b => !b.Primary).Text = L.T("Fermer", "Close", "Cerrar");
+        // Le texte d'état peut prendre plusieurs lignes (applications à fermer, résultat précédent, espagnol) :
+        // la fenêtre grandit avec lui et les boutons descendent d'autant, au lieu de couper le texte (GEM-11)
+        baseHeight = ClientSize.Height;
+        status.SizeChanged += (s, e) => FitStatus();
         Shown += (s, e) => Analyse();
     }
 
@@ -108,6 +112,17 @@ class CleanupDialog : ThemedDialog
             text += " *";
         sizes[i].Text = text;
         sizes[i].ForeColor = c.Size > 0 ? Theme.Fg : Theme.FgDim;
+    }
+
+    int baseHeight;
+
+    internal void FitStatus()
+    {
+        int want = Math.Max(baseHeight, status.Bottom + Ui.S(16));
+        int delta = want - ClientSize.Height;
+        if (delta == 0) return;
+        ClientSize = new Size(ClientSize.Width, want);
+        foreach (FlatButton b in Controls.OfType<FlatButton>()) b.Top += delta;
     }
 
     void UpdateTotal()

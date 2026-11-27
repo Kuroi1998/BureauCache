@@ -16,17 +16,25 @@ static class Theme
 {
     static Color D(int r, int g, int b, int lr, int lg, int lb)
     { return Settings.Dark ? Color.FromArgb(r, g, b) : Color.FromArgb(lr, lg, lb); }
-    public static Color Bg { get { return D(24, 24, 28, 243, 243, 247); } }
-    public static Color Side { get { return D(31, 31, 37, 233, 233, 239); } }
-    public static Color Card { get { return D(36, 36, 42, 255, 255, 255); } }
-    public static Color Surface { get { return D(46, 46, 54, 232, 232, 238); } }
-    public static Color Hover { get { return D(54, 54, 63, 222, 222, 230); } }
-    public static Color Line { get { return D(50, 50, 58, 228, 228, 235); } }
-    public static Color Track { get { return D(72, 72, 84, 200, 200, 210); } }
-    public static Color Fg { get { return D(236, 236, 241, 24, 24, 28); } }
-    public static Color FgDim { get { return D(150, 150, 162, 105, 105, 115); } }
+
+    // Mode Contraste élevé de Windows : les couleurs du thème choisi par l'utilisateur remplacent celles de
+    // BureauCache, dans le panneau comme dans les fenêtres (GEM-10). Forçable par les tests.
+    internal static bool? HighContrastOverride;
+    public static bool HighContrast { get { return HighContrastOverride ?? SystemInformation.HighContrast; } }
+    static Color H(Color system, Color normal) { return HighContrast ? system : normal; }
+
+    public static Color Bg { get { return H(SystemColors.Window, D(24, 24, 28, 243, 243, 247)); } }
+    public static Color Side { get { return H(SystemColors.Window, D(31, 31, 37, 233, 233, 239)); } }
+    public static Color Card { get { return H(SystemColors.Window, D(36, 36, 42, 255, 255, 255)); } }
+    public static Color Surface { get { return H(SystemColors.Control, D(46, 46, 54, 232, 232, 238)); } }
+    public static Color Hover { get { return H(SystemColors.Highlight, D(54, 54, 63, 222, 222, 230)); } }
+    public static Color Line { get { return H(SystemColors.WindowText, D(50, 50, 58, 228, 228, 235)); } }
+    public static Color Track { get { return H(SystemColors.WindowText, D(72, 72, 84, 200, 200, 210)); } }
+    public static Color Fg { get { return H(SystemColors.WindowText, D(236, 236, 241, 24, 24, 28)); } }
+    // Thème clair : (92, 92, 102) donne 5,4:1 sur Surface, au-dessus du seuil AA de 4,5:1 (GEM-10 : 4,45:1 avant)
+    public static Color FgDim { get { return H(SystemColors.GrayText, D(150, 150, 162, 92, 92, 102)); } }
     public static Color Danger { get { return Color.FromArgb(239, 68, 68); } }
-    public static Color Accent { get { return Settings.Accent; } }
+    public static Color Accent { get { return H(SystemColors.Highlight, Settings.Accent); } }
     public static Color HoverOverlay { get { return Settings.Dark ? Color.FromArgb(26, 255, 255, 255) : Color.FromArgb(16, 0, 0, 0); } }
     public static Color SelOverlay { get { return Settings.Dark ? Color.FromArgb(44, 255, 255, 255) : Color.FromArgb(28, 0, 0, 0); } }
 

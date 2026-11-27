@@ -52,4 +52,33 @@ static class Http
         }
         throw new IOException(L.T("Trop de redirections.", "Too many redirects.", "Demasiadas redirecciones."));
     }
+    // Message court et traduit pour une erreur réseau, au lieu du texte système souvent en anglais (GEM-12).
+    // Les messages déjà rédigés par BureauCache (IOException levées ici ou par Updater) sont gardés tels quels.
+    public static string FriendlyError(Exception ex)
+    {
+        WebException web = ex as WebException;
+        if (web == null && ex != null) web = ex.InnerException as WebException;
+        if (web == null) return ex == null ? "" : ex.Message;
+        switch (web.Status)
+        {
+            case WebExceptionStatus.NameResolutionFailure:
+            case WebExceptionStatus.ConnectFailure:
+            case WebExceptionStatus.ProxyNameResolutionFailure:
+                return L.T("Pas de connexion à Internet. Vérifie ta connexion puis réessaie.", "No Internet connection. Check your connection and try again.", "Sin conexión a Internet. Comprueba la conexión y vuelve a intentarlo.");
+            case WebExceptionStatus.Timeout:
+                return L.T("Le service ne répond pas. Réessaie dans un moment.", "The service isn't responding. Try again in a moment.", "El servicio no responde. Vuelve a intentarlo en un momento.");
+            case WebExceptionStatus.TrustFailure:
+            case WebExceptionStatus.SecureChannelFailure:
+                return L.T("Connexion sécurisée impossible (date de l'ordinateur ou réseau filtré ?).", "Secure connection failed (computer clock or filtered network?).", "No se pudo establecer una conexión segura (¿fecha del equipo o red filtrada?).");
+            case WebExceptionStatus.ProtocolError:
+                HttpWebResponse r = web.Response as HttpWebResponse;
+                int code = r != null ? (int)r.StatusCode : 0;
+                if (code == 403 || code == 429)
+                    return L.T("Trop de demandes envoyées au service. Réessaie plus tard.", "Too many requests sent to the service. Try again later.", "Se enviaron demasiadas solicitudes al servicio. Inténtalo más tarde.");
+                if (code >= 500)
+                    return L.T("Le service est momentanément indisponible. Réessaie plus tard.", "The service is temporarily unavailable. Try again later.", "El servicio no está disponible por ahora. Inténtalo más tarde.");
+                return L.T("Le service a refusé la demande (erreur ", "The service refused the request (error ", "El servicio rechazó la solicitud (error ") + code + ").";
+        }
+        return L.T("Erreur réseau. Réessaie plus tard.", "Network error. Try again later.", "Error de red. Inténtalo más tarde.");
+    }
 }

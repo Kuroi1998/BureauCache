@@ -72,7 +72,7 @@ partial class PanelForm
             case 2: return DateTime.Now.ToString("D", L.Culture);
             case 3: return L.T("Clic : Ce PC · Clic droit : nettoyage rapide", "Click: This PC · Right-click: quick clean-up", "Clic: Este equipo · Clic derecho: limpieza rápida");
             case 4: return L.T("Clic : ouvrir la corbeille · Clic droit : la vider", "Click: open the Recycle Bin · Right-click: empty it", "Clic: abrir la papelera · Clic derecho: vaciarla");
-            case 6: return L.T("Clic : prévisions sur 3 jours · Clic droit : actualiser ou changer de lieu", "Click: 3-day forecast · Right-click: refresh or change place", "Clic: previsión de 3 días · Clic derecho: actualizar o cambiar de lugar");
+            case 6: return L.T("Clic : prévisions sur 3 jours · Clic droit : actualiser ou changer de lieu", "Click: 3-day forecast · Right-click: refresh or change place", "Clic: previsión de 3 días · Clic derecho: actualizar o cambiar de lugar") + " · Open-Meteo.com (CC BY 4.0)";   // attribution (GEM-05)
             case 7: return L.T("= : calculer (ex. = 12*7)", "= : calculate (e.g. = 12*7)", "= : calcular (p. ej. = 12*7)");
             case 8: return L.T("? puis un mot : chercher sur le web (« ? » seul affiche l'aide)", "? then a word: search the web (\"?\" alone shows help)", "? y una palabra: buscar en la web («?» solo muestra la ayuda)");
             case 9: return L.T("> : commandes système (verrouiller, veille…)", "> : system commands (lock, sleep…)", "> : comandos del sistema (bloquear, suspender…)");

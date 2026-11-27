@@ -97,7 +97,7 @@ class WeatherPlaceDialog : ThemedDialog
         {
             List<WeatherPlace> found = null;
             string error = null;
-            try { found = Weather.Search(q); } catch (Exception ex) { error = ex.Message; }
+            try { found = Weather.Search(q); } catch (Exception ex) { error = Http.FriendlyError(ex); }
             Done(() =>
             {
                 if (found != null) ShowResults(found);

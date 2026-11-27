@@ -279,7 +279,7 @@ partial class App : ApplicationContext
         {
             string error = null;
             try { Updater.Download(release, exe); }
-            catch (Exception ex) { error = ex.Message; }
+            catch (Exception ex) { error = Http.FriendlyError(ex); }
             panel.BeginInvoke(new Action(() =>
             {
                 installingUpdate = false;

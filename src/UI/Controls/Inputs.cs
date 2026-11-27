@@ -8,7 +8,7 @@ using System.Windows.Forms;
 // =====================================================================
 //  Contrôles dessinés à la main
 // =====================================================================
-abstract class FlatControl : Control
+abstract partial class FlatControl : Control
 {
     protected bool SettingsKeyboard { get; private set; }
 
@@ -72,6 +72,10 @@ class Toggle : FlatControl
             Invalidate();
         };
     }
+
+    protected override AccessibleRole FlatRole { get { return AccessibleRole.CheckButton; } }
+    protected override AccessibleStates FlatState { get { return on ? AccessibleStates.Checked : AccessibleStates.None; } }
+    protected override string FlatDefaultAction { get { return on ? L.T("Désactiver", "Turn off", "Desactivar") : L.T("Activer", "Turn on", "Activar"); } }
 
     public bool Checked
     {
@@ -139,6 +143,15 @@ class Segmented : FlatControl
         Size = new Size((w + Ui.S(22)) * opts.Length + Ui.S(6), Ui.S(32));
     }
 
+    protected override AccessibleRole FlatRole { get { return AccessibleRole.ComboBox; } }
+    protected override string FlatValue { get { return sel >= 0 && sel < opts.Length ? opts[sel] : null; } }
+    protected override string FlatDefaultAction { get { return L.T("Choix suivant", "Next choice", "Opción siguiente"); } }
+    protected override void FlatDoDefault()
+    {
+        sel = (sel + 1) % opts.Length; Invalidate();
+        if (Changed != null) Changed(this, EventArgs.Empty);
+    }
+
     public int Selected
     {
         get { return sel; }
@@ -204,6 +217,9 @@ class Slider : FlatControl
         Min = min; Max = max; Step = step;
         Size = new Size(Ui.S(170), Ui.S(26));
     }
+
+    protected override AccessibleRole FlatRole { get { return AccessibleRole.Slider; } }
+    protected override string FlatValue { get { return val.ToString(); } }
 
     public int Value
     {

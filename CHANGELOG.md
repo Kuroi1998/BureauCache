@@ -6,6 +6,11 @@
 - Une mise à jour venant d'un dépôt non officiel est signalée comme non signée, et « Non » est proposé par défaut.
 - La météo n'envoie plus qu'une position arrondie à environ 1 km.
 - Une copie faite pendant qu'une autre application occupe le presse-papiers est relue un instant plus tard au lieu d'être perdue.
+- Premiers pas utilisables au clavier (Tab, Espace, Entrée), avec la touche F1 signalée.
+- Les lecteurs d'écran (Narrateur, NVDA) annoncent les interrupteurs, choix, curseurs et boutons, et l'élément sélectionné dans le panneau.
+- Textes secondaires plus contrastés en thème clair ; le mode Contraste élevé de Windows est respecté.
+- Les erreurs réseau sont expliquées simplement (pas de connexion, service indisponible…) au lieu d'un message technique.
+- Le texte du nettoyage n'est plus coupé quand il fait plusieurs lignes.
 
 ## 3.10 — Règles de rangement, recherche dans le contenu, presse-papiers
 
