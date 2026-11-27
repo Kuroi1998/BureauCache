@@ -28,7 +28,7 @@ BureauCache cache les icônes du bureau Windows et les réaffiche dans un pannea
 | `src/Shell` | Icônes, miniatures et cache, verbes et raccourcis du shell ; fil STA dédié aux verbes de « Plus d'options » | `Icons`, `IconCache`, `ShellUtil`, `ShellWorker` | Core |
 | `src/UI` | Thème et dessin, glyphes, dialogues, visite guidée | `Theme`, `Ui`, `Menus`, `Glyphs`, `ThemedDialog`, `MessageDialog`, `BackupDialog`, `RuleDialog`, `WelcomeForm` | Core |
 | `src/UI/Controls` | Contrôles dessinés à la main, avec leur objet accessible (`Accessibility.cs`, GEM-07) | `Toggle`, `Segmented`, `Slider`, `Swatches`, `HotkeyBox`, `FlatButton`, `SideNav`… | UI |
-| `src/UI/Panel` | Panneau principal | `PanelForm` (partial : `.cs`, `.Window`, `.Data`, `.Actions`, `.Input`, `.Hints`, `.Weather`, `.Content`, `.Clipboard`), `ItemsView` (partial : `.cs`, `.Input`), `PreviewForm`, `ToastControl` | Data, Search, Shell, UI |
+| `src/UI/Panel` | Panneau principal | `PanelForm` (partial : `.cs`, `.Window`, `.Data`, `.Actions`, `.Input`, `.Hints`, `.Weather`, `.Content`, `.Clipboard`), `ItemsView` (partial : `.cs`, `.Input`, `.Tiles`), `PreviewForm`, `ToastControl` | Data, Search, Shell, UI |
 | `src/UI/Settings` | Fenêtre de paramètres et disposition des six rubriques | `SettingsForm` (partial : `.cs`, `.Pages`, `.Values`, `.Advanced`, `.Layout`, `.Weather`, `.Rules`, `.Clutter`), `SettingsNavigation`, `SettingsActions` | Core, UI |
 | `src/Properties` | Métadonnées et **seul emplacement du numéro de version** | `AppInfo.Version` | — |
 

@@ -42,7 +42,7 @@ partial class PanelForm
         Rectangle text = new Rectangle(x, rcWeather.Y + S(4), rcWeather.Right - x - rw, S(20));
         TextRenderer.DrawText(g, Weather.Describe(w.Code), fSmall, text, Theme.Fg, left);
         text.Y += S(18);
-        TextRenderer.DrawText(g, Settings.WeatherPlace, fSmall, text, Theme.FgDim, left);
+        TextRenderer.DrawText(g, Weather.ShortPlace(Settings.WeatherPlace), fSmall, text, Theme.FgDim, left);
         if (rw > 0)
             TextRenderer.DrawText(g, range, fSmall, new Rectangle(rcWeather.Right - rw, rcWeather.Y, rw - S(6), rcWeather.Height), Theme.FgDim,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.Right | TextFormatFlags.NoPrefix);

@@ -133,7 +133,7 @@ partial class ItemsView : Control
                 y += HeaderH;
                 if (!g.IsSearch && Settings.Collapsed.Contains(g.Key)) { y += S(2); continue; }
             }
-            if (Grid)
+            if (Grid && !g.AsList)
             {
                 int avail = w - S(8);
                 int cols = Math.Max(1, avail / MinCellW);
@@ -278,11 +278,12 @@ partial class ItemsView : Control
             VRow row = rows[i];
             Rectangle r = Screenify(row.R);
             if (row.IsHeader) DrawHeader(g, row, r, i == hover);
-            else if (Grid) DrawCell(g, row.Item, r, i == sel, i == hover, dragging && row == dragRow);
+            else if (Grid && !row.G.AsList) DrawCell(g, row.Item, r, i == sel, i == hover, dragging && row == dragRow);
+            else if (row.Item.Kind == ItemKind.Clip) DrawClipItem(g, row.Item, r, i == sel, i == hover);
             else DrawListItem(g, row.Item, r, i == sel, i == hover, dragging && row == dragRow);
             if (ShowNumbers && !row.IsHeader && row.G.Key == "fav" && row.IndexInGroup < 9)
             {
-                Point ip = Grid ? new Point(r.X + (r.Width - S(48)) / 2, r.Y + S(10)) : new Point(r.X + S(12), r.Y + (r.Height - S(32)) / 2);
+                Point ip = Grid && !row.G.AsList ? new Point(r.X + (r.Width - S(48)) / 2, r.Y + S(10)) : new Point(r.X + S(12), r.Y + (r.Height - S(32)) / 2);
                 Rectangle badge = new Rectangle(ip.X - S(6), ip.Y - S(6), S(20), S(20));
                 Ui.Fill(g, Theme.Accent, badge, S(10));
                 using (Pen p = new Pen(Theme.Bg, S(2))) g.DrawEllipse(p, badge);
@@ -455,8 +456,6 @@ partial class ItemsView : Control
             using (Pen p = new Pen(Theme.Bg, S(2))) g.DrawEllipse(p, dot);
         }
         Rectangle tr = new Rectangle(r.X + S(6), ir.Bottom + S(4), r.Width - S(12), r.Bottom - ir.Bottom - S(8));
-        TextRenderer.DrawText(g, it.Name, fGrid, tr, ghost ? Theme.FgDim : Theme.Fg,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis |
-            TextFormatFlags.TextBoxControl | TextFormatFlags.NoPrefix);
+        DrawTileName(g, it.Name, tr, ghost ? Theme.FgDim : Theme.Fg);
     }
 }

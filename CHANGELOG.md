@@ -11,6 +11,10 @@
 - Textes secondaires plus contrastés en thème clair ; le mode Contraste élevé de Windows est respecté.
 - Les erreurs réseau sont expliquées simplement (pas de connexion, service indisponible…) au lieu d'un message technique.
 - Le texte du nettoyage n'est plus coupé quand il fait plusieurs lignes.
+- Les noms des icônes ne sont plus coupés au milieu d'un mot : la coupure se fait aux espaces et aux tirets, sinon le nom finit par « … ».
+- Le presse-papiers s'affiche en liste compacte, avec un aperçu du texte et un bouton « Copier » au survol.
+- La météo affiche simplement « Ville, Pays », et l'espace disque « 130 Go libres » sur une ligne.
+- La Corbeille et Ce PC n'apparaissent plus dans les Récents.
 
 ## 3.10 — Règles de rangement, recherche dans le contenu, presse-papiers
 

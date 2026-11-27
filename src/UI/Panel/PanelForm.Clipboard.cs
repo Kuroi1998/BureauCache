@@ -34,7 +34,7 @@ partial class PanelForm
     {
         List<DesktopItem> items = ClipItems(px);
         if (items.Count == 0) return null;
-        return new Group { Key = "clip", Title = L.T("Presse-papiers", "Clipboard", "Portapapeles"), Glyph = Glyphs.Copy, Items = items.Take(ClipShown).ToList() };
+        return new Group { Key = "clip", Title = L.T("Presse-papiers", "Clipboard", "Portapapeles"), Glyph = Glyphs.Copy, Items = items.Take(ClipShown).ToList(), AsList = true };
     }
 
     void RemoveClip(DesktopItem it)

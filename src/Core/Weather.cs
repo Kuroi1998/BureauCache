@@ -188,6 +188,16 @@ static class Weather
 
     // ---------- Lecture des réponses JSON (analyseur strict Json, revue QA-23) ----------
     // Texte destiné à l'affichage : caractères de contrôle (\t, \n, \b, \f…) remplacés par des espaces
+    // « Saint-Ghislain, Région wallonne, Belgique » → « Saint-Ghislain, Belgique » : la ville et le pays suffisent
+    // dans le panneau (D-012). Fonctionne aussi avec un lieu enregistré par une version précédente.
+    public static string ShortPlace(string label)
+    {
+        if (string.IsNullOrEmpty(label)) return label ?? "";
+        string[] parts = label.Split(',');
+        if (parts.Length <= 2) return label.Trim();
+        return parts[0].Trim() + ", " + parts[parts.Length - 1].Trim();
+    }
+
     internal static string Display(string s)
     {
         if (s == null) return null;

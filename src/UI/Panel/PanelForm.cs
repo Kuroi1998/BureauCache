@@ -260,9 +260,10 @@ partial class PanelForm : Form
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
 
         Ui.Glyph(g, Glyphs.Drive, 9f, Theme.FgDim, new Rectangle(rcDisk.X + S(6), rcDisk.Y + S(4), S(18), S(20)));
-        TextRenderer.DrawText(g, diskTotal > 0 ? L.Size(diskFree) : "—", fSmall, new Rectangle(rcDisk.X + S(24), rcDisk.Y + S(4), rcDisk.Width - S(28), S(20)), Theme.Fg,
+        // « 130 Go libres » sur une seule ligne, au-dessus d'une barre fine aux bouts arrondis (D-012)
+        TextRenderer.DrawText(g, diskTotal > 0 ? L.Size(diskFree) + " " + L.T("libres", "free", "libres") : "—", fSmall, new Rectangle(rcDisk.X + S(24), rcDisk.Y + S(4), rcDisk.Width - S(28), S(20)), Theme.Fg,
             TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
-        Rectangle bar = new Rectangle(rcDisk.X + S(8), rcDisk.Y + S(28), rcDisk.Width - S(16), S(5));
+        Rectangle bar = new Rectangle(rcDisk.X + S(10), rcDisk.Y + S(32), rcDisk.Width - S(20), S(4));
         Ui.Fill(g, Theme.Track, bar, S(2));
         if (diskTotal > 0)
         {
@@ -270,8 +271,6 @@ partial class PanelForm : Form
             Color c = used > 0.9f ? Theme.Danger : Theme.Accent;
             Ui.Fill(g, c, new RectangleF(bar.X, bar.Y, Math.Max(S(4), bar.Width * used), bar.Height), S(2));
         }
-        TextRenderer.DrawText(g, L.T("libres", "free", "libre"), fSmall, new Rectangle(rcDisk.X, rcDisk.Y + S(32), rcDisk.Width, S(14)), Theme.FgDim,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPrefix);
 
         Ui.Glyph(g, Glyphs.Delete, 9f, Theme.FgDim, new Rectangle(rcBin.X + S(6), rcBin.Y + S(4), S(18), S(20)));
         string bt = binCount == 0 ? L.T("vide", "empty", "vacía") : binCount.ToString();

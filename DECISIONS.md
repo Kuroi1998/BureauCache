@@ -10,6 +10,13 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 **Conséquences :** ce que ça impose ensuite.
 -->
 
+## D-012 — Refonte visuelle « Windows 11 » en quatre étapes (2026-11-27) · Statut : Acceptée
+
+**Contexte :** cahier des charges de refonte du chef de projet (panneau et Paramètres), confronté au code et aux captures réelles (T-031).
+**Décision :** quatre étapes, chacune validée à l'écran avant la suivante. (1) Défauts visibles : noms de tuiles coupés aux espaces et tirets avec « … », presse-papiers en liste compacte (`Group.AsList`), « Ville, Pays » dans la tuile météo, « 130 Go libres » sur une ligne et barre de 4 px, Corbeille et Ce PC absents des Récents. (2) Style commun : rayons, espacements et bordure de 1 px (blanc à 6–10 %) définis dans `Theme`, survol des cartes et tuiles. (3) Paramètres : boutons du bas secondaire et discret, bouton « danger » sobre, onglet actif plus discret, cadre de focus seulement au clavier, barre de titre sombre (attribut 19 en plus du 20) et couleur de légende `DWMWA_CAPTION_COLOR` (attribut 35, Windows 11) sur le fond de `Theme`, pour l'utilisateur qui affiche la couleur d'accentuation dans les barres de titre. (4) Icônes : `= ? >` en glyphes, Segoe Fluent Icons si présente, sinon Segoe MDL2 Assets.
+**Alternatives écartées :** Mica ou Acrylic par DWM (zone cliente transparente, incompatible avec le dessin maison ; l'effet verre existant reste) ; une classe `UiTheme` séparée (doublon de `Theme`) ; supprimer le cadre de focus (nécessaire au clavier et aux lecteurs d'écran, T-030).
+**Conséquences :** aucun changement de logique métier ; chaque étape a ses tests et un essai réel sur le binaire.
+
 ## D-011 — Presse-papiers et bureaux virtuels (2026-11-27) · Statut : Acceptée
 
 **Contexte :** deux demandes du chef de projet (T-026). Windows a déjà un historique du presse-papiers (Win+V), et affiche les mêmes icônes du bureau sur tous les bureaux virtuels.
