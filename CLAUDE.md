@@ -29,23 +29,22 @@ Lire d'abord [ARCHITECTURE.md](ARCHITECTURE.md), [TASKS.md](TASKS.md) et [DECISI
 
 ## Délégation (obligatoire)
 
-- Doc récente, capture d'écran ou log volumineux : je ne devine pas. Je fais appel à **Gemini**, avec l'export `.ai/export-gemini.md` (régénéré par `repomix` juste avant) ou les captures, et le format de réponse attendu.
+- Doc récente, capture d'écran ou log volumineux : je ne devine pas. Je fournis un bloc **PROMPT GEMINI** prêt à copier, avec les fichiers à joindre (`.ai/export-gemini.md`, régénéré par `repomix` juste avant, ou les captures) et le format de réponse attendu. Gemini n'est pas appelé depuis le terminal (choix du chef de projet, D-015).
 - Fin d'un module important : je fais appel à **Codex (ChatGPT)** pour des tests ou une revue critique qui rappelle les contraintes C# 5 et MSTest, sur le diff `.ai/diff-chatgpt.patch`.
 - Les retours de Gemini et ChatGPT sont des avis : je vérifie chaque remarque dans le code avant de l'appliquer et je dis lesquelles j'écarte, avec la raison.
 
 ### Appel direct depuis le terminal
 
-Gemini CLI et Codex CLI sont installés (npm, profil utilisateur). Je les lance moi-même, **toujours en lecture seule** : un seul agent écrit dans le dépôt, moi. Les nuits de modifications non coordonnées (QA-61 à QA-65) ne doivent pas se reproduire. Ils lisent leurs consignes dans [GEMINI.md](GEMINI.md) et [AGENTS.md](AGENTS.md).
+Codex CLI (ChatGPT) est installé et connecté. Je le lance moi-même, **toujours en lecture seule** : un seul agent écrit dans le dépôt, moi. Les nuits de modifications non coordonnées (QA-61 à QA-65) ne doivent pas se reproduire. Il lit ses consignes dans [AGENTS.md](AGENTS.md). Gemini reste hors terminal : [GEMINI.md](GEMINI.md) sert de rappel des règles à coller dans ses prompts.
 
 ```powershell
-repomix                                                                   # export à jour avant Gemini
-gemini --approval-mode plan -p "…"                                        # Gemini, lecture seule
+repomix                                                                   # export à jour, à joindre au prompt Gemini
 git diff main...HEAD > .ai/diff-chatgpt.patch
 codex exec -s read-only "…"                                               # Codex, lecture seule
 ```
 
 - Les appels utilisent les comptes du chef de projet : je dis quand j'en lance un et pourquoi (une revue par module, une recherche par question ouverte), sans boucle.
-- Si un outil n'est pas connecté ou échoue, je reviens au bloc **PROMPT GEMINI** ou **PROMPT CHATGPT** prêt à copier.
+- Les outils sont installés dans le vrai profil (pas dans la copie privée de l'application Claude) : Codex se lance hors du bac à sable de mes commandes. S'il échoue, je reviens au bloc **PROMPT CHATGPT** prêt à copier.
 - Je ne leur demande jamais d'écrire, de lancer `--yolo`, `-s workspace-write` ou `--dangerously-bypass-approvals-and-sandbox`, et je ne leur transmets aucun secret (clés de signature, mots de passe).
 
 ## Commandes utiles
