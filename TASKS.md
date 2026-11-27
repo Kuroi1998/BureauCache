@@ -14,7 +14,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-025 | Recherche dans le contenu des fichiers, statistiques d'encombrement | Fait (3.10) ; essais réels faits sur le binaire et la 3.10 installée | Claude | PR #22 | D-010, QA-41, QA-43 |
 | T-026 | Historique du presse-papiers, panneau sur le bureau virtuel actif | Fait (3.10) ; essais réels faits sur le binaire et la 3.10 installée | Claude | PR #22 | D-011, QA-42, QA-43 |
 | T-027 | Échelle par écran (DPI par moniteur) | Reporté (un seul écran aujourd'hui) | Claude | — | D-008, R-10 |
-| T-028 | Audit global : sécurité, fonctionnalités, environnement, expérience, failles (Claude, Gemini, ChatGPT) | En cours (premier passage de Claude fait, QA-44) | Claude, Gemini, ChatGPT | `audit/T-028-audit-global` | QA-44 |
+| T-028 | Audit global : sécurité, fonctionnalités, environnement, expérience, failles (Claude, Gemini, ChatGPT) | En cours (Claude et Gemini triés, ChatGPT attendu) | Claude, Gemini, ChatGPT | `audit/T-028-audit-global` | QA-44, QA-45 |
 | T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel fait sur la 3.9 installée | Claude puis Toi | PR #19 | D-007, QA-32, QA-33 |
 | T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |
 | T-018 | Verbes du shell sur un fil dédié, liste des écrans suivie (QA-28, QA-29) | Fait (3.8) ; essais manuels encore à faire | Claude | PR #16 | QA-28 |
@@ -83,6 +83,7 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-27 · Claude · PR #20, #21 et #22 fusionnées (T-022 à T-026 en une seule PR pour éviter les fermetures en cascade des PR empilées) ; CI au vert.
 - 2026-11-27 · Toi · Version 3.10 publiée et signée (T-021 à T-026) ; mise à jour installée depuis la 3.9.
 - 2026-11-27 · Toi puis Claude · T-028 : audit global lancé. Premier passage de Claude : 4 constats (AUD-01 à 04, dont un dépôt de mise à jour modifiable par un fichier de réglages importé), QA-44 ; prompts de Gemini et ChatGPT fournis.
+- 2026-11-27 · Gemini puis Claude · T-028 : 14 constats de Gemini vérifiés dans le code ; 9 retenus à corriger, 2 hors code (signature Authenticode, documentation), 1 rattaché à T-027, 2 en partie, 3 écartés (QA-45).
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.
