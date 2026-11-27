@@ -1,6 +1,6 @@
 ﻿# Nouveautés
 
-## Non publié
+## 3.10 — Règles de rangement, recherche dans le contenu, presse-papiers
 
 - Moins de fenêtres à valider : restaurer une sauvegarde ou importer des réglages ne redemande plus de confirmation (c'est réversible), et les résultats (export, import, restauration, rangement, nettoyage) s'affichent directement dans la fenêtre.
 - Un échec d'annulation s'affiche dans le bandeau du panneau.
