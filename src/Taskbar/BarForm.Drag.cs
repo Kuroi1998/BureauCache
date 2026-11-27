@@ -7,16 +7,19 @@ partial class BarForm
 {
     bool dragging;
     int dragIndex = -1, pressIndex = -1;
+    BarButton pressedButton;
     Point pressPoint;
 
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
         pressIndex = -1;
+        pressedButton = null;
         if (e.Button != MouseButtons.Left) return;
         int i = WindowZoneAt(e.Location) - WindowZone;
         if (i < 0 || i >= shown || i >= buttons.Count) return;
         pressIndex = i;
+        pressedButton = buttons[i];
         pressPoint = e.Location;
     }
 
@@ -27,6 +30,7 @@ partial class BarForm
         if (pressIndex < 0 || (MouseButtons & MouseButtons.Left) == 0) return false;
         if (!dragging)
         {
+            if (!StillPressed(pressIndex)) return false;
             Size d = SystemInformation.DragSize;
             if (Math.Abs(p.X - pressPoint.X) < d.Width && Math.Abs(p.Y - pressPoint.Y) < d.Height) return false;
             dragging = true;
@@ -46,11 +50,20 @@ partial class BarForm
         return true;
     }
 
+    bool StillPressed(int index)
+    {
+        if (pressedButton == null || index != pressIndex || index < 0 || index >= shown || index >= buttons.Count) return false;
+        BarButton current = buttons[index];
+        return current.Window == pressedButton.Window && current.Pinned == pressedButton.Pinned &&
+               string.Equals(current.Key, pressedButton.Key, StringComparison.OrdinalIgnoreCase);
+    }
+
     // Vrai si un glissement vient de se terminer : ce relâchement n'est pas un clic. L'ordre des épingles est
     // enregistré, celui des fenêtres vaut pour la session.
     bool DragEnd()
     {
         pressIndex = -1;
+        pressedButton = null;
         if (!dragging) return false;
         dragging = false;
         dragIndex = -1;

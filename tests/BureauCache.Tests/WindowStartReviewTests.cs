@@ -141,6 +141,32 @@ static class Icons {
     }
 
     [TestMethod]
+    public void RefreshRetriesARejectedHookAfterStartup()
+    {
+        listType.GetMethod("Start").Invoke(list, null);
+        Assert.AreEqual(1, native.GetField("FailedRangeAttempts").GetValue(null));
+        listType.GetMethod("Refresh").Invoke(list, null);
+        Assert.AreEqual(2, native.GetField("FailedRangeAttempts").GetValue(null));
+    }
+
+    [TestMethod]
+    public void DisposingThumbnailPreviewReleasesItsIcon()
+    {
+        using (WindowPreview preview = new WindowPreview())
+        {
+            Bitmap owned = new Bitmap(8, 8);
+            FieldInfo icon = typeof(WindowPreview).GetField("icon", BindingFlags.Instance | BindingFlags.NonPublic);
+            icon.SetValue(preview, owned);
+            try
+            {
+                preview.Dispose();
+                Assert.IsNull(icon.GetValue(preview));
+            }
+            finally { owned.Dispose(); }
+        }
+    }
+
+    [TestMethod]
     public void BAR_12_InitialsKeepWholeUnicodeCharacters()
     {
         Assert.AreEqual("\U00010400M", SessionActions.Initials("\U00010400 Martin"));

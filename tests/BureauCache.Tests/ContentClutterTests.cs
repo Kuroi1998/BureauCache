@@ -91,6 +91,16 @@ public class ContentClutterTests
     }
 
     [TestMethod]
+    public void ContentSearchSkipsWordsMadeOfSeparators()
+    {
+        string[] folders = { @"C:\Bureau" };
+        Assert.IsFalse(ContentSearch.Applies("... --"));
+        Assert.IsNull(ContentSearch.BuildQuery("... --", folders, 20));
+        string sql = ContentSearch.BuildQuery("facture --- rapport", folders, 20);
+        StringAssert.Contains(sql, "'\"facture*\" AND \"rapport*\"'");
+    }
+
+    [TestMethod]
     public void RealIndexIsNeverQueriedDuringTests()
     {
         try { ContentSearch.Find("facture", 5); Assert.Fail("Le bac à sable doit bloquer l'index Windows."); }
@@ -165,6 +175,16 @@ public class ContentClutterTests
         Assert.IsTrue(size <= 30);
         Assert.AreEqual(50, Clutter.SizeOf(Path.Combine(desk, "Gros"), 100, out partial));
         Assert.IsFalse(partial);
+    }
+
+    [TestMethod]
+    public void AFileThatDisappearsDuringTheScanMakesItsSizePartial()
+    {
+        string path = NewFile("disparu.txt", 32, 1);
+        File.Delete(path);
+        bool partial;
+        Assert.AreEqual(0L, Clutter.SizeOf(path, 10, out partial));
+        Assert.IsTrue(partial);
     }
 
     [TestMethod]

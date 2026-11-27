@@ -80,6 +80,14 @@ public class ClipboardDesktopTests
     static DataObject Text(string s) { DataObject d = new DataObject(); d.SetData(DataFormats.UnicodeText, s); return d; }
 
     [TestMethod]
+    public void PreviewKeepsSupplementaryCharactersAndCombiningMarksIntact()
+    {
+        Assert.AreEqual("x…", ClipboardHistory.Preview("x\U0001F986 suite", 3));
+        Assert.AreEqual("x…", ClipboardHistory.Preview("xe\u0301 suite", 3));
+        Assert.AreEqual("", ClipboardHistory.Preview("texte", 0));
+    }
+
+    [TestMethod]
     public void PrivateCopiesAreRecognized()
     {
         Assert.IsFalse(ClipboardHistory.IsPrivate(Text("public")));

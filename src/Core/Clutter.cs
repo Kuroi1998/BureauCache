@@ -51,7 +51,7 @@ static class Clutter
                 else continue;
                 if (used < limit90 && Archiver.ActivityOf(p, limit90, Archiver.MaxScan) == Archiver.Activity.Old) r.Unused90++;
             }
-            catch { }
+            catch { r.Partial = true; }
         }
         r.Biggest = sizes.Where(k => k.Value > 0).OrderByDescending(k => k.Value).Take(Largest).ToList();
         return r;
@@ -61,16 +61,15 @@ static class Clutter
     internal static long SizeOf(string path, int maxEntries, out bool partial)
     {
         partial = false;
-        FileInfo f = new FileInfo(path);
-        if (f.Exists) return f.Length;
-        DirectoryInfo dir = new DirectoryInfo(path);
-        if (!dir.Exists || (dir.Attributes & FileAttributes.ReparsePoint) != 0) return 0;
         long total = 0;
         int seen = 0;
-        Stack<DirectoryInfo> pending = new Stack<DirectoryInfo>();
-        pending.Push(dir);
         try
         {
+            FileAttributes attributes = File.GetAttributes(path);
+            if ((attributes & FileAttributes.Directory) == 0) return new FileInfo(path).Length;
+            if ((attributes & FileAttributes.ReparsePoint) != 0) return 0;
+            Stack<DirectoryInfo> pending = new Stack<DirectoryInfo>();
+            pending.Push(new DirectoryInfo(path));
             while (pending.Count > 0)
                 foreach (FileSystemInfo child in pending.Pop().EnumerateFileSystemInfos())
                 {

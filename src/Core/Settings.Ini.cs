@@ -19,6 +19,7 @@ static partial class Settings
         RefreshSystemTheme();
         if (!File.Exists(path)) { FirstRun = true; return false; }
         bool hasThemeMode = false;
+        bool hasWeatherPlace = false, hasWeatherShort = false;
         string oldDark = null;
         bool hidePanelInCapture = false;
         try
@@ -93,8 +94,8 @@ static partial class Settings
                     case "ArchiveName": if (FileOps.IsValidName(v)) ArchiveName = v; break;
                     case "UpdateRepo": UpdateRepo = v; break;
                     case "WeatherOn": WeatherOn = b; break;
-                    case "WeatherPlace": WeatherPlace = v.Length > 200 ? v.Substring(0, 200) : v; WeatherShort = ""; break;   // la forme courte suit, si le fichier l'a
-                    case "WeatherShort": WeatherShort = v.Length > 200 ? v.Substring(0, 200) : v; break;
+                    case "WeatherPlace": WeatherPlace = v.Length > 200 ? v.Substring(0, 200) : v; hasWeatherPlace = true; break;
+                    case "WeatherShort": WeatherShort = v.Length > 200 ? v.Substring(0, 200) : v; hasWeatherShort = true; break;
                     case "WeatherLat": WeatherLat = Coord(v, 90); break;
                     case "WeatherLon": WeatherLon = Coord(v, 180); break;
                     case "Accent": Accent = ParseColor(v, Accent); break;
@@ -117,8 +118,9 @@ static partial class Settings
                             if (j <= 0) continue;
                             string[] p = e.Substring(j + 1).Split(',');
                             long c, t;
-                            if (p.Length == 2 && long.TryParse(p[0], out c) && long.TryParse(p[1], out t))
-                                Usage[e.Substring(0, j)] = new long[] { c, t };
+                            if (p.Length == 2 && long.TryParse(p[0], out c) && long.TryParse(p[1], out t) &&
+                                t >= 0 && t <= DateTime.MaxValue.Ticks)
+                                Usage[e.Substring(0, j)] = new long[] { Math.Max(0, c), t };
                         }
                         break;
                     case "ArchiveRules":
@@ -143,6 +145,7 @@ static partial class Settings
             }
         }
         catch { return false; }
+        if (hasWeatherPlace && !hasWeatherShort) WeatherShort = "";
         if (!hasThemeMode && oldDark != null) ThemeMode = oldDark == "1" ? 1 : 2;
         Delay = Math.Max(0, Math.Min(1000, Delay));
         PanelWidth = Math.Max(260, Math.Min(560, PanelWidth));

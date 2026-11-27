@@ -21,6 +21,7 @@ sealed class WindowList : IDisposable
     public event Action Changed;
     public List<TaskWindow> Items = new List<TaskWindow>();
     public IntPtr Active { get; private set; }
+    public bool NeedsRefresh { get; private set; }
 
     readonly Native.WinEventProc proc;
     readonly IntPtr[] hooks = new IntPtr[Ranges.Length];   // un crochet par plage ; une plage refusée est retentée (BAR-04)
@@ -48,10 +49,6 @@ sealed class WindowList : IDisposable
 
     public void Start()
     {
-        if (Sandbox.Active) return;
-        for (int i = 0; i < Ranges.Length; i++)
-            if (hooks[i] == IntPtr.Zero)
-                hooks[i] = Native.SetWinEventHook(Ranges[i][0], Ranges[i][1], IntPtr.Zero, proc, 0, 0, Native.WINEVENT_OUTOFCONTEXT);
         Refresh();
     }
 
@@ -74,9 +71,21 @@ sealed class WindowList : IDisposable
 
     public void Refresh()
     {
+        if (Sandbox.Active) return;
+        NeedsRefresh = false;
+        for (int i = 0; i < Ranges.Length; i++)
+        {
+            if (hooks[i] == IntPtr.Zero)
+                hooks[i] = Native.SetWinEventHook(Ranges[i][0], Ranges[i][1], IntPtr.Zero, proc, 0, 0, Native.WINEVENT_OUTOFCONTEXT);
+            if (hooks[i] == IntPtr.Zero) NeedsRefresh = true;
+        }
         List<IntPtr> found = new List<IntPtr>();
         // Énumération en échec : la dernière liste reste affichée plutôt qu'une barre vide (BAR-05)
-        if (!Native.EnumWindows((h, l) => { if (!isOwn(h) && IsTaskWindow(h)) found.Add(h); return true; }, IntPtr.Zero)) return;
+        if (!Native.EnumWindows((h, l) => { if (!isOwn(h) && IsTaskWindow(h)) found.Add(h); return true; }, IntPtr.Zero))
+        {
+            NeedsRefresh = true;
+            return;
+        }
         found.Reverse();   // EnumWindows suit l'ordre Z : les plus anciennes sont plutôt en dessous
         HashSet<IntPtr> present = new HashSet<IntPtr>(found);
         List<TaskWindow> next = Items.Where(w => present.Contains(w.Handle)).ToList();

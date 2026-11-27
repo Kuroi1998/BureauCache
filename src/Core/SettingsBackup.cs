@@ -37,13 +37,22 @@ static class SettingsBackup
     // Même critère que Settings.Load : un fichier que Load refuserait ne vaut pas la peine d'être gardé
     public static bool IsValid(string path)
     {
+        bool unavailable;
+        return IsValid(path, out unavailable);
+    }
+
+    static bool IsValid(string path, out bool unavailable)
+    {
+        unavailable = false;
         try
         {
             FileInfo f = new FileInfo(path);
-            if (!f.Exists || f.Length > Settings.MaxFileSize) return false;
+            if (f.Length > Settings.MaxFileSize) return false;
             return File.ReadLines(path).Any(line => line.Trim() == "HideIcons=0" || line.Trim() == "HideIcons=1");
         }
-        catch { return false; }
+        catch (FileNotFoundException) { return false; }
+        catch (DirectoryNotFoundException) { return false; }
+        catch { unavailable = true; return false; }
     }
 
     // ---------- Copie quotidienne ----------
@@ -58,7 +67,8 @@ static class SettingsBackup
             try
             {
                 string today = DailyPath(DateTime.Now);
-                if (!IsValid(today) && IsValid(Settings.FilePath))
+                bool unavailable;
+                if (!IsValid(today, out unavailable) && !unavailable && IsValid(Settings.FilePath))
                 {
                     Directory.CreateDirectory(Folder);
                     string tmp = TempPath;
@@ -95,19 +105,25 @@ static class SettingsBackup
 
     // Garde les Kept copies quotidiennes lisibles les plus récentes ; une copie illisible ne prend pas de place
     // (D007-03). « protect », la copie que l'on vient de faire, n'est jamais supprimée, même si l'horloge a reculé
-    // et que des copies portent une date future (D007-02). Une copie illisible plus récente que la plus ancienne
-    // gardée est laissée : elle est peut-être seulement verrouillée.
+    // et que des copies portent une date future (D007-02). Une copie temporairement inaccessible reste en place.
     internal static void Prune(string protect = null)
     {
         List<Entry> all = Daily();
-        List<Entry> valid = all.Where(e => IsValid(e.Path)).ToList();
+        List<Entry> valid = new List<Entry>();
+        HashSet<Entry> unavailable = new HashSet<Entry>();
+        foreach (Entry e in all)
+        {
+            bool inaccessible;
+            if (IsValid(e.Path, out inaccessible)) valid.Add(e);
+            else if (inaccessible) unavailable.Add(e);
+        }
         List<Entry> keep = valid.Take(Kept).ToList();
         Entry mine = protect == null ? null : valid.FirstOrDefault(e => string.Equals(e.Path, protect, StringComparison.OrdinalIgnoreCase));
         if (mine != null && !keep.Contains(mine)) { keep.RemoveAt(keep.Count - 1); keep.Add(mine); }
         DateTime oldestKept = keep.Count == 0 ? DateTime.MaxValue : keep.Min(e => e.Date);
         foreach (Entry e in all)
         {
-            if (keep.Contains(e)) continue;
+            if (keep.Contains(e) || unavailable.Contains(e)) continue;
             bool readable = valid.Contains(e);
             if (readable || e.Date < oldestKept)
                 try { File.Delete(e.Path); } catch { }
@@ -303,6 +319,7 @@ static class SettingsBackup
         Settings.CustomCats = new List<CustomCat>();
         Settings.ArchiveLog = new List<string>();
         Settings.ArchiveRules = new List<ArchiveRule>();
+        Settings.TaskbarPins = new List<string>();
         return Settings.Load(path);
     }
 

@@ -28,16 +28,30 @@ static class TaskbarModel
         int sep = entry.IndexOf('>');
         key = sep < 0 ? entry : entry.Substring(0, sep);
         name = sep < 0 ? "" : entry.Substring(sep + 1).Trim();
-        if (key.StartsWith(AumidPrefix)) { if (key.Length == AumidPrefix.Length || key.IndexOf(' ') >= 0) return false; }
-        else if (key.StartsWith(ExePrefix))
+        if (!ValidKey(key)) return false;
+        key = (key.StartsWith(AumidPrefix, StringComparison.OrdinalIgnoreCase) ? AumidPrefix : ExePrefix) +
+              key.Substring(key.IndexOf(':') + 1);
+        if (name.Length == 0) name = DefaultName(key, null);
+        return true;
+    }
+
+    internal static bool ValidKey(string key)
+    {
+        if (string.IsNullOrEmpty(key) || key.Length > 1024 || key.Any(char.IsControl) || key.IndexOf('>') >= 0) return false;
+        if (key.StartsWith(AumidPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            if (key.Length == AumidPrefix.Length || key.IndexOf(' ') >= 0 || key.IndexOf('|') >= 0) return false;
+        }
+        else if (key.StartsWith(ExePrefix, StringComparison.OrdinalIgnoreCase))
         {
             string path = key.Substring(ExePrefix.Length);
             // Un exe local désigné par un chemin complet ; jamais un partage réseau
-            if (path.Length < 4 || !path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || path.StartsWith(@"\\") ||
-                path.IndexOfAny(Path.GetInvalidPathChars()) >= 0 || !Path.IsPathRooted(path)) return false;
+            if (path.Length < 4 || !((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z')) ||
+                path[1] != ':' || (path[2] != '\\' && path[2] != '/') || path.IndexOf(':', 2) >= 0 ||
+                path.IndexOfAny(Path.GetInvalidPathChars()) >= 0 || path.IndexOf('*') >= 0 || path.IndexOf('?') >= 0 ||
+                !path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) return false;
         }
         else return false;
-        if (name.Length == 0) name = DefaultName(key, null);
         return true;
     }
 
@@ -124,8 +138,11 @@ static class TaskbarModel
 
     public static List<string> WithPin(IEnumerable<string> pins, string key, string name)
     {
+        if (!ValidKey(key)) return pins.ToList();
+        string entry = FormatPin(key, name);
+        if (entry.Length > 1024) return pins.ToList();
         List<string> list = Without(pins, key);
-        list.Add(FormatPin(key, name));
+        list.Add(entry);
         return list;
     }
 

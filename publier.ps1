@@ -13,7 +13,6 @@ if ($Version -notmatch '^[0-9]+\.[0-9]+(?:\.[0-9]+)?$') { throw "Format attendu 
 if (-not (Select-String -Path CHANGELOG.md -Pattern "^## $([regex]::Escape($Version))(?=\s|$)" -Quiet)) {
     throw "Ajoute d'abord une section '## $Version' dans CHANGELOG.md"
 }
-if (git tag -l "v$Version") { throw "Le tag v$Version existe déjà" }
 if ((git branch --show-current) -ne 'main') { throw "Publie depuis la branche main" }
 
 $pending = git status --porcelain
@@ -23,6 +22,30 @@ if (@($pending | Where-Object { $_ -notin @(' M CHANGELOG.md', 'M  CHANGELOG.md'
 }
 
 $info = Join-Path $PSScriptRoot 'src\Properties\AssemblyInfo.cs'
+$tagRef = "refs/tags/v$Version"
+
+function Send-Release {
+    git push --atomic origin HEAD $tagRef
+    if ($LASTEXITCODE -ne 0) { throw "Échec de l'envoi du commit et du tag. Relance la même commande pour réessayer." }
+    "Le commit et le tag v$Version sont disponibles sur origin. Consulte GitHub Actions pour suivre la compilation."
+    "Quand le brouillon est prêt, signe et publie avec : .\outils\signer-version.ps1 -Version $Version"
+}
+
+$existingTag = git tag -l "v$Version"
+if ($LASTEXITCODE -ne 0) { throw "Impossible de lire les tags du dépôt" }
+if ($existingTag) {
+    $tagCommit = git rev-parse --verify "$tagRef^{commit}"
+    if ($LASTEXITCODE -ne 0) { throw "Impossible de lire le commit de v$Version" }
+    $headCommit = git rev-parse --verify HEAD
+    if ($LASTEXITCODE -ne 0) { throw "Impossible de lire le commit courant" }
+    $versionPattern = 'public const string Version = "' + [regex]::Escape($Version) + '"'
+    if ($pending -or $tagCommit -ne $headCommit -or -not (Select-String -Path $info -Pattern $versionPattern -Quiet)) {
+        throw "Le tag v$Version existe déjà et ne correspond pas à un envoi reprenable depuis HEAD"
+    }
+    Send-Release
+    return
+}
+
 $original = [IO.File]::ReadAllBytes($info)
 $src = [IO.File]::ReadAllText($info)
 $src = $src -replace 'public const string Version = "[^"]+"', "public const string Version = `"$Version`""
@@ -41,7 +64,4 @@ git commit -m "Version $Version"
 if ($LASTEXITCODE -ne 0) { throw "Échec du commit" }
 git tag "v$Version"
 if ($LASTEXITCODE -ne 0) { throw "Échec de la création du tag" }
-git push --atomic origin HEAD "v$Version"
-if ($LASTEXITCODE -ne 0) { throw "Échec de l'envoi du commit et du tag" }
-"Version $Version envoyée : GitHub Actions va la compiler et créer un brouillon."
-"Quand la compilation est terminée, signe et publie avec : .\outils\signer-version.ps1 -Version $Version"
+Send-Release

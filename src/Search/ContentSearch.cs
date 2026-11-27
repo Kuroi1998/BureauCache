@@ -40,7 +40,12 @@ static class ContentSearch
         if (string.IsNullOrEmpty(q)) return false;
         q = q.Trim();
         if (q.StartsWith("=") || q.StartsWith("?") || q.StartsWith(">")) return false;
-        return Sanitize(q).Length >= MinLength;
+        return SearchableWords(q).Length >= MinLength;
+    }
+
+    static string SearchableWords(string term)
+    {
+        return string.Join(" ", Sanitize(term).Split(' ').Where(w => w.Any(char.IsLetterOrDigit)));
     }
 
     // Chemin d'un dossier sous la forme attendue par SCOPE (file:C:/Users/…), apostrophes doublées
@@ -53,11 +58,11 @@ static class ContentSearch
     // (« fact* ») et tous les mots doivent figurer dans le fichier.
     public static string BuildQuery(string term, IEnumerable<string> folders, int max)
     {
-        string clean = Sanitize(term);
+        string clean = SearchableWords(term);
         if (clean.Length < MinLength) return null;
         List<string> scopes = (folders ?? Enumerable.Empty<string>()).Where(f => !string.IsNullOrEmpty(f)).Select(Scope).ToList();
         if (scopes.Count == 0) return null;
-        string words = string.Join(" AND ", clean.Split(' ').Where(w => w.Length > 0).Select(w => "\"" + w + "*\"").ToArray());
+        string words = string.Join(" AND ", clean.Split(' ').Select(w => "\"" + w + "*\""));
         // Texte des documents seulement (System.Search.Contents) : un mot présent uniquement dans une propriété
         // (description d'un .exe, auteur) ne remonte pas dans « Dans le contenu » (QA42-01).
         // System.ItemUrl et non System.ItemPathDisplay : ce dernier est traduit (« C:\Utilisateurs\…\Bureau »)
@@ -108,6 +113,7 @@ static class ContentSearch
     {
         Sandbox.Guard("index Windows Search");
         List<string> res = new List<string>();
+        HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         string[] folders = Paths.Desktops;
         string sql = BuildQuery(term, folders, max * 3);
         if (sql == null) return res;
@@ -126,7 +132,7 @@ static class ContentSearch
                 try { System.Runtime.InteropServices.Marshal.FinalReleaseComObject(field); } catch { }
                 try { System.Runtime.InteropServices.Marshal.FinalReleaseComObject(fields); } catch { }
                 string p = PathFromUrl(url);
-                if (p != null && NearDesktop(p, folders) && Visible(p)) res.Add(p);
+                if (p != null && seen.Add(p) && NearDesktop(p, folders) && Visible(p)) res.Add(p);
                 rs.MoveNext();
             }
         }

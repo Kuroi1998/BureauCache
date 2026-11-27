@@ -51,7 +51,6 @@ class WindowPreview : Form
     {
         if (Sandbox.Active) return;
         BackColor = Theme.Bg;
-        IntPtr unused = Handle;
         Release();
         target = hwnd;
         title = text ?? "";
@@ -71,11 +70,12 @@ class WindowPreview : Form
         if (!src.IsEmpty)
         {
             double k = Math.Min((double)MaxW / src.Width, (double)MaxH / src.Height);
-            w = Math.Max(Ui.S(120), (int)(src.Width * k));
-            h = Math.Max(Ui.S(60), (int)(src.Height * k));
+            w = Math.Max(1, (int)(src.Width * k));
+            h = Math.Max(1, (int)(src.Height * k));
         }
-        Size = new Size(w + 2 * Pad, HeaderH + h + Pad);
-        thumbArea = new Rectangle(Pad, HeaderH, w, h);
+        int innerWidth = Math.Max(Ui.S(120), w), innerHeight = Math.Max(Ui.S(60), h);
+        Size = new Size(innerWidth + 2 * Pad, HeaderH + innerHeight + Pad);
+        thumbArea = new Rectangle(Pad + (innerWidth - w) / 2, HeaderH + (innerHeight - h) / 2, w, h);
         closeRect = new Rectangle(Width - Ui.S(34), Ui.S(4), Ui.S(28), Ui.S(28));
 
         Rectangle wa = Screen.FromRectangle(anchor).WorkingArea;
@@ -91,8 +91,9 @@ class WindowPreview : Form
             p.opacity = 255;
             p.fVisible = true;
             p.fSourceClientAreaOnly = false;
-            Native.DwmUpdateThumbnailProperties(thumb, ref p);
+            if (Native.DwmUpdateThumbnailProperties(thumb, ref p) != 0) Release();
         }
+        else Release();
         if (!Visible) Show();
         Native.SetRoundCorners(Handle);
         Invalidate();
@@ -108,6 +109,12 @@ class WindowPreview : Form
     void Release()
     {
         if (thumb != IntPtr.Zero) { Native.DwmUnregisterThumbnail(thumb); thumb = IntPtr.Zero; }
+    }
+
+    protected override void OnHandleDestroyed(EventArgs e)
+    {
+        Release();
+        base.OnHandleDestroyed(e);
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -150,10 +157,13 @@ class WindowPreview : Form
         else if (ActivateRequested != null) ActivateRequested(h);
     }
 
-    protected override void OnFormClosed(FormClosedEventArgs e)
+    protected override void Dispose(bool disposing)
     {
-        Release();
-        if (icon != null) { icon.Dispose(); icon = null; }
-        base.OnFormClosed(e);
+        if (disposing)
+        {
+            Release();
+            if (icon != null) { icon.Dispose(); icon = null; }
+        }
+        base.Dispose(disposing);
     }
 }

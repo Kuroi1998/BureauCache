@@ -7,6 +7,7 @@ partial class App
 {
     BarForm bar;
     bool taskbarRefused;            // un échec n'est signalé qu'une fois, jusqu'à ce que l'option soit coupée
+    bool taskbarRestorePending;
     volatile bool sessionEnding;    // fin de session : plus aucun masquage (BAR-11)
 
     // Ordre imposé par D-013 : la barre Windows est cachée AVANT que la nôtre ne s'installe, et rendue APRÈS son départ.
@@ -18,8 +19,9 @@ partial class App
         if (want && bar == null && !taskbarRefused)
         {
             // Sans le processus de surveillance, un plantage laisserait la barre Windows cachée (BAR-07)
-            if (!Program.WatchdogStarted || !WindowsBar.Hide()) { RefuseTaskbar(); return; }
+            if (!Program.WatchdogRunning || !WindowsBar.Hide()) { RefuseTaskbar(); return; }
             BarForm created = null;
+            bool ready = false;
             try
             {
                 created = new BarForm();
@@ -27,9 +29,10 @@ partial class App
                 created.MenuRequested += ShowTrayMenu;
                 created.ExplorerRestarted += OnExplorerRestarted;
                 created.Show();
+                ready = created.Registered;
             }
             catch { }
-            if (created == null || !created.Registered)
+            if (!ready)
             {
                 try { if (created != null) { created.Close(); created.Dispose(); } } catch { }
                 RefuseTaskbar();
@@ -38,18 +41,18 @@ partial class App
             bar = created;
         }
         else if (!want && bar != null) CloseBar();
-        else if (!want) WindowsBar.Restore();   // reste d'un plantage ou d'un arrêt brutal : la barre Windows revient
+        else if (!want) RestoreTaskbar();   // reste d'un plantage ou d'un arrêt brutal : la barre Windows revient
         if (bar != null) { bar.ApplyTheme(); bar.RebuildButtons(); }   // épingles changées par une restauration (D-014)
     }
 
     void RefuseTaskbar()
     {
-        WindowsBar.Restore();
+        CloseBar();
         if (taskbarRefused) return;
         taskbarRefused = true;
-        Balloon(L.T("La barre des tâches de Windows n'a pas pu être remplacée. Elle reste affichée.",
-                    "The Windows taskbar couldn't be replaced. It stays visible.",
-                    "No se pudo reemplazar la barra de tareas de Windows. Sigue visible."), null);
+        Balloon(L.T("Échec du remplacement de la barre des tâches. BureauCache rétablit la barre Windows.",
+                    "Taskbar replacement failed. BureauCache is restoring the Windows taskbar.",
+                    "Falló el reemplazo de la barra de tareas. BureauCache está restaurando la barra de Windows."), null);
     }
 
     void CloseBar()
@@ -61,16 +64,16 @@ partial class App
             bar = null;
             try { old.Close(); old.Dispose(); } catch { }
         }
-        WindowsBar.Restore();
+        RestoreTaskbar();
     }
+
+    void RestoreTaskbar() { taskbarRestorePending = !WindowsBar.Restore(); }
 
     // Explorer a redémarré : on ne recache sa barre que si notre réservation a été acceptée de nouveau (BAR-09)
     void OnExplorerRestarted()
     {
-        if (bar == null) return;
-        if (bar.Registered) { WindowsBar.Reapply(); return; }
-        CloseBar();
-        RefuseTaskbar();
+        if (bar == null || sessionEnding) return;
+        if (!Program.WatchdogRunning || !bar.Registered || !WindowsBar.Reapply()) RefuseTaskbar();
     }
 
     StartMenuForm startMenu;
@@ -80,7 +83,7 @@ partial class App
     void StartFromBar()
     {
         if (startMenu != null && !startMenu.IsDisposed) { startMenu.Close(); return; }
-        if ((DateTime.Now - StartMenuForm.LastClosed).TotalMilliseconds < 250) return;
+        if (StartMenuForm.JustClosed) return;
         if (bar == null) return;
         startMenu = new StartMenuForm();
         startMenu.OpenPanel += () => { OpenManually(Screen.PrimaryScreen); Native.SetForegroundWindow(panel.Handle); };
@@ -93,8 +96,7 @@ partial class App
         bar.HidePreview();
         startMenu.FormClosed += (s, e) => { startMenu = null; };
         Rectangle start = bar.StartButtonBounds;
-        Rectangle wa = Screen.PrimaryScreen.WorkingArea;
-        startMenu.Location = new Point(Math.Max(wa.Left, start.Left), start.Top - Ui.S(8) - startMenu.Height);
+        startMenu.PlaceAbove(start, Screen.FromRectangle(start).WorkingArea);
         startMenu.Show();
         startMenu.Activate();
         Native.SetForegroundWindow(startMenu.Handle);
@@ -109,16 +111,22 @@ partial class App
     // Appelé par Poll environ une fois par seconde
     void KeepWindowsBarHidden()
     {
-        if (bar == null || sessionEnding) return;
-        WindowsBar.Reapply();
+        if (sessionEnding) return;
+        if (bar == null)
+        {
+            if (taskbarRestorePending) RestoreTaskbar();
+            return;
+        }
+        if (!Program.WatchdogRunning || !bar.Registered || !WindowsBar.Reapply()) { RefuseTaskbar(); return; }
         if (!bar.Visible) bar.Show();
+        bar.RetryWindowTracking();
     }
 
     void OnDisplaysChangedForBar()
     {
         if (bar == null || sessionEnding) return;
         bar.Reposition();
-        WindowsBar.Reapply();
+        if (!Program.WatchdogRunning || !WindowsBar.Reapply()) RefuseTaskbar();
     }
 
     // Fin de session (fil de SystemEvents) : on arrête de masquer avant de rendre, chaque étape isolée des autres

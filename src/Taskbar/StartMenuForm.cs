@@ -9,7 +9,8 @@ class StartMenuForm : Form
 {
     public event Action OpenPanel;
     public event Action<string> SearchRequested;
-    public static DateTime LastClosed = DateTime.MinValue;
+    static readonly System.Diagnostics.Stopwatch sinceClosed = new System.Diagnostics.Stopwatch();
+    public static bool JustClosed { get { return sinceClosed.IsRunning && sinceClosed.ElapsedMilliseconds < 250; } }
 
     readonly string userName;
     readonly Bitmap picture;
@@ -99,6 +100,27 @@ class StartMenuForm : Form
 
     static Rectangle Cell(int column, int y, int w, int h) { return new Rectangle(Pad + column * (w + Gap), y, w, h); }
 
+    public void PlaceAbove(Rectangle anchor, Rectangle area)
+    {
+        Size content = ClientSize;
+        int bottom = Math.Max(area.Top + 1, Math.Min(area.Bottom, anchor.Top - Ui.S(8)));
+        int height = Math.Min(content.Height, bottom - area.Top);
+        int width = Math.Min(area.Width, content.Width + (height < content.Height ? SystemInformation.VerticalScrollBarWidth : 0));
+        if (width < content.Width || height < content.Height)
+        {
+            AutoScroll = true;
+            AutoScrollMinSize = content;
+            ClientSize = new Size(width, height);
+        }
+        Location = new Point(Math.Max(area.Left, Math.Min(anchor.Left, area.Right - Width)), bottom - Height);
+    }
+
+    protected override void OnScroll(ScrollEventArgs se)
+    {
+        base.OnScroll(se);
+        Invalidate();
+    }
+
     int SectionLabel(string text, int y)
     {
         Label l = new Label { Text = text, AutoSize = false, ForeColor = Theme.FgDim, BackColor = Theme.Bg, Font = Ui.Font("Segoe UI Semibold", 9f),
@@ -147,9 +169,14 @@ class StartMenuForm : Form
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
-        LastClosed = DateTime.Now;
-        if (picture != null) picture.Dispose();
+        sinceClosed.Restart();
         base.OnFormClosed(e);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing && picture != null && !IsDisposed) picture.Dispose();
+        base.Dispose(disposing);
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -158,12 +185,15 @@ class StartMenuForm : Form
         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         Ui.Edge(g, Theme.EdgeHot, new RectangleF(0, 0, ClientSize.Width, ClientSize.Height), Ui.S(Ui.RadiusCard));
 
-        Ui.Fill(g, Theme.Surface, searchRect, searchRect.Height / 2f);
-        Ui.Glyph(g, Glyphs.Search, 12f, Theme.FgDim, new Rectangle(searchRect.Left + Ui.S(12), searchRect.Top, Ui.S(24), searchRect.Height));
+        Rectangle searchBounds = searchRect, headerBounds = headerRect;
+        searchBounds.Offset(AutoScrollPosition);
+        headerBounds.Offset(AutoScrollPosition);
+        Ui.Fill(g, Theme.Surface, searchBounds, searchBounds.Height / 2f);
+        Ui.Glyph(g, Glyphs.Search, 12f, Theme.FgDim, new Rectangle(searchBounds.Left + Ui.S(12), searchBounds.Top, Ui.S(24), searchBounds.Height));
 
         // Session : photo (ou initiales), nom, et le PC sur lequel elle est ouverte
         int size = Ui.S(48);
-        Rectangle pic = new Rectangle(headerRect.Left, headerRect.Top + (headerRect.Height - size) / 2, size, size);
+        Rectangle pic = new Rectangle(headerBounds.Left, headerBounds.Top + (headerBounds.Height - size) / 2, size, size);
         if (picture != null)
         {
             using (System.Drawing.Drawing2D.GraphicsPath p = new System.Drawing.Drawing2D.GraphicsPath())
@@ -180,12 +210,12 @@ class StartMenuForm : Form
             TextRenderer.DrawText(g, SessionActions.Initials(userName), Ui.Font("Segoe UI Semibold", 15f), pic, Color.White,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
         }
-        int textLeft = pic.Right + Ui.S(16), textW = headerRect.Right - textLeft, mid = headerRect.Top + headerRect.Height / 2;
+        int textLeft = pic.Right + Ui.S(16), textW = headerBounds.Right - textLeft, mid = headerBounds.Top + headerBounds.Height / 2;
         TextFormatFlags f = TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.Bottom;
-        TextRenderer.DrawText(g, userName, Ui.Font("Segoe UI Semibold", 13f), new Rectangle(textLeft, headerRect.Top, textW, mid - headerRect.Top), Theme.Fg, f);
+        TextRenderer.DrawText(g, userName, Ui.Font("Segoe UI Semibold", 13f), new Rectangle(textLeft, headerBounds.Top, textW, mid - headerBounds.Top), Theme.Fg, f);
         TextRenderer.DrawText(g, L.T("Session sur ", "Signed in on ", "Sesión en ") + Environment.MachineName, Ui.Font("Segoe UI", 9f),
             new Rectangle(textLeft, mid + Ui.S(2), textW, Ui.S(22)), Theme.FgDim, TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-        using (Pen line = new Pen(Theme.Line)) g.DrawLine(line, Pad, headerRect.Bottom + Ui.S(8), ClientSize.Width - Pad, headerRect.Bottom + Ui.S(8));
+        using (Pen line = new Pen(Theme.Line)) g.DrawLine(line, headerBounds.Left, headerBounds.Bottom + Ui.S(8), headerBounds.Right, headerBounds.Bottom + Ui.S(8));
     }
 }
 

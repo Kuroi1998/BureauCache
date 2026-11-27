@@ -155,10 +155,10 @@ partial class PanelForm
     {
         base.OnDeactivate(e);
         if (View.ShowNumbers) { View.ShowNumbers = false; View.Invalidate(); }
-        if (Busy || MenuOpen || !IsOpen || !IsHandleCreated) return;
+        if (Disposing || IsDisposed || !Settings.AutoClose || Busy || MenuOpen || !IsOpen || !IsHandleCreated) return;
         BeginInvoke(new Action(() =>
         {
-            if (IsOpen && !Busy && !MenuOpen && !ContainsFocus &&
+            if (IsOpen && Settings.AutoClose && !Busy && !MenuOpen && !ContainsFocus &&
                 !preview.ContainsFocus && !Bounds.Contains(Cursor.Position)) HidePanel();
         }));
     }

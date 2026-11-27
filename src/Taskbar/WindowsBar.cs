@@ -53,28 +53,35 @@ static class WindowsBar
             }
             original = start;
         }
-        else KeepJournal();
+        else if (!KeepJournal() || ReadState() != original) return false;
         Native.SetTaskbarState(original | Native.ABS_AUTOHIDE);
         Native.ShowWindow(bar, Native.SW_HIDE);
         Hidden = true;
-        return true;
+        if (!Native.IsWindowVisible(bar) && (Native.GetTaskbarState() & Native.ABS_AUTOHIDE) != 0) return true;
+        Restore();
+        return false;
     }
 
     // Explorer réaffiche sa barre après un redémarrage, un changement d'écran ou l'ouverture du menu Démarrer
-    public static void Reapply()
+    public static bool Reapply()
     {
-        if (!Hidden) return;
+        if (!Hidden) return false;
         IntPtr bar = Native.WindowsTaskbar();
-        if (bar == IntPtr.Zero) return;
-        KeepJournal();
-        if ((Native.GetTaskbarState() & Native.ABS_AUTOHIDE) == 0) Native.SetTaskbarState(original | Native.ABS_AUTOHIDE);
-        if (Native.IsWindowVisible(bar)) Native.ShowWindow(bar, Native.SW_HIDE);
+        if (bar == IntPtr.Zero) return true;   // Explorer est en train de redémarrer.
+        if (!KeepJournal()) return false;
+        bool autoHide = (Native.GetTaskbarState() & Native.ABS_AUTOHIDE) != 0;
+        bool visible = Native.IsWindowVisible(bar);
+        if (autoHide && !visible) return true;
+        if (ReadState() != original) return false;
+        if (!autoHide) Native.SetTaskbarState(original | Native.ABS_AUTOHIDE);
+        if (visible || Native.IsWindowVisible(bar)) Native.ShowWindow(bar, Native.SW_HIDE);
+        return !Native.IsWindowVisible(bar) && (Native.GetTaskbarState() & Native.ABS_AUTOHIDE) != 0;
     }
 
     // Fichier effacé pendant le masquage : il est réécrit depuis la copie en mémoire, pour la surveillance (BAR-01)
-    static void KeepJournal()
+    static bool KeepJournal()
     {
-        if (original >= 0 && !File.Exists(StatePath)) WriteState(original);
+        return original >= 0 && (File.Exists(StatePath) || WriteState(original));
     }
 
     // Rend la barre de Windows dans son état d'origine. Appelable depuis la surveillance, sans réglages chargés.
@@ -99,7 +106,8 @@ static class WindowsBar
             if (bar == IntPtr.Zero) return false;
             Native.SetTaskbarState(target);
             Native.ShowWindow(bar, Native.SW_SHOWNA);
-            if ((Native.GetTaskbarState() & Native.ABS_AUTOHIDE) != (target & Native.ABS_AUTOHIDE)) return false;
+            if (!Native.IsWindowVisible(bar) ||
+                (Native.GetTaskbarState() & Native.ABS_AUTOHIDE) != (target & Native.ABS_AUTOHIDE)) return false;
             Hidden = false;
             original = -1;
             if (journal) File.Delete(StatePath);

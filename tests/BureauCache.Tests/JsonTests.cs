@@ -46,6 +46,8 @@ namespace BureauCache.Tests
         [DataRow("{\"a\":Infinity}")]
         [DataRow("{\"a\":1e999}")]
         [DataRow("{\"a\":\"\\x\"}")]
+        [DataRow("{\"a\":\"ligne\nsuivante\"}")]
+        [DataRow("{\"a\":\"\\u 041\"}")]
         [DataRow("{\"a\":\"non terminée}")]
         [DataRow("{\"a\":1} en trop")]
         [DataRow("{'a':1}")]
@@ -67,6 +69,13 @@ namespace BureauCache.Tests
         {
             Assert.AreEqual("A \"B\" \\ / é \U0001F986\n", Json.Parse("\"A \\\"B\\\" \\\\ \\/ \\u00e9 \\uD83E\\uDD86\\n\""));
             Assert.AreEqual("} ] {", Json.Str(Json.Parse("{\"s\":\"} ] {\"}"), "s"));
+        }
+
+        [TestMethod]
+        public void Decode_refuse_les_guillemets_non_echappes()
+        {
+            Assert.ThrowsException<FormatException>(() => Json.Decode("début\"fin"));
+            Assert.AreEqual("début\"fin", Json.Decode("début\\\"fin"));
         }
     }
 }

@@ -91,6 +91,21 @@ public class SettingsBackupReviewTests
 
     [TestMethod]
     [TestCategory("Review")]
+    public void PruneKeepsTemporarilyUnreadableBackupWhenThereIsRoom()
+    {
+        Directory.CreateDirectory(SettingsBackup.Folder);
+        string backup = Daily(DateTime.Today.AddDays(-1));
+        WriteIni(backup, Original);
+        using (File.Open(backup, FileMode.Open, FileAccess.Read, FileShare.Delete))
+        {
+            Assert.IsFalse(SettingsBackup.IsValid(backup), "Le fichier ne peut pas être lu tant que le verrou est pris.");
+            SettingsBackup.Prune();
+        }
+        Assert.IsTrue(SettingsBackup.IsValid(backup), "La dernière sauvegarde doit rester disponible après la levée du verrou.");
+    }
+
+    [TestMethod]
+    [TestCategory("Review")]
     public void D007_04_SameDaySaveRetriesPruningAfterAFileIsUnlocked()
     {
         SaveOriginal();
@@ -147,6 +162,61 @@ public class SettingsBackupReviewTests
         Assert.IsTrue(SettingsBackup.Restore(Find(source)));
         Assert.AreEqual(0, Settings.Favorites.Count,
             "D007-06 : les favoris absents de l'ancienne sauvegarde ont été repris du profil courant.");
+    }
+
+    [TestMethod]
+    [TestCategory("Review")]
+    public void LegacyRestoreClearsPinsAndItsUndoRestoresThem()
+    {
+        Settings.TaskbarPins = new List<string> { @"exe:C:\Apps\outil.exe>Outil" };
+        SaveOriginal();
+        string source = Daily(DateTime.Today.AddDays(-1));
+        File.WriteAllText(source, "HideIcons=0\r\n");
+        Assert.IsTrue(SettingsBackup.RestoreFrom(source));
+        Assert.AreEqual(0, Settings.TaskbarPins.Count);
+        Assert.IsTrue(SettingsBackup.RestoreFrom(UndoPath()));
+        CollectionAssert.AreEqual(new[] { @"exe:C:\Apps\outil.exe>Outil" }, Settings.TaskbarPins);
+    }
+
+    [TestMethod]
+    [TestCategory("Review")]
+    public void WeatherShortNameSurvivesAnIniWithFieldsInReverseOrder()
+    {
+        string source = Path.Combine(directory, "weather.ini");
+        File.WriteAllText(source, "HideIcons=0\r\nWeatherShort=Mons, Belgique\r\nWeatherPlace=Mons, Hainaut, Belgique\r\n");
+        Assert.IsTrue(Settings.Load(source));
+        Assert.AreEqual("Mons, Belgique", Settings.WeatherShort);
+        File.WriteAllText(source, "HideIcons=0\r\nWeatherPlace=Bruxelles, Belgique\r\n");
+        Assert.IsTrue(Settings.Load(source));
+        Assert.AreEqual("", Settings.WeatherShort);
+    }
+
+    [TestMethod]
+    [TestCategory("Review")]
+    public void UsageLoadValidatesTimestampsWithoutLosingValidActivity()
+    {
+        string source = Path.Combine(directory, "usage.ini");
+        Settings.Usage = new Dictionary<string, long[]>(StringComparer.OrdinalIgnoreCase);
+        File.WriteAllText(source, "HideIcons=0\r\nUsage=recent>-7,1234|negatif>1,-1|hors-limite>2,9223372036854775807\r\n");
+        Assert.IsTrue(Settings.Load(source));
+        CollectionAssert.AreEqual(new long[] { 0, 1234 }, Settings.Usage["recent"]);
+        Assert.IsFalse(Settings.Usage.ContainsKey("negatif"));
+        Assert.IsFalse(Settings.Usage.ContainsKey("hors-limite"));
+    }
+
+    [TestMethod]
+    [TestCategory("Review")]
+    public void UsageAtMaximumStillGetsABonusAndRemainsNonnegativeAfterOpening()
+    {
+        Settings.Usage = new Dictionary<string, long[]>(StringComparer.OrdinalIgnoreCase);
+        Settings.Usage[Original] = new long[] { long.MaxValue / 8, 0 };
+        var item = new DesktopItem { Key = Original, Name = "original" };
+        MethodInfo rank = typeof(PanelForm).GetMethod("Rank", BindingFlags.Static | BindingFlags.NonPublic);
+        var ranked = (List<KeyValuePair<DesktopItem, int>>)rank.Invoke(null, new object[] { new[] { item }, "original", 10 });
+        Assert.AreEqual(1120, ranked.Single().Value);
+        Settings.Usage[Original][0] = long.MaxValue;
+        Settings.RecordUse(Original);
+        Assert.AreEqual(long.MaxValue, Settings.Usage[Original][0]);
     }
 
     [TestMethod]

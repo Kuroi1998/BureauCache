@@ -31,8 +31,6 @@ partial class BarForm
         windows = new WindowList(h => h == Handle);
         windows.Changed += RebuildButtons;
         windows.Changed += OnWindowsChanged;
-        previewDelay.Tick += (s, e) => { previewDelay.Stop(); OpenPreview(previewZone); };
-        previewWatch.Tick += (s, e) => WatchPreview();
         // Messages du shell : une fenêtre qui clignote (demande d'attention) est signalée par HSHELL_FLASH
         shellHook = Native.RegisterWindowMessage("SHELLHOOK");
         Native.RegisterShellHookWindow(Handle);
@@ -47,6 +45,11 @@ partial class BarForm
         if (preview != null) { preview.Close(); preview.Dispose(); preview = null; }
         windows.Dispose();
         windows = null;
+    }
+
+    public void RetryWindowTracking()
+    {
+        if (windows != null && windows.NeedsRefresh) windows.Refresh();
     }
 
     void OnShellHook(IntPtr wParam, IntPtr lParam)
@@ -179,7 +182,21 @@ partial class BarForm
         Point local = PointToClient(p);
         BarButton b = ClientRectangle.Contains(local) ? ButtonAtZone(WindowZoneAt(local)) : null;
         if (b != null && b.Window != null) return;
+        for (int i = 0; i < shown && i < buttons.Count; i++)
+        {
+            TaskWindow window = buttons[i].Window;
+            if (window != null && window.Handle == preview.Target &&
+                PreviewGap(RectangleToScreen(buttonRects[i]), preview.Bounds).Contains(p)) return;
+        }
         HidePreview();
+    }
+
+    internal static Rectangle PreviewGap(Rectangle button, Rectangle previewBounds)
+    {
+        int left = Math.Max(button.Left, previewBounds.Left);
+        int right = Math.Min(button.Right, previewBounds.Right);
+        if (left >= right || previewBounds.Bottom >= button.Top) return Rectangle.Empty;
+        return Rectangle.FromLTRB(left, previewBounds.Bottom, right, button.Top);
     }
 
     // La fenêtre montrée a disparu : l'aperçu aussi
@@ -223,7 +240,7 @@ partial class BarForm
         if (TaskbarModel.CanLaunch(key))
             menu.Items.Add(Menus.Item(b.Window != null ? L.T("Nouvelle fenêtre", "New window", "Nueva ventana") : L.T("Ouvrir", "Open", "Abrir"),
                 Glyphs.Open, () => Launch(key)));
-        if (key != null)
+        if (TaskbarModel.ValidKey(key))
         {
             bool pinned = TaskbarModel.IsPinned(Settings.TaskbarPins, key);
             menu.Items.Add(Menus.Item(pinned ? L.T("Détacher de la barre des tâches", "Unpin from taskbar", "Desanclar de la barra de tareas")

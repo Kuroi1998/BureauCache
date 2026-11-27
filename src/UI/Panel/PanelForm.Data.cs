@@ -6,9 +6,14 @@ using System.Linq;
 
 partial class PanelForm
 {
+    bool loadDeferredForHandle;
+
     // ---------- Chargement en arrière-plan ----------
     public void RequestLoad()
     {
+        if (IsDisposed || Disposing) return;
+        if (!IsHandleCreated) { Dirty = true; loadDeferredForHandle = true; return; }
+        loadDeferredForHandle = false;
         if (loading) { loadPending = true; return; }
         loading = true;
         Dirty = false;
@@ -161,7 +166,7 @@ partial class PanelForm
             foreach (string kw in it.NormKeywords) s = Math.Max(s, Search.ScoreNormalized(nq, kw) - 150);
             if (s < 0) continue;
             long[] u;
-            if (Settings.Usage.TryGetValue(it.Key, out u)) s += (int)Math.Min(u[0] * 15, 120);
+            if (Settings.Usage.TryGetValue(it.Key, out u)) s += (int)Math.Min(Math.Max(0, u[0]), 8) * 15;
             res.Add(new KeyValuePair<DesktopItem, int>(it, s));
         }
         return res.OrderByDescending(k => k.Value).ThenBy(k => k.Key.Name, StringComparer.CurrentCultureIgnoreCase).Take(max).ToList();

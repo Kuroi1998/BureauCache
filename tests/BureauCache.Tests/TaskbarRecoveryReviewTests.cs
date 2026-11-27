@@ -16,12 +16,12 @@ public static class Settings { public static string Dir; }
 public static class Native {
     public const int ABS_AUTOHIDE=1, ABS_ALWAYSONTOP=2, SW_HIDE=0, SW_SHOWNA=8;
     public static int State;
-    public static bool Visible, IgnoreSet;
+    public static bool Visible, IgnoreSet, IgnoreShow;
     public static IntPtr WindowsTaskbar() { return new IntPtr(1); }
     public static int GetTaskbarState() { return State; }
     public static void SetTaskbarState(int value) { if (!IgnoreSet) State=value; }
     public static bool IsWindowVisible(IntPtr h) { return Visible; }
-    public static void ShowWindow(IntPtr h,int cmd) { Visible=cmd!=SW_HIDE; }
+    public static void ShowWindow(IntPtr h,int cmd) { if (!IgnoreShow) Visible=cmd!=SW_HIDE; }
 }";
     Type bar, native;
     string dir;
@@ -131,6 +131,66 @@ public static class Native {
         Hide();
         Restore();
         Assert.AreEqual(0, State & 1);
+    }
+
+    [TestMethod]
+    public void FailedHideRestoresOriginalModeBeforeReturning()
+    {
+        Set("IgnoreShow", true);
+        Assert.IsFalse(Hide());
+        Assert.AreEqual(0, State);
+        Assert.IsFalse(File.Exists(Journal));
+    }
+
+    [TestMethod]
+    public void RestoreRetriesIfExplorerRemainsHidden()
+    {
+        Assert.IsTrue(Hide());
+        Set("IgnoreShow", true);
+        Assert.IsFalse((bool)bar.GetMethod("Restore").Invoke(null, null));
+        Assert.IsTrue(File.Exists(Journal));
+        Set("IgnoreShow", false);
+        Restore();
+        Assert.IsFalse(File.Exists(Journal));
+    }
+
+    [TestMethod]
+    public void ReapplyDoesNotHideExplorerWhenRecoveryJournalCannotBeRecreated()
+    {
+        Assert.IsTrue(Hide());
+        File.Delete(Journal);
+        Directory.CreateDirectory(Journal);
+        Set("Visible", true);
+        Set("State", 0);
+        bar.GetMethod("Reapply").Invoke(null, null);
+        Assert.AreEqual(0, State);
+        Assert.IsTrue((bool)native.GetField("Visible").GetValue(null));
+    }
+
+    [TestMethod]
+    public void ReapplyRefusesToHideWithACorruptJournal()
+    {
+        Assert.IsTrue(Hide());
+        File.WriteAllText(Journal, "incomplete");
+        Set("Visible", true);
+        Set("State", 0);
+        object result = bar.GetMethod("Reapply").Invoke(null, null);
+        Assert.AreEqual(0, State);
+        Assert.IsTrue((bool)native.GetField("Visible").GetValue(null));
+        Assert.AreEqual(false, result);
+    }
+
+    [TestMethod]
+    public void SecondHideDoesNotChangeExplorerWhenRecoveryJournalCannotBeRecreated()
+    {
+        Assert.IsTrue(Hide());
+        File.Delete(Journal);
+        Directory.CreateDirectory(Journal);
+        Set("Visible", true);
+        Set("State", 0);
+        Assert.IsFalse(Hide());
+        Assert.AreEqual(0, State);
+        Assert.IsTrue((bool)native.GetField("Visible").GetValue(null));
     }
 
     [TestMethod]

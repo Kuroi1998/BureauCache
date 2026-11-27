@@ -9,6 +9,21 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 [TestClass]
 public class TaskbarWindowsStartTests
 {
+    [TestMethod]
+    public void StartMenuStaysInsideAShortWorkingAreaAndKeepsAllTiles()
+    {
+        using (StartMenuForm menu = new StartMenuForm())
+        {
+            Size content = menu.ClientSize;
+            Rectangle area = new Rectangle(-700, 80, 620, 320);
+            Rectangle start = new Rectangle(-120, 390, 40, 50);
+            menu.PlaceAbove(start, area);
+            Assert.IsTrue(area.Contains(menu.Bounds));
+            Assert.IsTrue(menu.AutoScroll);
+            Assert.AreEqual(content, menu.AutoScrollMinSize);
+            Assert.IsTrue(menu.ClientSize.Height < content.Height);
+        }
+    }
     const long ToolWindow = 0x80, AppWindow = 0x40000, NoActivate = 0x08000000, Child = 0x40000000;
 
     static bool Q(bool visible = true, bool cloaked = false, long style = 0, long ex = 0, bool owned = false, int title = 5, string cls = "Notepad")

@@ -181,7 +181,8 @@ static partial class Settings
     {
         long[] u;
         if (!Usage.TryGetValue(key, out u)) u = new long[] { 0, 0 };
-        Usage[key] = new long[] { u[0] + 1, DateTime.Now.Ticks };
+        long count = Math.Max(0, u[0]);
+        Usage[key] = new long[] { count == long.MaxValue ? count : count + 1, DateTime.Now.Ticks };
         PruneUsage();
         SaveQuiet();
     }

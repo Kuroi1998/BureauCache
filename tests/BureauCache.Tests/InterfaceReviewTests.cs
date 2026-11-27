@@ -15,6 +15,133 @@ public class InterfaceReviewTests
     const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
 
     [TestMethod]
+    public void IconCacheRetriesAfterATemporaryExtractionFailure()
+    {
+        const int size = 12347;
+        string key = "qa65|" + Guid.NewGuid().ToString("N") + "|" + size;
+        try
+        {
+            Assert.IsNull(IconCache.Get(key, () => null));
+            Bitmap recovered = IconCache.Get(key, () => new Bitmap(1, 1));
+            Assert.IsNotNull(recovered);
+            Assert.AreSame(recovered, IconCache.Get(key, () => null));
+        }
+        finally { IconCache.RemoveSize(size); }
+    }
+
+    [TestMethod]
+    public void SettingsWeatherIgnoresResultsAfterTheQueryIsEdited()
+    {
+        RunSta(() =>
+        {
+            using (var form = new SettingsForm(new SettingsActions()))
+            {
+                TextBox query = Field<InputBox>(form, "placeBox").Box;
+                query.Text = "Mons";
+                int previousTicket = Field<int>(form, "placeSearch");
+                query.Text = "Namur";
+                Call(form, "ShowPlaces", previousTicket, new List<WeatherPlace>
+                {
+                    new WeatherPlace { Name = "Mons", Country = "Belgique" }
+                }, null);
+                Assert.IsNull(Field<ContextMenuStrip>(form, "placeMenu"));
+            }
+        });
+    }
+
+    [TestMethod]
+    public void APanelLoadRequestedBeforeTheHandleExistsStaysPending()
+    {
+        RunSta(() =>
+        {
+            using (var panel = new PanelForm())
+            {
+                Assert.IsFalse(panel.IsHandleCreated);
+                panel.RequestLoad();
+                Assert.IsTrue(panel.Dirty);
+                Assert.IsFalse(Field<bool>(panel, "loading"));
+            }
+        });
+    }
+
+    [TestMethod]
+    public void DisposingThePanelStopsItsOwnTimersAndReleasesThePreview()
+    {
+        RunSta(() =>
+        {
+            using (var panel = new PanelForm())
+            {
+                var timers = new[] { "anim", "widgetTimer", "blurTimer", "contentTimer" }
+                    .Select(name => Field<System.Windows.Forms.Timer>(panel, name)).ToArray();
+                var preview = Field<PreviewForm>(panel, "preview");
+                try
+                {
+                    foreach (var timer in timers) timer.Start();
+                    panel.Dispose();
+                    Assert.IsFalse(timers.Any(timer => timer.Enabled));
+                    Assert.IsTrue(preview.IsDisposed);
+                }
+                finally
+                {
+                    foreach (var timer in timers) timer.Dispose();
+                    preview.Dispose();
+                }
+            }
+        });
+    }
+
+    [TestMethod]
+    public void DisposingTheListStopsItsActiveTimers()
+    {
+        RunSta(() =>
+        {
+            using (var panel = new PanelForm())
+            using (var view = new ItemsView(panel))
+            {
+                var scroll = Field<System.Windows.Forms.Timer>(view, "scrollAnim");
+                var hover = Field<System.Windows.Forms.Timer>(view, "hoverTimer");
+                try
+                {
+                    scroll.Start();
+                    hover.Start();
+                    view.Dispose();
+                    Assert.IsFalse(scroll.Enabled);
+                    Assert.IsFalse(hover.Enabled);
+                }
+                finally { scroll.Stop(); hover.Stop(); }
+            }
+        });
+    }
+
+    [TestMethod]
+    public void RebuildingTheListCancelsAnObsoleteDrop()
+    {
+        RunSta(() =>
+        {
+            using (var panel = new PanelForm())
+            using (var view = new ItemsView(panel) { Size = new Size(350, 300), ForceList = true })
+            {
+                Group group = new Group { Key = "all" };
+                group.Items.Add(new DesktopItem { Kind = ItemKind.Desktop, Key = "test", Name = "Test" });
+                view.SetGroups(new List<Group> { group }, false);
+                var rows = (System.Collections.IList)typeof(ItemsView).GetField("rows", PrivateInstance).GetValue(view);
+                typeof(ItemsView).GetField("dragRow", PrivateInstance).SetValue(view, rows[0]);
+                typeof(ItemsView).GetField("dragging", PrivateInstance).SetValue(view, true);
+                typeof(ItemsView).GetField("dropGroup", PrivateInstance).SetValue(view, group);
+                int drops = 0;
+                view.ItemDropped += (item, source, target, index) => drops++;
+                panel.Busy = true;
+                view.SetGroups(new List<Group>(), true);
+                typeof(ItemsView).GetMethod("OnMouseUp", PrivateInstance)
+                    .Invoke(view, new object[] { new MouseEventArgs(MouseButtons.Left, 1, 20, 12, 0) });
+                Assert.AreEqual(0, drops);
+                Assert.IsFalse(panel.Busy);
+                Assert.IsFalse(view.IsScrolling);
+            }
+        });
+    }
+
+    [TestMethod]
     [TestCategory("Review")]
     public void Q30_01_NonAnimatedOpeningAppliesExclusionBeforeVisibleContent()
     {

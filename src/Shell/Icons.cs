@@ -185,7 +185,7 @@ static class IconCache
         {
             Bitmap b;
             if (map.TryGetValue(key, out b)) { if (nb != null) nb.Dispose(); return b; }
-            map[key] = nb;
+            if (nb != null) map[key] = nb;
             return nb;
         }
     }

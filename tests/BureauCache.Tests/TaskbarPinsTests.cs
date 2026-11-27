@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Windows.Forms;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 // D-014 : applications épinglées et ordre des boutons de la barre. Aucun lancement réel (bac à sable).
@@ -11,6 +13,51 @@ public class TaskbarPinsTests
 {
     const string Notepad = @"exe:C:\Windows\notepad.exe";
     const string Calc = "aumid:Microsoft.WindowsCalculator_8wekyb3d8bbwe!App";
+
+    sealed class ClickBar : BarForm
+    {
+        public void PressAt(Point p) { OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, p.X, p.Y, 0)); }
+        public void ReleaseAt(Point p) { OnMouseUp(new MouseEventArgs(MouseButtons.Left, 1, p.X, p.Y, 0)); }
+    }
+
+    [TestMethod]
+    public void PreviewGapConnectsOnlyTheHoveredButtonAndItsThumbnail()
+    {
+        Rectangle button = new Rectangle(100, 700, 50, 40);
+        Rectangle preview = new Rectangle(120, 500, 220, 192);
+        Rectangle gap = BarForm.PreviewGap(button, preview);
+        Assert.IsTrue(gap.Contains(125, 695));
+        Assert.IsFalse(gap.Contains(110, 695));
+        Assert.IsFalse(gap.Contains(155, 695));
+        Assert.IsTrue(BarForm.PreviewGap(button, new Rectangle(200, 500, 220, 192)).IsEmpty);
+    }
+
+    [TestMethod]
+    public void ReleasingAPinOverStartDoesNotOpenTheMenu()
+    {
+        List<string> previous = Settings.TaskbarPins;
+        try
+        {
+            Settings.TaskbarPins = new List<string> { Calc + ">Calc" };
+            using (ClickBar bar = new ClickBar())
+            using (Bitmap frame = new Bitmap(bar.Width, bar.Height))
+            {
+                bar.RebuildButtons();
+                bar.DrawToBitmap(frame, bar.ClientRectangle);
+                Rectangle start = bar.RectangleToClient(bar.StartButtonBounds);
+                Point center = new Point(start.Left + start.Width / 2, start.Top + start.Height / 2);
+                int opens = 0;
+                bar.StartClicked += () => opens++;
+                bar.PressAt(new Point(start.Right + Ui.S(14), center.Y));
+                bar.ReleaseAt(center);
+                Assert.AreEqual(0, opens);
+                bar.PressAt(center);
+                bar.ReleaseAt(center);
+                Assert.AreEqual(1, opens);
+            }
+        }
+        finally { Settings.TaskbarPins = previous; }
+    }
 
     static TaskWindow W(int h, string key, string title = "Fenêtre")
     {
@@ -40,6 +87,24 @@ public class TaskbarPinsTests
         List<BarButton> b = TaskbarModel.Build(pins, new List<TaskWindow>());
         Assert.AreEqual(1, b.Count, "Seule la première épingle valide reste : " + string.Join(", ", b.Select(x => x.Key)));
         Assert.AreEqual("A", b[0].Name);
+    }
+
+    [TestMethod]
+    public void OnlyFullyQualifiedLocalExecutablePinsAreAccepted()
+    {
+        string key, name;
+        foreach (string path in new[] { @"C:outil.exe", @"\outil.exe", "/outil.exe", "//serveur/partage/a.exe", @"C:\a*.exe" })
+            Assert.IsFalse(TaskbarModel.ParsePin("exe:" + path + ">Outil", out key, out name), path);
+        Assert.IsTrue(TaskbarModel.ParsePin(@"EXE:C:\Mes outils\outil.exe>Outil", out key, out name));
+        Assert.AreEqual(@"exe:C:\Mes outils\outil.exe", key);
+    }
+
+    [TestMethod]
+    public void PinningRejectsKeysThatWouldSplitIntoTwoSettingsEntries()
+    {
+        string[] original = { Notepad + ">Bloc-notes" };
+        CollectionAssert.AreEqual(original, TaskbarModel.WithPin(original, "aumid:test|aumid:other", "Test"));
+        CollectionAssert.AreEqual(original, TaskbarModel.WithPin(original, "aumid:test>other", "Test"));
     }
 
     [TestMethod]

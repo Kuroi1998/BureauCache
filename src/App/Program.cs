@@ -62,7 +62,12 @@ static class Program
                     if (Installer.RunningFromInstall) try { Installer.RegisterVersion(); } catch { }
                     StartWatchdog();
                     try { Application.Run(new App(show, quit)); }
-                    finally { Native.RestoreDesktopIcons(); WindowsBar.Restore(); }
+                    finally
+                    {
+                        if (watchdogProcess != null) watchdogProcess.Dispose();
+                        Native.RestoreDesktopIcons();
+                        WindowsBar.Restore();
+                    }
                 }
             }
         }
@@ -72,15 +77,27 @@ static class Program
     }
 
     // Vrai si le processus de surveillance tourne : la barre BureauCache en a besoin (D-013, BAR-07)
-    internal static bool WatchdogStarted;
+    static Process watchdogProcess;
+    internal static bool WatchdogRunning
+    {
+        get
+        {
+            try { return watchdogProcess != null && !watchdogProcess.HasExited; }
+            catch (InvalidOperationException) { return false; }
+            catch (System.ComponentModel.Win32Exception) { return false; }
+        }
+    }
 
     static void StartWatchdog()
     {
         try
         {
-            ProcessStartInfo psi = new ProcessStartInfo(Application.ExecutablePath, "--watchdog " + Process.GetCurrentProcess().Id);
-            psi.UseShellExecute = false;
-            using (Process p = Process.Start(psi)) WatchdogStarted = p != null && !p.HasExited;
+            using (Process current = Process.GetCurrentProcess())
+            {
+                ProcessStartInfo psi = new ProcessStartInfo(Application.ExecutablePath, "--watchdog " + current.Id);
+                psi.UseShellExecute = false;
+                watchdogProcess = Process.Start(psi);
+            }
         }
         catch { }
     }
@@ -89,7 +106,7 @@ static class Program
     {
         int pid;
         if (!int.TryParse(pidText, out pid)) return;
-        try { Process.GetProcessById(pid).WaitForExit(); } catch { }
+        try { using (Process parent = Process.GetProcessById(pid)) parent.WaitForExit(); } catch { }
         Thread.Sleep(1500);
         if (InstanceExists()) return;
         Native.RestoreDesktopIcons();   // plantage : icônes et barre Windows reviennent

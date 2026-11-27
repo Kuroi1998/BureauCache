@@ -10,11 +10,12 @@ static class Calc
     const int MaxLength = 200;
     public static bool LooksLikeMath(string s)
     {
+        if (s == null) return false;
         s = s.Trim();
         // Même limite que TryEval : un long texte collé n'est pas analysé pour rien (SEC-03)
         if (s.Length < 2 || s.Length > MaxLength || !s.Any(char.IsDigit)) return false;
         if (!Regex.IsMatch(s, @"^[\d\s.,+\-*/^()×÷x%]+$")) return false;
-        return Regex.IsMatch(s, @"[\d)%]\s*[+\-*/^×÷x]\s*[\d(.,]") || s.EndsWith("%");
+        return Regex.IsMatch(s, @"[\d)%]\s*(?:\*\*|[+\-*/^×÷x])\s*(?:[+\-]\s*)*[\d(.,]") || s.EndsWith("%");
     }
 
     public static bool TryEval(string s, out double v)

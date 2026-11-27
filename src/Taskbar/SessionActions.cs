@@ -82,7 +82,8 @@ static class SessionActions
     {
         try
         {
-            string sid = WindowsIdentity.GetCurrent().User.Value;
+            string sid;
+            using (WindowsIdentity identity = WindowsIdentity.GetCurrent()) sid = identity.User.Value;
             using (RegistryKey k = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\AccountPicture\Users\" + sid))
             {
                 if (k == null) return null;

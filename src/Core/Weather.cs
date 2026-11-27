@@ -224,6 +224,7 @@ static class Weather
 
     static bool Finite(double v) { return !double.IsNaN(v) && !double.IsInfinity(v); }
     static bool ValidCoord(double v, double limit) { return Finite(v) && Math.Abs(v) <= limit; }
+    static bool ValidWeatherCode(double code) { return code >= int.MinValue && code <= int.MaxValue && code == Math.Truncate(code); }
 
     internal static WeatherReport ParseForecast(string json)
     {
@@ -232,7 +233,7 @@ static class Weather
         if (cur == null) return null;
         WeatherReport r = new WeatherReport { Temp = Json.Num(cur, "temperature_2m"), Feels = Json.Num(cur, "apparent_temperature"), Wind = Json.Num(cur, "wind_speed_10m") };
         double code = Json.Num(cur, "weather_code"), isDay = Json.Num(cur, "is_day");
-        if (!Finite(r.Temp) || !Finite(code)) return null;
+        if (!Finite(r.Temp) || !ValidWeatherCode(code)) return null;
         r.Code = (int)code;
         if (Finite(isDay)) r.IsDay = isDay != 0;
         string now = Json.Str(cur, "time");
@@ -248,7 +249,9 @@ static class Weather
                 string date = dates[i] as string;
                 if (date == null || !DateTime.TryParseExact(date, "yyyy-MM-dd", Inv, DateTimeStyles.None, out d.Date)) continue;
                 if (!(codes[i] is double) || !(max[i] is double) || !(min[i] is double)) continue;   // « NaN » en texte, null… : jour ignoré
-                d.Code = (int)(double)codes[i]; d.Max = (double)max[i]; d.Min = (double)min[i];
+                double dayCode = (double)codes[i];
+                if (!ValidWeatherCode(dayCode)) continue;
+                d.Code = (int)dayCode; d.Max = (double)max[i]; d.Min = (double)min[i];
                 r.Days.Add(d);
             }
         return r;
@@ -326,7 +329,7 @@ static class Weather
     {
         DateTime today = r.LocalToday != DateTime.MinValue ? r.LocalToday : DateTime.Today;
         if (date == today) return L.T("Aujourd'hui", "Today", "Hoy");
-        if (date == today.AddDays(1)) return L.T("Demain", "Tomorrow", "Mañana");
+        if ((date - today).Ticks == TimeSpan.TicksPerDay) return L.T("Demain", "Tomorrow", "Mañana");
         return date.ToString("dddd", L.Culture);
     }
 }

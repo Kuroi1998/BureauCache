@@ -17,6 +17,7 @@ partial class BarForm : Form
     readonly uint taskbarCreated = Native.RegisterWindowMessage("TaskbarCreated");
     readonly Timer clock = new Timer();
     bool appbar;
+    Rectangle requestedBarBounds, approvedBarBounds;
     int hot = -1;   // zone survolée : 0 Démarrer, 1 Paramètres rapides, 2 horloge, Overflow, WindowZone + indice
     Rectangle[] zones = new Rectangle[3];
 
@@ -34,6 +35,8 @@ partial class BarForm : Form
         Rectangle s = Screen.PrimaryScreen.Bounds;
         Bounds = new Rectangle(s.Left, s.Bottom - BarHeight, s.Width, BarHeight);
         ApplyTheme();
+        previewDelay.Tick += (o, e) => { previewDelay.Stop(); OpenPreview(previewZone); };
+        previewWatch.Tick += (o, e) => WatchPreview();
         clock.Tick += (o, e) => { ScheduleClock(); Invalidate(zones[2]); };
         ScheduleClock();
     }
@@ -98,6 +101,18 @@ partial class BarForm : Form
         Reposition();
     }
 
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) clock.Dispose();
+        base.Dispose(disposing); // OnHandleDestroyed arrête le suivi et ferme l'aperçu.
+        if (disposing)
+        {
+            previewDelay.Dispose();
+            previewWatch.Dispose();
+            tip.Dispose();
+        }
+    }
+
     // Place la barre en bas de l'écran principal et y réserve sa hauteur
     public void Reposition()
     {
@@ -110,8 +125,17 @@ partial class BarForm : Form
         d.rc = new Native.RECT { Left = s.Left, Top = s.Bottom - BarHeight, Right = s.Right, Bottom = s.Bottom };
         Native.SHAppBarMessage(Native.ABM_QUERYPOS, ref d);
         d.rc.Top = d.rc.Bottom - BarHeight;
+        Rectangle requested = Rectangle.FromLTRB(d.rc.Left, d.rc.Top, d.rc.Right, d.rc.Bottom);
+        if (requested == requestedBarBounds)
+        {
+            if (Bounds != approvedBarBounds) Bounds = approvedBarBounds;
+            return;
+        }
+        // ABM_SETPOS déclenche ABN_POSCHANGED. Une position identique ne doit pas relancer la notification.
+        requestedBarBounds = approvedBarBounds = requested;
         Native.SHAppBarMessage(Native.ABM_SETPOS, ref d);
-        Bounds = Rectangle.FromLTRB(d.rc.Left, d.rc.Top, d.rc.Right, d.rc.Bottom);
+        approvedBarBounds = Rectangle.FromLTRB(d.rc.Left, d.rc.Top, d.rc.Right, d.rc.Bottom);
+        Bounds = approvedBarBounds;
     }
 
     void AppBarRemove()
@@ -122,6 +146,7 @@ partial class BarForm : Form
         d.hWnd = Handle;
         Native.SHAppBarMessage(Native.ABM_REMOVE, ref d);
         appbar = false;
+        requestedBarBounds = Rectangle.Empty;
     }
 
     protected override void WndProc(ref Message m)
@@ -134,11 +159,13 @@ partial class BarForm : Form
             else if (code == Native.ABN_FULLSCREENAPP) OnFullscreen(m.LParam != IntPtr.Zero);
         }
         else if (m.Msg == (int)shellHook) OnShellHook(m.WParam, m.LParam);
-        else if (m.Msg == (int)taskbarCreated)
+        else if (!Sandbox.Active && taskbarCreated != 0 && m.Msg == (int)taskbarCreated)
         {
             // Explorer a redémarré : il a oublié notre réservation, et sa barre réapparaît
             appbar = false;
+            requestedBarBounds = Rectangle.Empty;
             AppBarRegister();
+            if (windows != null) Native.RegisterShellHookWindow(Handle);
             if (ExplorerRestarted != null) ExplorerRestarted();
         }
         base.WndProc(ref m);
@@ -148,6 +175,7 @@ partial class BarForm : Form
     void OnFullscreen(bool entering)
     {
         if (!entering) { TopMost = true; return; }
+        HidePreview();
         TopMost = false;
         Native.SetWindowPos(Handle, Native.HWND_BOTTOM, 0, 0, 0, 0, Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
     }
@@ -224,8 +252,12 @@ partial class BarForm : Form
     protected override void OnMouseUp(MouseEventArgs e)
     {
         base.OnMouseUp(e);
-        if (DragEnd()) return;
         int z = ZoneAt(e.Location);
+        if (e.Button == MouseButtons.Left)
+        {
+            bool changed = (pressedButton != null || z >= WindowZone) && !StillPressed(z - WindowZone);
+            if (DragEnd() || changed) return;
+        }
         if (WindowMouseUp(z, e.Button)) return;
         if (e.Button == MouseButtons.Right) { if (MenuRequested != null) MenuRequested(); return; }
         if (e.Button != MouseButtons.Left) return;

@@ -69,6 +69,140 @@ La revue porte sur les 38 fichiers C# de `src/` (7 263 lignes après correction)
 | QA-59 | Basse | Essai réel : texte des tuiles du menu Démarrer coupé en bas sur deux lignes. Cause : la tuile réservait 55 % de sa hauteur à l'icône, quelle que soit la place prise par le texte ; à 150 %, deux lignes ne tenaient plus. Le test précédent ne mesurait que le nombre de lignes, pas la zone réellement dessinée : il passait à tort. Correction : icône de hauteur fixe, texte mesuré à la largeur de la tuile (deux lignes au plus), bloc centré verticalement ; menu réduit à la demande (540 px, tuiles de 88 px, polices un peu plus petites). | `TextFits` vérifie la zone dessinée, en français, anglais et espagnol. Suite : 516 réussis. Essai réel à refaire. |
 | QA-60 | Moyenne | Épingles et ordre des boutons (D-014, T-033). **Sécurité** : une épingle ne lance qu'une application du Store (`shell:AppsFolder`) ou un exe local désigné par un chemin complet (pas de partage réseau, pas de chemin relatif, pas d'autre extension) ; les entrées abîmées ou en double sont ignorées ; les épingles sont un choix local, gardé à l'import (une épingle importée pourrait désigner un exe inconnu) ; le lancement passe par le bac à sable. **Fiabilité** : la liste des boutons n'est pas reconstruite pendant un glissement ; la perte de la capture (Alt+Tab) termine le glissement en gardant l'ordre atteint ; un clic tremblé reste un clic (seuil `SystemInformation.DragSize`) ; les descriptions d'exe sont lues une seule fois. **Limites** : pas de regroupement des fenêtres d'une même application ; pas d'épinglage depuis le panneau ; une application qui change d'exe à chaque mise à jour sans AppUserModelID perd son épingle. | `TaskbarPinsTests.cs` (9 tests). Suite : 525 réussis, 6 ignorés. Essai réel à faire. |
 
+## QA-61 · Revue de la barre des tâches et du menu Démarrer
+
+Cinq tests de régression échouent sur `380b250` et réussissent après correction.
+
+| Cas reproduit | Comportement vérifié |
+|---|---|
+| Explorer ignore le masquage | BureauCache annule le remplacement et rétablit le mode initial. |
+| Explorer garde sa barre cachée après la demande de restauration | Le journal reste disponible pour une nouvelle tentative. |
+| Une épingle contient un chemin relatif au lecteur | Le chargement exige un chemin d’exécutable avec lettre de lecteur et séparateur de racine. |
+| Une clé contient un séparateur du format des épingles | L’ajout conserve la liste précédente. |
+| Le clic commence sur une épingle et finit sur Démarrer | Le menu reste fermé. Un clic entier sur Démarrer fonctionne. |
+
+Les cas Explorer utilisent le double de `TaskbarRecoveryReviewTests`. Les cas d’épingles et de clic utilisent `TaskbarPinsTests`. Suite MSTest complète sur le binaire recompilé, 524 réussites, 0 échec, 12 cas ignorés. L’intégration après redémarrage réel d’Explorer reste à vérifier.
+
+## QA-62 · Restauration, suivi des fenêtres et sauvegardes
+
+| Zone | Défaut et correction | Vérification |
+|---|---|---|
+| Barre Windows | Un second masquage pouvait continuer malgré la perte du journal. Le masquage exige un journal valide et cohérent avec l’état d’origine. Si nécessaire, BureauCache abandonne le remplacement et retente la restauration depuis sa boucle de vérification. | [Tests avec Explorer simulé](tests/BureauCache.Tests/TaskbarRecoveryReviewTests.cs). |
+| Suivi des fenêtres | Une inscription refusée au démarrage pouvait ne jamais être retentée. La liste retente les inscriptions manquantes et signale les échecs d’énumération pour un nouvel essai. | [Tests du suivi](tests/BureauCache.Tests/WindowStartReviewTests.cs). |
+| Aperçus | Le passage entre l’icône et l’aperçu pouvait déclencher sa fermeture. La zone de survol couvre aussi l’espace entre les deux. La fermeture libère l’image et la vignette, et le passage en plein écran masque l’aperçu. La vignette conserve ses proportions. | [Tests de la barre](tests/BureauCache.Tests/TaskbarPinsTests.cs) et [test de libération de l’image](tests/BureauCache.Tests/WindowStartReviewTests.cs). |
+| Réservation de la barre | La réservation était renvoyée même sans changement de position. BureauCache mémorise la dernière position demandée et interroge toujours Explorer avant de décider de la renouveler. | Revue de [BarForm](src/Taskbar/BarForm.cs) et de la documentation Microsoft sur [ABM_SETPOS et ABN_POSCHANGED](https://learn.microsoft.com/fr-fr/windows/win32/shell/abm-setpos). |
+| Menu Démarrer | Sur une zone de travail trop basse, le menu pouvait dépasser du haut de l’écran. Le menu reste dans la zone de travail et devient défilable si nécessaire. | [Test avec une zone de travail réduite](tests/BureauCache.Tests/TaskbarWindowsStartTests.cs). |
+| Sauvegardes | Une copie verrouillée en lecture pouvait être supprimée par la rotation. La rotation et la copie quotidienne préservent les sauvegardes temporairement inaccessibles. | [Test de verrouillage dans un dossier temporaire](tests/BureauCache.Tests/SettingsBackupReviewTests.cs). |
+
+Huit tests ajoutés. Cinq échecs reproduits avant correction dans les essais ciblés. Suite complète sur le binaire recompilé avec VSTest de Visual Studio, 532 réussites, 0 échec et 12 cas ignorés sur 544. Résultats locaux dans `tests/BureauCache.Tests/TestResults/qa62-after.trx`.
+
+Les essais sur Explorer réel, en particulier son redémarrage, la réservation AppBar et l’affichage des vignettes DWM, restent à effectuer en session interactive.
+
+## QA-63 · Calculatrice, recherche et données incomplètes
+
+| Zone | Défaut corrigé | Vérification |
+|---|---|---|
+| Calculatrice | Le panneau omettait le résultat automatique pour `2**3`, `2 * -3`, `2^-3` et `2--3`. La détection reconnaît ces expressions et accepte une entrée absente sans exception. | [Tests de détection](tests/BureauCache.Tests/CalcTests.cs). |
+| Recherche dans les fichiers | Revenir à une ancienne requête pouvait afficher ses anciens résultats, même si la nouvelle recherche ne trouvait rien. Le cache est vidé à chaque changement de requête. Les termes composés de séparateurs sont écartés et les chemins identiques sont dédupliqués. | [Test WinForms du cache](tests/BureauCache.Tests/ContentClipboardReviewTests.cs) et [tests de construction de la requête](tests/BureauCache.Tests/ContentClutterTests.cs). La déduplication a été relue dans le code. |
+| Presse-papiers | L’aperçu pouvait couper un emoji ou séparer une lettre de son accent au moment de la troncature. La coupure retombe sur une limite d’élément de texte et la largeur nulle donne un aperçu vide. | [Tests du presse-papiers](tests/BureauCache.Tests/ClipboardDesktopTests.cs). |
+| JSON | Un saut de ligne brut, un échappement Unicode mal formé et un guillemet non échappé pouvaient être acceptés, avec une chaîne tronquée dans le dernier cas. Le parseur rejette ces entrées. | [Tests du parseur](tests/BureauCache.Tests/JsonTests.cs). |
+| Météo | Un code décimal ou hors plage était converti en entier et une date à la limite de `DateTime` pouvait lever une exception. Les codes invalides sont écartés et l’étiquette « Demain » compare les dates sans dépasser la plage. | [Tests de lecture météo](tests/BureauCache.Tests/WeatherTests.cs). |
+| Encombrement du bureau | Un fichier disparu pendant le relevé pouvait être compté comme s’il occupait zéro octet. Le rapport signale désormais un résultat partiel quand une taille reste inconnue. | [Test sur fichier temporaire](tests/BureauCache.Tests/ContentClutterTests.cs). |
+
+Les 15 nouveaux cas ont échoué avant correction dans les essais ciblés. Compilation sans avertissement. Suite complète sur le binaire recompilé avec VSTest de Visual Studio, 547 réussites, 0 échec et 12 cas ignorés sur 559. Résultats locaux dans `tests/BureauCache.Tests/TestResults/qa63-after.trx`. Les essais de recherche et de météo utilisent des données de test.
+
+## QA-64 · État des réglages et cycle de vie du panneau
+
+| Zone | Défaut corrigé | Vérification |
+|---|---|---|
+| Historique d’utilisation | Une date hors plage pouvait empêcher l’évaluation d’un fichier pour le rangement. Les dates invalides sont écartées et une date valide reste conservée si seul le compteur est négatif. Un compteur élevé ne déborde plus au classement ni à l’ouverture d’un élément. | [Tests des réglages et du classement](tests/BureauCache.Tests/SettingsBackupReviewTests.cs). |
+| Restauration | Une sauvegarde antérieure aux épingles laissait les épingles du profil courant. La restauration vide désormais cette liste absente et son point d’annulation permet de la retrouver. | [Test de restauration et de retour arrière](tests/BureauCache.Tests/SettingsBackupReviewTests.cs). |
+| Réglages météo | Le libellé court pouvait disparaître si sa ligne précédait celle du lieu dans le fichier INI. Les deux ordres produisent le même résultat. | [Test de lecture INI](tests/BureauCache.Tests/SettingsBackupReviewTests.cs). |
+| Panneau | Une reconstruction ou un redimensionnement de la liste annule le geste en cours. Le relâchement ne déclenche plus une action sur un ancien groupe. Les minuteurs, l’aperçu et les images possédées par le panneau sont libérés à la fermeture. | [Tests WinForms du glissement et de la libération](tests/BureauCache.Tests/InterfaceReviewTests.cs). |
+| Fermeture automatique | La perte du focus vérifie aussi l’option « Fermer quand la souris s’éloigne », y compris dans le rappel différé. | Revue de [PanelForm.Input.cs](src/UI/Panel/PanelForm.Input.cs). |
+| Barre Windows | BureauCache vérifie que le processus de surveillance est toujours actif. S’il disparaît, le remplacement est arrêté et la restauration de la barre Windows est engagée. | Revue de [Program.cs](src/App/Program.cs) et [App.Taskbar.cs](src/App/App.Taskbar.cs). Essai avec Explorer réel à faire. |
+
+Les sept nouveaux tests ont été reproduits en échec avant les corrections correspondantes. Les méthodes de dessin des éléments ont été déplacées dans `ItemsView.Tiles.cs` pour ramener `ItemsView.cs` à 475 lignes.
+
+Compilation sans avertissement. Suite MSTest sur le binaire recompilé, 554 réussites, 0 échec et 12 cas ignorés sur 566. Résultats dans `tests/BureauCache.Tests/TestResults/qa64-after.trx`.
+
+## QA-65 · Audit du dépôt dans son état local
+
+Base Git `380b250` avec les correctifs locaux QA-61 à QA-64. Périmètre arrêté au dépôt courant, incluant l’application, la suite de tests, les scripts et les workflows. La compilation couvre tous les fichiers sous `src`. La revue manuelle a priorisé les parcours de déplacement, de chargement, de recherche et de publication.
+
+### 1. Inventaire exhaustif des bugs constatés pendant cette passe
+
+- **Bug #1 — Perte de l’annulation lorsque le fichier archivé est indisponible**
+  - **Sévérité :** Majeur
+  - **Localisation :** `src/Core/Archiver.cs`, `RestoreArchived`
+  - **Problème :** L’identité illisible du fichier était traitée comme une identité différente.
+  - **Impact :** Un fichier momentanément indisponible perdait son entrée de retour.
+  - **Correction appliquée :** Le journal conserve l’entrée jusqu’à ce que la source soit de nouveau accessible. Un fichier dont l’identité diffère reste exclu.
+- **Bug #2 — Rangement vers le bureau lui-même**
+  - **Sévérité :** Majeur
+  - **Localisation :** `src/Core/Archiver.cs`, `Candidates`, `CountCandidates`, `Run`
+  - **Problème :** La destination résolue pouvait désigner le dossier source.
+  - **Impact :** Le rangement pouvait renommer le fichier sur place et annoncer son déplacement.
+  - **Correction appliquée :** Le décompte et le déplacement excluent une destination résolue égale au bureau.
+- **Bug #3 — Un chemin invalide interrompt un lot entier**
+  - **Sévérité :** Majeur
+  - **Localisation :** `src/Core/Archiver.cs`, `Run`
+  - **Problème :** La résolution du chemin pouvait lever une exception hors du traitement par élément.
+  - **Impact :** Les fichiers valides suivants étaient ignorés et une exception pouvait remonter au panneau.
+  - **Correction appliquée :** Les erreurs de normalisation du chemin sont traitées par élément.
+- **Bug #4 — Un fichier distinct disparaît du catalogue**
+  - **Sévérité :** Majeur
+  - **Localisation :** `src/Data/Loader.cs`, `Desktop`
+  - **Problème :** La déduplication des fichiers utilisait le libellé affiché.
+  - **Impact :** Un raccourci et un fichier différents portant le même libellé ne pouvaient pas tous deux apparaître.
+  - **Correction appliquée :** Le catalogue déduplique les fichiers par nom complet, extension comprise.
+- **Bug #5 — Demande de chargement perdue avant la création du handle**
+  - **Sévérité :** Majeur
+  - **Localisation :** `src/UI/Panel/PanelForm.Data.cs`, `RequestLoad`
+  - **Problème :** Le chargement démarrait lorsque son résultat ne pouvait pas être publié sur le fil WinForms.
+  - **Impact :** Le panneau pouvait rester bloqué en état de chargement.
+  - **Correction appliquée :** Une demande précoce est mémorisée puis exécutée à la création du handle.
+- **Bug #6 — Destination erronée dans la confirmation de rangement**
+  - **Sévérité :** Majeur
+  - **Localisation :** `src/UI/Settings/SettingsForm.Clutter.cs`, `TidyNow`
+  - **Problème :** Le texte annonçait le dossier d’archive générique pour tous les fichiers.
+  - **Impact :** Le consentement affiché pouvait décrire une autre destination que celle réellement utilisée par une règle.
+  - **Correction appliquée :** La confirmation annonce l’application des règles, puis le bilan indique le nombre déplacé.
+- **Bug #7 — Reprise impossible après un échec de publication**
+  - **Sévérité :** Majeur
+  - **Localisation :** `publier.ps1`
+  - **Problème :** L’échec du transfert laissait un tag local que l’exécution suivante refusait systématiquement.
+  - **Impact :** La même commande ne pouvait plus reprendre un envoi interrompu.
+  - **Correction appliquée :** L’envoi atomique peut être rejoué avec le même commit et le même tag si le dépôt est propre, si le tag désigne HEAD et si la version source correspond.
+- **Bug #8 — Résultats météo obsolètes dans les Paramètres**
+  - **Sévérité :** Mineur
+  - **Localisation :** `src/UI/Settings/SettingsForm.Weather.cs`, `BuildPlaceRow`
+  - **Problème :** Éditer le texte ne périmait pas la recherche en cours.
+  - **Impact :** L’ancien menu de villes pouvait être proposé après avoir tapé une autre ville.
+  - **Correction appliquée :** La modification ferme le menu, invalide les réponses en attente et rétablit le libellé du lieu.
+- **Bug #9 — Extraction d’icône mise en échec définitivement**
+  - **Sévérité :** Mineur
+  - **Localisation :** `src/Shell/Icons.cs`, `IconCache.Get`
+  - **Problème :** Une extraction qui renvoyait `null` était mémorisée.
+  - **Impact :** L’icône restait absente après la disparition de la cause temporaire.
+  - **Correction appliquée :** Le cache conserve les images obtenues et retente une extraction précédemment infructueuse.
+- **Bug #10 — Rapport CI absent lors d’un échec ordinaire**
+  - **Sévérité :** Mineur
+  - **Localisation :** `.github/workflows/tests.yml`, étape de test
+  - **Problème :** L’artefact attendait un fichier dans `TestResults` alors que la commande ne demandait qu’une sortie console.
+  - **Impact :** Un échec d’assertion pouvait ne produire aucun rapport à télécharger.
+  - **Correction appliquée :** Le workflow demande explicitement un rapport TRX dans le dossier publié. [Documentation VSTest](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test-vstest).
+
+### 2. Code corrigé et vérification
+
+Les correctifs sont dans les fichiers du dépôt. Sept tests MSTest ont reproduit les défauts avant correction. Suite complète sur le binaire recompilé sans avertissement, 561 réussites, 0 échec et 12 cas ignorés sur 573. Rapport dans `tests/BureauCache.Tests/TestResults/qa65-after.trx`.
+
+La reprise du script a été vérifiée dans un dépôt temporaire avec un commit et un tag réels et deux réponses d’envoi simulées. Les reprises avec un fichier modifié ou avec HEAD distinct du tag sont refusées. Les cinq scripts PowerShell ont passé l’analyse syntaxique. La confirmation du rangement et le workflow CI ont fait l’objet d’une revue du code.
+
+### 3. Points de vigilance
+
+La revue ne démontre pas l’absence de défaut. Restent à vérifier en situation réelle le redémarrage d’Explorer, les vignettes DWM, un lot de rangement interrompu entre le déplacement et l’écriture de son journal, ainsi qu’une publication complète sur GitHub. Les tests météo ne sollicitent pas le service distant.
+
 ## Risques et défauts encore ouverts
 
 La priorité reflète l’impact potentiel si le scénario se produit. Une observation directe du code suffit à établir les comportements décrits comme tels. La fréquence et les effets dépendant de Windows restent à vérifier sur les configurations concernées.
