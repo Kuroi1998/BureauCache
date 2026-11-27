@@ -119,11 +119,23 @@ public class TaskbarWindowsStartTests
         using (StartMenuForm menu = new StartMenuForm())
             foreach (StartTile t in menu.Controls.OfType<StartTile>())
             {
-                // Le texte doit tenir sur deux lignes au plus dans la tuile (retour de l'essai : textes coupés)
-                Size need = TextRenderer.MeasureText(t.Text, t.Font, new Size(t.Width - Ui.S(12), int.MaxValue), TextFormatFlags.WordBreak);
-                Assert.IsTrue(need.Height <= 2 * t.Font.Height + 2, t.Text);
-                Assert.IsTrue(t.Height >= Ui.S(56), t.Text);
+                // Le texte doit tenir en entier dans la zone où la tuile le dessine (essai : « Applications et
+                // recherche » et « Gestionnaire des tâches » coupés en bas, alors que l'ancien test passait)
+                Assert.IsTrue(t.TextFits, t.Text);
+                Assert.IsTrue(t.TextArea.Bottom <= t.Height, t.Text);
+                Assert.IsTrue(t.Height >= Ui.S(44), t.Text);
             }
+    }
+
+    [TestMethod]
+    public void LongestTranslatedLabelsFitInEveryLanguage()
+    {
+        Func<IDisposable>[] scopes = { () => BureauCache.Tests.LanguageScope.French(), () => BureauCache.Tests.LanguageScope.English(), () => BureauCache.Tests.LanguageScope.Spanish() };
+        foreach (Func<IDisposable> scope in scopes)
+            using (scope())
+            using (StartMenuForm menu = new StartMenuForm())
+                foreach (StartTile t in menu.Controls.OfType<StartTile>())
+                    Assert.IsTrue(t.TextFits, L.CurrentLanguage + " : " + t.Text);
     }
 
     [TestMethod]

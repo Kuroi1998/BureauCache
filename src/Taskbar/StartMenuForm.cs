@@ -16,9 +16,9 @@ class StartMenuForm : Form
     TextBox search;
     Rectangle searchRect, headerRect;
 
-    static int Pad { get { return Ui.S(24); } }
-    static int Gap { get { return Ui.S(10); } }
-    static int MenuWidth { get { return Ui.S(600); } }
+    static int Pad { get { return Ui.S(20); } }
+    static int Gap { get { return Ui.S(8); } }
+    static int MenuWidth { get { return Ui.S(540); } }
 
     public StartMenuForm()
     {
@@ -46,8 +46,8 @@ class StartMenuForm : Form
         int width = MenuWidth, inner = width - 2 * Pad, y = Pad;
 
         // Recherche : le premier caractère tapé ouvre le panneau avec ce texte, comme dans le menu de Windows
-        searchRect = new Rectangle(Pad, y, inner, Ui.S(44));
-        search = new TextBox { BorderStyle = BorderStyle.None, Font = Ui.Font("Segoe UI", 11.25f), BackColor = Theme.Surface, ForeColor = Theme.Fg,
+        searchRect = new Rectangle(Pad, y, inner, Ui.S(40));
+        search = new TextBox { BorderStyle = BorderStyle.None, Font = Ui.Font("Segoe UI", 10.5f), BackColor = Theme.Surface, ForeColor = Theme.Fg,
                                MaxLength = 256, AccessibleName = L.T("Rechercher", "Search", "Buscar") };
         search.Bounds = new Rectangle(searchRect.Left + Ui.S(42), searchRect.Top + (searchRect.Height - search.PreferredHeight) / 2,
                                       searchRect.Width - Ui.S(54), search.PreferredHeight);
@@ -59,12 +59,12 @@ class StartMenuForm : Form
             if (SearchRequested != null) SearchRequested(text);
         };
         Controls.Add(search);
-        y = searchRect.Bottom + Ui.S(16);
+        y = searchRect.Bottom + Ui.S(14);
 
-        headerRect = new Rectangle(Pad, y, inner, Ui.S(64));
+        headerRect = new Rectangle(Pad, y, inner, Ui.S(56));
         y = headerRect.Bottom + Ui.S(16);
 
-        int third = (inner - 2 * Gap) / 3, half = (inner - Gap) / 2, tileH = Ui.S(96);
+        int third = (inner - 2 * Gap) / 3, half = (inner - Gap) / 2, tileH = Ui.S(88);
         y = SectionLabel(L.T("RACCOURCIS", "SHORTCUTS", "ACCESOS"), y);
         AddTile(Glyphs.Search, L.T("Applications et recherche", "Apps and search", "Aplicaciones y búsqueda"), Cell(0, y, third, tileH), true, () =>
         {
@@ -77,13 +77,13 @@ class StartMenuForm : Form
         AddTile(Glyphs.Page, L.T("Documents", "Documents", "Documentos"), Cell(0, y, third, tileH), true, () => Launch("shell:Personal"));
         AddTile(Glyphs.Download, L.T("Téléchargements", "Downloads", "Descargas"), Cell(1, y, third, tileH), true, () => Launch("shell:Downloads"));
         AddTile(Glyphs.TaskManager, L.T("Gestionnaire des tâches", "Task Manager", "Administrador de tareas"), Cell(2, y, third, tileH), true, () => Launch("taskmgr.exe"));
-        y += tileH + Ui.S(20);
+        y += tileH + Ui.S(16);
 
-        int rowH = Ui.S(56);
+        int rowH = Ui.S(48);
         y = SectionLabel(L.T("COMPTE", "ACCOUNT", "CUENTA"), y);
         AddTile(Glyphs.Lock, L.T("Verrouiller", "Lock", "Bloquear"), new Rectangle(Pad, y, half, rowH), false, () => Run(SessionActions.Lock));
         AddTile(Glyphs.User, L.T("Se déconnecter", "Sign out", "Cerrar sesión"), new Rectangle(Pad + half + Gap, y, half, rowH), false, () => Run(SessionActions.SignOut));
-        y += rowH + Ui.S(20);
+        y += rowH + Ui.S(16);
 
         bool updates = SessionActions.UpdatesPending;
         y = SectionLabel(L.T("ALIMENTATION", "POWER", "ENERGÍA"), y);
@@ -102,9 +102,9 @@ class StartMenuForm : Form
     int SectionLabel(string text, int y)
     {
         Label l = new Label { Text = text, AutoSize = false, ForeColor = Theme.FgDim, BackColor = Theme.Bg, Font = Ui.Font("Segoe UI Semibold", 9f),
-                              Bounds = new Rectangle(Pad, y, MenuWidth - 2 * Pad, Ui.S(22)) };
+                              Bounds = new Rectangle(Pad, y, MenuWidth - 2 * Pad, Ui.S(20)) };
         Controls.Add(l);
-        return y + Ui.S(28);
+        return y + Ui.S(24);
     }
 
     void AddTile(string glyph, string text, Rectangle bounds, bool stacked, Action click)
@@ -162,7 +162,7 @@ class StartMenuForm : Form
         Ui.Glyph(g, Glyphs.Search, 12f, Theme.FgDim, new Rectangle(searchRect.Left + Ui.S(12), searchRect.Top, Ui.S(24), searchRect.Height));
 
         // Session : photo (ou initiales), nom, et le PC sur lequel elle est ouverte
-        int size = Ui.S(56);
+        int size = Ui.S(48);
         Rectangle pic = new Rectangle(headerRect.Left, headerRect.Top + (headerRect.Height - size) / 2, size, size);
         if (picture != null)
         {
@@ -182,8 +182,8 @@ class StartMenuForm : Form
         }
         int textLeft = pic.Right + Ui.S(16), textW = headerRect.Right - textLeft, mid = headerRect.Top + headerRect.Height / 2;
         TextFormatFlags f = TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.Bottom;
-        TextRenderer.DrawText(g, userName, Ui.Font("Segoe UI Semibold", 14f), new Rectangle(textLeft, headerRect.Top, textW, mid - headerRect.Top), Theme.Fg, f);
-        TextRenderer.DrawText(g, L.T("Session sur ", "Signed in on ", "Sesión en ") + Environment.MachineName, Ui.Font("Segoe UI", 9.75f),
+        TextRenderer.DrawText(g, userName, Ui.Font("Segoe UI Semibold", 13f), new Rectangle(textLeft, headerRect.Top, textW, mid - headerRect.Top), Theme.Fg, f);
+        TextRenderer.DrawText(g, L.T("Session sur ", "Signed in on ", "Sesión en ") + Environment.MachineName, Ui.Font("Segoe UI", 9f),
             new Rectangle(textLeft, mid + Ui.S(2), textW, Ui.S(22)), Theme.FgDim, TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
         using (Pen line = new Pen(Theme.Line)) g.DrawLine(line, Pad, headerRect.Bottom + Ui.S(8), ClientSize.Width - Pad, headerRect.Bottom + Ui.S(8));
     }
@@ -204,7 +204,7 @@ class StartTile : FlatControl
         this.glyph = glyph;
         this.stacked = stacked;
         Text = text;
-        Font = Ui.Font("Segoe UI", 10.5f);
+        Font = Ui.Font("Segoe UI", 10f);
         BackColor = Theme.Bg;
         EnableSettingsKeyboard();
     }
@@ -225,20 +225,57 @@ class StartTile : FlatControl
         Graphics g = Prep(e);
         RectangleF r = new RectangleF(0, 0, Width - 1, Height - 1);
         Ui.Fill(g, hover || Focused ? Theme.Hover : Theme.Surface, r, Ui.S(Ui.RadiusControl));
-        TextFormatFlags f = TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.WordBreak;
         if (stacked)
         {
-            int glyphH = Height * 11 / 20;
-            Ui.Glyph(g, glyph, 20f, Theme.Fg, new Rectangle(0, Ui.S(6), Width, glyphH - Ui.S(6)));
-            TextRenderer.DrawText(g, Text, Font, new Rectangle(Ui.S(6), glyphH, Width - Ui.S(12), Height - glyphH - Ui.S(4)), Theme.Fg,
-                f | TextFormatFlags.HorizontalCenter);
+            Ui.Glyph(g, glyph, 17f, Theme.Fg, GlyphArea);
+            TextRenderer.DrawText(g, Text, Font, TextArea, Theme.Fg, TextFlags | TextFormatFlags.HorizontalCenter);
         }
         else
         {
-            Ui.Glyph(g, glyph, 15f, Theme.Fg, new Rectangle(Ui.S(12), 0, Ui.S(32), Height));
-            TextRenderer.DrawText(g, Text, Font, new Rectangle(Ui.S(54), 0, Width - Ui.S(60), Height), Theme.Fg,
-                f | TextFormatFlags.VerticalCenter);
+            Ui.Glyph(g, glyph, 14f, Theme.Fg, new Rectangle(Ui.S(10), 0, Ui.S(30), Height));
+            TextRenderer.DrawText(g, Text, Font, TextArea, Theme.Fg, TextFlags | TextFormatFlags.VerticalCenter);
         }
         DrawSettingsFocus(g);
+    }
+
+    const TextFormatFlags TextFlags = TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.WordBreak;
+    static int GlyphHeight { get { return Ui.S(28); } }
+    static int GlyphGap { get { return Ui.S(4); } }
+
+    // Hauteur réelle du texte, sur deux lignes au plus, mesurée à la largeur de la tuile
+    int TextHeight
+    {
+        get
+        {
+            int w = stacked ? Width - Ui.S(12) : Width - Ui.S(52);
+            int measured = TextRenderer.MeasureText(Text, Font, new Size(Math.Max(1, w), int.MaxValue), TextFlags).Height;
+            return Math.Min(measured, 2 * Font.Height + Ui.S(2));
+        }
+    }
+
+    // Icône puis texte, centrés ensemble verticalement : le texte n'est jamais coupé en hauteur (essai du 2026-11-27)
+    int BlockTop { get { return Math.Max(Ui.S(4), (Height - (GlyphHeight + GlyphGap + TextHeight)) / 2); } }
+
+    Rectangle GlyphArea { get { return new Rectangle(0, BlockTop, Width, GlyphHeight); } }
+
+    internal Rectangle TextArea
+    {
+        get
+        {
+            if (!stacked) return new Rectangle(Ui.S(48), 0, Width - Ui.S(52), Height);
+            int top = BlockTop + GlyphHeight + GlyphGap;
+            return new Rectangle(Ui.S(6), top, Width - Ui.S(12), Math.Max(TextHeight + Ui.S(2), Height - top - Ui.S(4)));
+        }
+    }
+
+    // Faux si le texte, mis en page, dépasse sa zone (test de non-régression)
+    internal bool TextFits
+    {
+        get
+        {
+            Rectangle a = TextArea;
+            Size need = TextRenderer.MeasureText(Text, Font, new Size(a.Width, int.MaxValue), TextFlags);
+            return need.Height <= a.Height && a.Bottom <= Height;
+        }
     }
 }

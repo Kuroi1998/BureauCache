@@ -118,6 +118,7 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-27 · ChatGPT puis Claude · Tests de revue `WindowStartReviewTests.cs` (BAR-03, 04, 05, 12) : 6 échecs reproduits, tous corrigés. Texte de la revue non reçu : les autres constats restent à trier (QA-57).
 - 2026-11-27 · Claude · Menu Démarrer agrandi (600 px à 100 %, tuiles de 96 px) avec recherche et 6 raccourcis ; aperçu en direct par vignette DWM au survol (QA-57). Suite : 515 réussis.
 - 2026-11-27 · Toi puis Claude · Icônes de la barre jugées trop petites : barre de 56 px (au lieu de 48), icônes des fenêtres de 32 px (au lieu de 24), logo, icônes de droite et horloge agrandis (QA-58). Suite : 515 réussis.
+- 2026-11-27 · Toi puis Claude · Menu Démarrer : textes des tuiles coupés en bas (« Applications et recherche », « Gestionnaire des tâches ») ; icône et texte centrés ensemble selon la hauteur mesurée du texte, menu réduit (540 px, tuiles de 88 px) (QA-59). Suite : 516 réussis.
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.
