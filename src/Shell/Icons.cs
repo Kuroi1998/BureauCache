@@ -210,7 +210,34 @@ static class IconCache
     {
         long stamp = 0;
         try { stamp = File.GetLastWriteTimeUtc(path).Ticks; } catch { }
-        return Get(path + "|" + px + "|" + stamp, () => Icons.ForPath(path, px));
+        string key = path + "|" + px + "|" + stamp;
+        RetireOlderVersions(path + "|" + px + "|", key);
+        return Get(key, () => Icons.ForPath(path, px));
+    }
+
+    // Un fichier modifié change de clé (sa date fait partie de la clé) : l'image de l'ancienne version restait en
+    // mémoire jusqu'à la fermeture (CDX-29). Elle sort du cache tout de suite, mais n'est libérée qu'après la
+    // publication des nouvelles listes (ReleaseRetired, sur le fil d'interface) : l'ancienne liste peut encore la dessiner.
+    static readonly List<Bitmap> retired = new List<Bitmap>();
+
+    static void RetireOlderVersions(string prefix, string current)
+    {
+        lock (lk)
+        {
+            foreach (string k in map.Keys.Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
+                                                     !string.Equals(k, current, StringComparison.OrdinalIgnoreCase)).ToList())
+            {
+                if (map[k] != null) retired.Add(map[k]);
+                map.Remove(k);
+            }
+        }
+    }
+
+    public static void ReleaseRetired()
+    {
+        List<Bitmap> dead;
+        lock (lk) { dead = retired.ToList(); retired.Clear(); }
+        foreach (Bitmap b in dead) b.Dispose();
     }
 
     public static Bitmap Tile(string glyph, string font, Color c, int px)

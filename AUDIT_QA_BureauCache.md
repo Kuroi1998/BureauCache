@@ -312,3 +312,29 @@ Première revue lancée depuis le terminal (D-015) : 13 constats (CDX-01 à 13),
 | CDX-13 · Un appui dans le vide relâché sur Démarrer ouvrait le menu | Basse | Un clic n'agit que s'il est relâché dans la zone où il a commencé | Test |
 
 Suite : 582 réussis, 6 ignorés. Restent à essayer en vrai : changement d'échelle avec la barre active, déconnexion annulée, veille sur le PC du chef de projet, fermeture d'une fenêtre administrateur.
+
+## QA-68 · Chasse aux bugs hors de la barre (T-036) : Claude, puis Codex en lecture seule
+
+**Trouvés par Claude** (reproduits par des tests) :
+
+| Défaut | Correction | Vérification |
+|---|---|---|
+| Une suppression depuis le panneau envoyait l'élément à la corbeille depuis `AppData\BureauCache\suppression` : « Restaurer » dans la Corbeille de Windows le remettait dans ce dossier caché, pas sur le bureau | L'élément revient à sa place, puis part à la corbeille de là ; place reprise : depuis la mise de côté ; corbeille refusée : l'élément reste visible sur le bureau | 7 tests (`PanelDeleteTests`) |
+| Renommer un dossier en changeant seulement la casse échouait (`Directory.Move` le refuse sous .NET Framework) | Passage par un nom temporaire, ancien nom remis en cas d'échec | Reproduit, puis 3 tests (`FileOpsCaseTests`) |
+
+**Revue de Codex** (10 constats, CDX-20 à 29, aucun fichier modifié par Codex). Chacun vérifié dans le code : 9 retenus, 1 écarté.
+
+| Constat | Gravité | Correction | Vérification |
+|---|---|---|---|
+| CDX-20 · Le marqueur d'origine de la correction précédente pouvait être confondu avec un fichier de l'utilisateur du même nom, alors effacé définitivement | Haute | Contenu (`contenu\`) et marqueur (`origine`) séparés ; ancienne disposition : tout est du contenu | Test (fichier et dossier, deux noms) |
+| CDX-21 · Un `%TEMP%` redirigé vers un dossier de données sous AppData était nettoyé (suppression définitive des fichiers de plus de 24 h) | Haute | Seul `AppData\Local\Temp` ou un sous-dossier ; sinon la catégorie est désactivée et l'explique | Test |
+| CDX-22 · Une version que Windows refuse de lancer juste après une mise à jour laissait BureauCache inutilisable | Haute | `Program.RelaunchUpdate` : retour à l'ancienne version, avertissement, relance unique. *En partie : un processus qui meurt avant `Main` n'est pas couvert (il faudrait un processus de récupération à part).* | 3 tests |
+| CDX-23 · Un `settings.ini` verrouillé au démarrage (antivirus, OneDrive) faisait écrire les valeurs par défaut par-dessus les vrais réglages | Haute | Relecture pendant 3 s ; s'il reste illisible, aucune écriture jusqu'à une restauration ou un import, et une bulle l'explique. Un fichier abîmé (et non verrouillé) reste réécrit comme avant | 2 tests |
+| CDX-24 · Annuler un renommage pourrait déplacer un autre fichier si un programme remplace le fichier dans les secondes du bandeau | Moyenne | **Écarté** : il faut qu'un autre programme déplace puis recrée ce fichier exactement pendant les quelques secondes du bandeau d'annulation ; à reconsidérer si un cas réel se présente | — |
+| CDX-25 · Avec le rangement actif, un import remplaçait les favoris et les dates d'usage qui protègent des fichiers | Moyenne | Fusion : favoris locaux gardés, date la plus récente par élément ; le bilan de l'import le dit | Test |
+| CDX-26 · Annuler un rangement vers un dossier OneDrive « à la demande » était refusé et l'entrée quittait le journal | Moyenne | Même règle qu'à l'aller : seuls liens et jonctions refusés, et l'entrée est gardée | Relu seulement (attribut OneDrive impossible à simuler en test) |
+| CDX-27 · Restaurer des réglages qui changent « épinglé » ne réservait ou ne libérait pas la place à l'écran | Moyenne | `SyncPinnedState` à chaque changement de réglages | Test de la décision |
+| CDX-28 · Un import vers un autre lieu pouvait afficher la météo de l'ancien lieu sous le nouveau nom | Moyenne | `Weather.Reset` si le lieu ou l'activation change | 2 tests |
+| CDX-29 · Chaque version d'un fichier modifié gardait son image en mémoire | Basse | L'ancienne version sort du cache et n'est libérée qu'après la publication des nouvelles listes | Test |
+
+Les défauts CDX-20, 23, 25, 28 et 29 sont établis par la lecture du code : leurs tests utilisent des fonctions nouvelles et ne peuvent pas tourner sur l'ancien binaire. Suite : 603 réussis, 6 ignorés. Restent à essayer en vrai : supprimer puis restaurer depuis la Corbeille, annuler un rangement vers OneDrive.

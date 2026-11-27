@@ -40,6 +40,7 @@ partial class PanelForm
                     if (r != null) Recent = r;
                     loading = false;
                     Rebuild(true);
+                    IconCache.ReleaseRetired();   // anciennes versions d'icônes : plus aucune liste ne les montre (CDX-29)
                     if (loadPending) { loadPending = false; RequestLoad(); }
                 });
             }
@@ -68,8 +69,30 @@ partial class PanelForm
         if (IsOpen && glass == null && !liveBlurActive) RefreshStaticGlass();
         UpdateWidgetTimer(IsOpen);
         ApplyTheme();
+        SyncPinnedState();
         if (Dirty) RequestLoad();
         Rebuild(true);
+    }
+
+    // « Épinglé » changé ailleurs que par le bouton (restauration, import) : la réservation d'écran suit. Sans cela,
+    // les fenêtres pouvaient continuer d'éviter une bande vide, ou un panneau « épinglé » ne rien réserver (CDX-27).
+    internal static string PinAction(bool wanted, bool registered)
+    {
+        if (wanted && !registered) return "pin";
+        if (!wanted && registered) return "unpin";
+        return "";
+    }
+
+    void SyncPinnedState()
+    {
+        string action = PinAction(Settings.Pinned, appbar);
+        if (action == "pin")
+        {
+            if (!IsOpen) ShowPanel(System.Windows.Forms.Screen.FromPoint(System.Windows.Forms.Cursor.Position));
+            Pin();
+            if (!appbar) { Settings.Pinned = false; Settings.SaveQuiet(); }   // refus de Windows, comme TogglePin (Q24-04)
+        }
+        else if (action == "unpin") Unpin();
     }
 
     public void ReloadNow() { Dirty = true; RequestLoad(); }

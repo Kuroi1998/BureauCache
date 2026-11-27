@@ -213,12 +213,15 @@ static class SettingsBackup
     sealed class LocalChoices
     {
         string repo, archiveName; bool autoUpdate, clipboard, archive, taskbar; List<string> pins; int archiveDays; List<string> log; List<ArchiveRule> rules;
+        List<string> favorites; Dictionary<string, long[]> usage;
 
         public static LocalChoices Capture()
         {
             return new LocalChoices { repo = Settings.UpdateRepo, autoUpdate = Settings.AutoUpdate, clipboard = Settings.ClipboardOn, taskbar = Settings.TaskbarOn, pins = Settings.TaskbarPins.ToList(),
                                       archive = Settings.ArchiveOn, log = Settings.ArchiveLog.ToList(), rules = Settings.ArchiveRules.ToList(),
-                                      archiveName = Settings.ArchiveName, archiveDays = Settings.ArchiveDays };
+                                      archiveName = Settings.ArchiveName, archiveDays = Settings.ArchiveDays,
+                                      favorites = Settings.Favorites.ToList(),
+                                      usage = Settings.Usage.ToDictionary(e => e.Key, e => (long[])e.Value.Clone(), StringComparer.OrdinalIgnoreCase) };
         }
 
         static string Sig(List<ArchiveRule> r) { return string.Join("|", r.Select(x => x.Serialize()).ToArray()); }
@@ -242,13 +245,40 @@ static class SettingsBackup
             Settings.UpdateRepo = repo; Settings.AutoUpdate = autoUpdate; Settings.ClipboardOn = clipboard; Settings.TaskbarOn = taskbar; Settings.TaskbarPins = pins;
             Settings.ArchiveOn = archive; Settings.ArchiveLog = log;
             if (keepPolicy) { Settings.ArchiveRules = rules; Settings.ArchiveName = archiveName; Settings.ArchiveDays = archiveDays; }
+            // Rangement actif : les favoris et les dates d'usage de ce PC protègent des fichiers du rangement. Un import
+            // les remplaçait, et des fichiers protégés pouvaient partir au passage suivant (CDX-25) : on fusionne.
+            if (keepPolicy && MergeProtections(favorites, usage))
+                kept.Add(L.T("les favoris et les dates d'utilisation qui protègent tes fichiers du rangement",
+                             "the favorites and usage dates that protect your files from tidy-up",
+                             "los favoritos y las fechas de uso que protegen tus archivos de la organización"));
+        }
+
+        // Vrai si une protection locale manquait dans l'import. Favoris : ceux de l'import, puis les locaux absents.
+        // Usage : pour chaque élément, la date la plus récente et le plus grand nombre d'ouvertures.
+        internal static bool MergeProtections(List<string> localFavorites, Dictionary<string, long[]> localUsage)
+        {
+            bool added = false;
+            foreach (string f in localFavorites)
+                if (Settings.FavIndex(f) < 0) { Settings.Favorites.Add(f); added = true; }
+            foreach (KeyValuePair<string, long[]> e in localUsage)
+            {
+                long[] imported;
+                if (!Settings.Usage.TryGetValue(e.Key, out imported)) { Settings.Usage[e.Key] = (long[])e.Value.Clone(); added = true; continue; }
+                if (e.Value[1] > imported[1]) { imported[1] = e.Value[1]; added = true; }
+                if (e.Value[0] > imported[0]) imported[0] = e.Value[0];
+            }
+            return added;
         }
     }
+
+    static bool SameCoordinate(double a, double b) { return (double.IsNaN(a) && double.IsNaN(b)) || a == b; }
 
     static bool RestoreFrom(string path, List<string> kept)
     {
         lock (gate)
         {
+            // Choix explicite de l'utilisateur : les réglages restaurés peuvent remplacer un fichier resté illisible
+            Settings.ProfileUnreadable = false;
             if (!IsValid(path)) return false;
             string source = null, undo = null;
             try
@@ -264,6 +294,8 @@ static class SettingsBackup
                 if (!IsValid(undo)) return false;
 
                 LocalChoices local = kept != null ? LocalChoices.Capture() : null;
+                bool weatherOn = Settings.WeatherOn;
+                double weatherLat = Settings.WeatherLat, weatherLon = Settings.WeatherLon;
                 bool loaded = LoadReplacing(source);
                 if (loaded && local != null) local.Reapply(kept);
                 if (!loaded || !Settings.Save())
@@ -271,6 +303,10 @@ static class SettingsBackup
                     LoadReplacing(undo);               // le disque n'a pas changé : la mémoire seulement
                     return false;
                 }
+                // Autre lieu ou météo coupée : la prévision en cache (et une réponse en route) est celle de l'ancien
+                // lieu ; sans cela, la tuile pouvait afficher la météo de Bruxelles sous le nom de Madrid (CDX-28)
+                if (Settings.WeatherOn != weatherOn || !SameCoordinate(Settings.WeatherLat, weatherLat) || !SameCoordinate(Settings.WeatherLon, weatherLon))
+                    Weather.Reset();
                 try { KeepUndo(undo); }
                 catch
                 {

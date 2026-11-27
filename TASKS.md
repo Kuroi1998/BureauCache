@@ -22,7 +22,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-033 | Barre, étape 2 : fenêtres ouvertes (activer, réduire, fermer, clignotement, bureaux virtuels) | En cours : code et tests faits (QA-56) ; revue ChatGPT et essai réel à faire | Claude puis Toi | `feat/T-033-fenetres-demarrer` | D-013, QA-56 |
 | T-034 | Barre, étape 3 : menu Démarrer avec compte et alimentation | En cours : code et tests faits (QA-56) ; revue ChatGPT et essai réel à faire | Claude puis Toi | `feat/T-033-fenetres-demarrer` | D-013, QA-56 |
 | T-035 | Barre, étape 4 : bouton « ^ » avec les vraies icônes de notification (prototype, recherche Gemini, puis version finale) | À faire | Gemini, Claude, Toi | — | D-013 |
-| T-036 | Chasse aux bugs hors de la barre : mises à jour, installation, panneau, Paramètres, recherche, presse-papiers, météo (Codex en lecture seule, puis Claude) | En cours | Codex, Claude | `fix/T-036-chasse-bugs` | QA-68 |
+| T-036 | Chasse aux bugs hors de la barre : mises à jour, installation, panneau, Paramètres, recherche, presse-papiers, météo (Codex en lecture seule, puis Claude) | Code et tests faits (QA-68) ; essais réels à faire | Codex, Claude | `fix/T-036-chasse-bugs` | QA-68 |
 | T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel fait sur la 3.9 installée | Claude puis Toi | PR #19 | D-007, QA-32, QA-33 |
 | T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |
 | T-018 | Verbes du shell sur un fil dédié, liste des écrans suivie (QA-28, QA-29) | Fait (3.8) ; essais manuels encore à faire | Claude | PR #16 | QA-28 |
@@ -129,6 +129,7 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-27 · Claude · Lot externe QA-61 à QA-65 relu et commité à part. Chasse aux bugs de la barre : icônes retentées, hôtes sans clé, noms d'applications par Windows, fermeture différée du menu, veille moderne, fin de session annulée (QA-66). Suite : 570 réussis.
 - 2026-11-27 · Toi · Gemini non connecté (connexion Google fermée aux particuliers, clé en prépaiement sans crédit) : Codex seul est appelé directement, Gemini par prompt (D-015).
 - 2026-11-27 · Codex puis Claude · Revue de la barre en lecture seule : 13 constats, tous retenus (certains en partie), 4 reproduits sur l'ancien code (QA-67). Suite : 582 réussis.
+- 2026-11-27 · Claude puis Codex · T-036 : corbeille restaurée au bon endroit, renommage de casse ; revue Codex hors barre : 10 constats, 9 retenus, 1 écarté (QA-68). Suite : 603 réussis.
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.

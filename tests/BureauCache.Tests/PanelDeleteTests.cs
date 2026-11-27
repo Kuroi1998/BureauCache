@@ -33,18 +33,22 @@ public class PanelDeleteTests
         if (Directory.Exists(p)) Directory.Delete(p, true); else File.Delete(p);
     }
 
-    string SetAside(string name, bool writeOrigin)
+    // Même disposition que PanelForm.Delete : marqueur d'origine à la racine, élément dans « contenu »
+    string SetAside(string name, bool folder = false)
     {
         string original = Path.Combine(desk, name);
-        if (writeOrigin) File.WriteAllText(Path.Combine(stash, PanelForm.OriginFile), original);
-        File.WriteAllText(Path.Combine(stash, name), "contenu");
+        File.WriteAllText(Path.Combine(stash, PanelForm.OriginFile), original);
+        string held = PanelForm.HeldPath(stash, original);
+        Directory.CreateDirectory(Path.GetDirectoryName(held));
+        if (folder) { Directory.CreateDirectory(held); File.WriteAllText(Path.Combine(held, "a.txt"), "a"); }
+        else File.WriteAllText(held, "contenu");
         return original;
     }
 
     [TestMethod]
     public void ItemIsRecycledFromItsOriginalPlace()
     {
-        string original = SetAside("rapport.docx", true);
+        string original = SetAside("rapport.docx");
         PanelForm.FinishDelete(stash, Move, Recycle);
         CollectionAssert.AreEqual(new[] { original }, recycled, "« Restaurer » dans la Corbeille le remettra sur le bureau.");
         Assert.IsFalse(Directory.Exists(stash), "Le dossier de mise de côté disparaît.");
@@ -53,10 +57,7 @@ public class PanelDeleteTests
     [TestMethod]
     public void FolderIsRecycledFromItsOriginalPlaceToo()
     {
-        string original = Path.Combine(desk, "Projet");
-        File.WriteAllText(Path.Combine(stash, PanelForm.OriginFile), original);
-        Directory.CreateDirectory(Path.Combine(stash, "Projet"));
-        File.WriteAllText(Path.Combine(stash, "Projet", "a.txt"), "a");
+        string original = SetAside("Projet", true);
         PanelForm.FinishDelete(stash, Move, Recycle);
         CollectionAssert.AreEqual(new[] { original }, recycled);
     }
@@ -64,35 +65,53 @@ public class PanelDeleteTests
     [TestMethod]
     public void TakenPlaceFallsBackToTheStash()
     {
-        string original = SetAside("note.txt", true);
+        string original = SetAside("note.txt");
         File.WriteAllText(original, "nouveau fichier de l'utilisateur");
         PanelForm.FinishDelete(stash, Move, Recycle);
-        CollectionAssert.AreEqual(new[] { Path.Combine(stash, "note.txt") }, recycled, "Le nouveau fichier du bureau n'est jamais touché.");
+        CollectionAssert.AreEqual(new[] { PanelForm.HeldPath(stash, original) }, recycled, "Le nouveau fichier du bureau n'est jamais touché.");
         Assert.AreEqual("nouveau fichier de l'utilisateur", File.ReadAllText(original));
     }
 
     [TestMethod]
     public void StashFromAnOlderVersionWithoutOriginStillEmpties()
     {
-        SetAside("ancien.txt", false);
+        string old = Path.Combine(stash, "ancien.txt");
+        File.WriteAllText(old, "a");
         PanelForm.FinishDelete(stash, Move, Recycle);
-        CollectionAssert.AreEqual(new[] { Path.Combine(stash, "ancien.txt") }, recycled);
+        CollectionAssert.AreEqual(new[] { old }, recycled);
         Assert.IsFalse(Directory.Exists(stash));
     }
 
     [TestMethod]
     public void IfTheRecycleBinFailsTheItemStaysVisibleOnTheDesktop()
     {
-        string original = SetAside("photo.png", true);
+        string original = SetAside("photo.png");
         Assert.ThrowsException<IOException>(() => PanelForm.FinishDelete(stash, Move, p => { throw new IOException("corbeille pleine"); }));
         Assert.IsTrue(File.Exists(original), "Rien n'est perdu : l'élément est revenu sur le bureau.");
     }
 
     [TestMethod]
-    public void OriginFileIsNeverRecycled()
+    public void OriginMarkerIsNeverRecycled()
     {
-        SetAside("doc.pdf", true);
+        SetAside("doc.pdf");
         PanelForm.FinishDelete(stash, Move, Recycle);
-        Assert.IsFalse(recycled.Exists(p => p.EndsWith(PanelForm.OriginFile, StringComparison.OrdinalIgnoreCase)));
+        Assert.AreEqual(1, recycled.Count);
+        Assert.IsFalse(recycled[0].StartsWith(Path.Combine(stash, PanelForm.OriginFile), StringComparison.OrdinalIgnoreCase));
+    }
+
+    // CDX-20 : un élément de l'utilisateur qui porte le nom du marqueur (ancien ou actuel) part à la corbeille comme
+    // les autres ; il n'est jamais effacé définitivement
+    [TestMethod]
+    public void CDX20_UserItemNamedLikeTheMarkerGoesToTheRecycleBin()
+    {
+        foreach (string name in new[] { PanelForm.OriginFile, "bureaucache-origine.txt" })
+            foreach (bool folder in new[] { false, true })
+            {
+                Create();
+                string original = SetAside(name, folder);
+                PanelForm.FinishDelete(stash, Move, Recycle);
+                CollectionAssert.AreEqual(new[] { original }, recycled, name + (folder ? " (dossier)" : ""));
+                Remove();
+            }
     }
 }

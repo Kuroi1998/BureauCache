@@ -74,7 +74,11 @@ static class Program
             }
         }
         if (App.RelaunchPath != null)
-            try { Process.Start(App.RelaunchPath); } catch { }
+        {
+            if (App.RelaunchAfterUpdate)
+                RelaunchUpdate(App.RelaunchPath, p => { using (Process.Start(p)) { } }, Updater.RollBack, msg => Dialogs.Warn(null, msg));
+            else try { Process.Start(App.RelaunchPath); } catch { }
+        }
         Installer.StartFolderRemoval();
     }
 
@@ -118,6 +122,25 @@ static class Program
             Thread.Sleep(2000);
             if (InstanceExists()) return;
         }
+    }
+
+    // Windows refuse de lancer la version installée (binaire inutilisable sur ce PC) : sans ce filet, l'exe resterait
+    // cassé, car la nouvelle version n'atteint jamais le code d'essai qui sait revenir en arrière (CDX-22). L'ancienne
+    // version, gardée en « .old », est remise en place et lancée une seule fois.
+    internal static void RelaunchUpdate(string exe, Action<string> start, Action<string> rollBack, Action<string> warn)
+    {
+        try { start(exe); return; }
+        catch { }
+        bool restored = false;
+        try { rollBack(exe); restored = true; } catch { }
+        warn(restored
+            ? L.T("Windows n'a pas pu lancer la nouvelle version de BureauCache. La version précédente a été remise en place.",
+                  "Windows couldn't start the new version of BureauCache. The previous version has been put back.",
+                  "Windows no pudo iniciar la nueva versión de BureauCache. Se restauró la versión anterior.")
+            : L.T("Windows n'a pas pu lancer la nouvelle version de BureauCache, et la version précédente n'a pas pu être remise en place. Réinstalle BureauCache depuis GitHub.",
+                  "Windows couldn't start the new version of BureauCache, and the previous version couldn't be put back. Reinstall BureauCache from GitHub.",
+                  "Windows no pudo iniciar la nueva versión de BureauCache y no se pudo restaurar la anterior. Reinstala BureauCache desde GitHub."));
+        if (restored) try { start(exe); } catch { }
     }
 
     internal static void PrepareRollback(Func<bool> restore, Action retry, Action warn)

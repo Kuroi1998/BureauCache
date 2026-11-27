@@ -271,7 +271,11 @@ static class Archiver
                 // Dossier de destination absent (disque débranché, OneDrive pas encore synchronisé) : l'entrée est
                 // gardée pour un nouvel essai (QA42-07)
                 if (!Directory.Exists(parent)) { pending.Add(e); continue; }
-                if ((File.GetAttributes(parent) & FileAttributes.ReparsePoint) != 0) continue;
+                // Même règle qu'à l'aller (PrepareFolder) : seuls les liens et les jonctions sont refusés. Un dossier
+                // OneDrive « à la demande » est un point d'analyse sans être un lien : il était refusé ici, et l'entrée
+                // quittait le journal, ce qui rendait l'annulation impossible (CDX-26). Un lien ou un dossier illisible
+                // garde l'entrée, pour un nouvel essai, sans rien déplacer.
+                if (IsLink(new DirectoryInfo(parent))) { pending.Add(e); continue; }
                 // Autre élément à la place de celui qui a été rangé (renommé puis remplacé) : on n'y touche pas.
                 // L'empreinte est l'identité NTFS du fichier ; une identité illisible compte comme un conflit (QA39-02, QA42-06).
                 if (print != null)

@@ -55,6 +55,7 @@ partial class App : ApplicationContext
     Action balloonAction;
     const int PollMs = 20;
     public static string RelaunchPath;
+    public static bool RelaunchAfterUpdate;   // la relance suit un remplacement de l'exe par une mise à jour (CDX-22)
     bool installingUpdate;
     Screen[] screens = Screen.AllScreens; // mis en cache : la détection du bord tourne 50 fois par seconde
 
@@ -134,10 +135,14 @@ partial class App : ApplicationContext
         });
 
         PanelForm.RecycleLeftovers();
-        bool updated = !Settings.FirstRun && Settings.LastVersion != Installer.Version;
+        bool updated = !Settings.FirstRun && !Settings.ProfileUnreadable && Settings.LastVersion != Installer.Version;
         Settings.LastVersion = Installer.Version;
         if (Settings.Pinned) panel.ShowPinned(TargetScreen(Cursor.Position));
-        if (Settings.FirstRun) { Settings.Save(); ShowWelcome(); }
+        if (Settings.ProfileUnreadable)
+            Balloon(L.T("Tes réglages n'ont pas pu être lus (fichier occupé par un autre programme). BureauCache utilise les réglages par défaut sans rien écraser : relance-le pour les retrouver.",
+                        "Your settings couldn't be read (file in use by another program). BureauCache uses the defaults without overwriting anything: restart it to get them back.",
+                        "No se pudo leer tu configuración (otro programa usa el archivo). BureauCache usa los valores predeterminados sin sobrescribir nada: reinícialo para recuperarla."), null);
+        else if (Settings.FirstRun) { Settings.Save(); ShowWelcome(); }
         else if (updated)
         {
             Settings.SaveQuiet();
@@ -294,7 +299,7 @@ partial class App : ApplicationContext
             panel.BeginInvoke(new Action(() =>
             {
                 installingUpdate = false;
-                if (error == null) { RelaunchPath = exe; ExitThread(); }
+                if (error == null) { RelaunchPath = exe; RelaunchAfterUpdate = true; ExitThread(); }
                 else Dialogs.Warn(null, L.T("La mise à jour a échoué :\n", "Update failed:\n", "Error de actualización:\n") + error);
             }));
         });

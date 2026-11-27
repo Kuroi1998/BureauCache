@@ -111,6 +111,23 @@ static class Cleaner
         catch { return true; }
     }
 
+    // Dossier temporaire à nettoyer : seulement AppData\Local\Temp ou l'un de ses sous-dossiers. Les règles de racine
+    // laissaient passer un %TEMP% redirigé vers un dossier de données sous AppData, dont les fichiers fermés de plus
+    // de 24 h auraient été supprimés définitivement (CDX-21). Null : pas de cible.
+    internal static string TemporaryTarget(string localAppData, string tempPath)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(localAppData) || string.IsNullOrEmpty(tempPath)) return null;
+            string standard = Path.GetFullPath(Path.Combine(localAppData, "Temp")).TrimEnd('\\');
+            string t = Path.GetFullPath(tempPath).TrimEnd('\\');
+            if (string.Equals(t, standard, StringComparison.OrdinalIgnoreCase) ||
+                t.StartsWith(standard + "\\", StringComparison.OrdinalIgnoreCase)) return t + "\\";
+        }
+        catch { }
+        return null;
+    }
+
     // ---------- Catégories ----------
     public static List<CleanCategory> Categories()
     {
@@ -119,7 +136,16 @@ static class Cleaner
         CleanCategory temp = new CleanCategory { Id = "temp", Checked = true,
             Title = L.T("Fichiers temporaires", "Temporary files", "Archivos temporales"),
             Detail = L.T("Dossier temporaire de ton compte (fichiers de plus de 24 h).", "Your account's temporary folder (files older than 24 h).", "Carpeta temporal de tu cuenta (archivos de más de 24 h).") };
-        temp.Targets.Add(new CleanTarget { Dir = Path.GetTempPath(), MinAge = TimeSpan.FromHours(24) });
+        string tempDir = TemporaryTarget(Local, Path.GetTempPath());
+        if (tempDir != null) temp.Targets.Add(new CleanTarget { Dir = tempDir, MinAge = TimeSpan.FromHours(24) });
+        else
+        {
+            // %TEMP% redirigé ailleurs (un profil de navigateur dans AppData, par exemple) : rien n'est supprimé (CDX-21)
+            temp.Checked = false;
+            temp.Detail = L.T("Désactivé : le dossier temporaire de ce compte n'est pas à son emplacement habituel (AppData\\Local\\Temp).",
+                              "Disabled: this account's temporary folder isn't in its usual place (AppData\\Local\\Temp).",
+                              "Desactivado: la carpeta temporal de esta cuenta no está en su ubicación habitual (AppData\\Local\\Temp).");
+        }
         list.Add(temp);
 
         CleanCategory web = new CleanCategory { Id = "browsers", Checked = true,
