@@ -86,6 +86,7 @@ static class Icons {
     [TestCleanup]
     public void ReleaseModel()
     {
+        if (native != null) native.GetField("IconMissing").SetValue(null, false);
         if (list != null) list.Dispose();
         if (icons != null) icons.GetMethod("Forget").Invoke(null, new object[] { new HashSet<IntPtr>() });
     }
@@ -100,6 +101,28 @@ static class Icons {
     {
         Assert.AreEqual(16, Icon(16).Width);
         Assert.AreEqual(32, Icon(32).Width);
+    }
+
+    // QA-66 : une icône pas encore prête n'est plus perdue pour toute la session, mais on ne la redemande pas sans arrêt
+    [TestMethod]
+    public void QA66_MissingIconIsRetriedLaterThenGivenUp()
+    {
+        native.GetField("IconMissing").SetValue(null, true);
+        Assert.IsNull(Icon(16));
+        native.GetField("IconMissing").SetValue(null, false);
+        Assert.IsNull(Icon(16), "Pas de nouvel essai avant le délai.");
+        icons.GetField("RetryDelay", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, TimeSpan.Zero);
+        Assert.IsNotNull(Icon(16), "Après le délai, l'icône devenue disponible est prise.");
+    }
+
+    [TestMethod]
+    public void QA66_IconRetriesStopAfterAFewMisses()
+    {
+        icons.GetField("RetryDelay", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, TimeSpan.Zero);
+        native.GetField("IconMissing").SetValue(null, true);
+        for (int i = 0; i < 5; i++) Assert.IsNull(Icon(16));
+        native.GetField("IconMissing").SetValue(null, false);
+        Assert.IsNull(Icon(16), "Après 3 échecs, on ne redemande plus (fenêtre sans icône).");
     }
 
     [TestMethod]

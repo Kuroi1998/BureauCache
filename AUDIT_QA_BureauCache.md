@@ -275,3 +275,18 @@ Les tests WinForms ont reproduit le défaut de géométrie et la reconstruction 
 - Microsoft, [Capture de la souris dans Windows Forms](https://learn.microsoft.com/en-us/dotnet/desktop/winforms/mouse-capture-in-windows-forms).
 - Microsoft, [SHGetImageList](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetimagelist) et [Marshal.Release](https://learn.microsoft.com/en-us/dotnet/api/system.runtime.interopservices.marshal.release).
 - GitHub Docs, [Injections dans les scripts GitHub Actions](https://docs.github.com/en/actions/concepts/security/script-injections) et [utilisation d’une variable d’environnement intermédiaire](https://docs.github.com/en/actions/reference/security/secure-use#use-an-intermediate-environment-variable).
+
+## QA-66 · Chasse aux bugs de la barre (Claude)
+
+Le lot externe QA-61 à QA-65 a d'abord été relu dans le code (barre Windows, surveillance, épingles, glisser-déposer, rangement, sauvegardes, publication) puis commité à part : compilé, 567 réussis. Ensuite, nouveaux défauts trouvés à la relecture :
+
+| Défaut | Correction | Vérification |
+|---|---|---|
+| Une fenêtre dont l'icône n'est pas prête à son ouverture gardait l'icône générique toute la session. | Nouvel essai toutes les 2 s, 3 fois au plus, puis abandon (pas de requêtes répétées vers une fenêtre sans icône). | 2 tests sur doubles (`WindowStartReviewTests`). |
+| Les fenêtres des applis du Store sans identifiant, des boîtes de dialogue COM ou des consoles MMC avaient pour clé l'exe hôte (`ApplicationFrameHost.exe`, `dllhost.exe`…) : une épingle les aurait toutes regroupées, et « Nouvelle fenêtre » lançait l'hôte. | Ces hôtes ne donnent plus de clé : fenêtre ni épinglable ni relançable, jamais confondue. | `HostProcessesGiveNoAppKey`. |
+| Le nom d'une application à identifiant venait de la fin du titre de sa fenêtre (titre du morceau pour un lecteur de musique, par exemple), et une épingle le gardait. | Nom donné par Windows (`shell:AppsFolder`, `SIGDN_NORMALDISPLAY`), mis en cache ; le titre reste le repli. | Test existant du repli ; essai réel à faire. |
+| Le menu Démarrer se fermait, donc détruisait la tuile ou la recherche, pendant qu'elle traitait encore son clic ou sa frappe ; deux frappes rapides lançaient deux recherches. | Fermeture différée et unique (`Finish`) : le menu disparaît tout de suite, l'action part après. | Test de double frappe. |
+| « Mettre en veille » ne faisait rien sur les PC en veille moderne (fréquente sur les portables récents) : Windows y refuse la veille classique. | Repli : extinction de l'écran (`SC_MONITORPOWER`), qui fait entrer le PC en veille comme le bouton d'alimentation. | Relu seulement : à essayer sur le PC du chef de projet. |
+| Une déconnexion ou un arrêt annulé laissait la barre Windows réaffichée sous la barre BureauCache, sans retour. | Une minute après une fin de session restée sans suite, la barre est remise en place. | Relu seulement. |
+
+Suite : 570 réussis, 6 ignorés. Restent à essayer en vrai : veille, déconnexion annulée, noms des applis du Store.

@@ -125,7 +125,27 @@ sealed class WindowList : IDisposable
         return null;
     }
 
-    static string AppKeyOf(IntPtr h) { return KeyFor(Native.AppUserModelId(h), Native.ProcessPath(h)); }
+    static string AppKeyOf(IntPtr h)
+    {
+        string aumid = Native.AppUserModelId(h);
+        return KeyForWindow(aumid, aumid == null ? Native.ProcessPath(h) : null);
+    }
+
+    // Programmes qui hébergent les fenêtres d'autres applications (cadre des applis du Store, boîtes de dialogue COM,
+    // panneaux de configuration) : leur exe ne désigne pas l'application. Sans identifiant, la fenêtre n'a pas de clé :
+    // elle ne peut être ni épinglée ni relancée, et n'est pas confondue avec les autres fenêtres du même hôte.
+    static readonly string[] HostExes = { "ApplicationFrameHost.exe", "dllhost.exe", "rundll32.exe", "consent.exe", "mmc.exe" };
+
+    internal static string KeyForWindow(string aumid, string exe)
+    {
+        if (string.IsNullOrEmpty(aumid) && !string.IsNullOrEmpty(exe))
+        {
+            string file = exe.Substring(exe.LastIndexOfAny(new[] { '\\', '/' }) + 1);
+            foreach (string host in HostExes)
+                if (string.Equals(file, host, StringComparison.OrdinalIgnoreCase)) return null;
+        }
+        return KeyFor(aumid, exe);
+    }
 
     static bool IsTaskWindow(IntPtr h)
     {
@@ -181,13 +201,23 @@ static class TaskIcons
     // Une image par fenêtre ET par taille : la barre et l'aperçu n'ont pas la même (BAR-03)
     static readonly Dictionary<Tuple<IntPtr, int>, Bitmap> cache = new Dictionary<Tuple<IntPtr, int>, Bitmap>();
 
+    // Icône pas encore prête (fenêtre qui vient de s'ouvrir) : nouvel essai toutes les 2 s, 3 fois au plus. Avant,
+    // l'absence était retenue pour toujours et la fenêtre gardait l'icône générique.
+    static readonly Dictionary<Tuple<IntPtr, int>, int> missCount = new Dictionary<Tuple<IntPtr, int>, int>();
+    static readonly Dictionary<Tuple<IntPtr, int>, DateTime> missAt = new Dictionary<Tuple<IntPtr, int>, DateTime>();
+    internal const int MaxMisses = 3;
+    internal static TimeSpan RetryDelay = TimeSpan.FromSeconds(2);
+
     public static Bitmap For(IntPtr h, int px)
     {
         Tuple<IntPtr, int> key = Tuple.Create(h, px);
         Bitmap b;
         if (cache.TryGetValue(key, out b)) return b;
+        int misses;
+        if (missCount.TryGetValue(key, out misses) && (misses >= MaxMisses || DateTime.UtcNow - missAt[key] < RetryDelay)) return null;
         b = Make(h, px);
-        cache[key] = b;
+        if (b != null) { cache[key] = b; missCount.Remove(key); missAt.Remove(key); }
+        else { missCount[key] = misses + 1; missAt[key] = DateTime.UtcNow; }
         return b;
     }
 
@@ -217,6 +247,7 @@ static class TaskIcons
             if (cache[k] != null) cache[k].Dispose();
             cache.Remove(k);
         }
+        foreach (Tuple<IntPtr, int> k in missCount.Keys.Where(k => !alive.Contains(k.Item1)).ToList()) { missCount.Remove(k); missAt.Remove(k); }
     }
 
     public static void Clear()

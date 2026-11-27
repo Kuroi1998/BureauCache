@@ -123,8 +123,12 @@ public class TaskbarWindowsStartTests
             TextBox box = menu.Controls.OfType<TextBox>().Single();
             box.Text = "   ";
             Assert.IsNull(received, "Des espaces seuls ne lancent rien.");
+            int calls = 0;
+            menu.SearchRequested += t => calls++;
             box.Text = "calc";
             Assert.AreEqual("calc", received);
+            try { box.Text = "calcu"; } catch (ObjectDisposedException) { }
+            Assert.AreEqual(1, calls, "QA-66 : une seconde frappe rapide ne relance pas la recherche.");
         }
     }
 

@@ -56,8 +56,7 @@ class StartMenuForm : Form
         {
             string text = search.Text;
             if (text.Trim().Length == 0) return;
-            Close();
-            if (SearchRequested != null) SearchRequested(text);
+            Finish(() => { if (SearchRequested != null) SearchRequested(text); });
         };
         Controls.Add(search);
         y = searchRect.Bottom + Ui.S(14);
@@ -68,10 +67,7 @@ class StartMenuForm : Form
         int third = (inner - 2 * Gap) / 3, half = (inner - Gap) / 2, tileH = Ui.S(88);
         y = SectionLabel(L.T("RACCOURCIS", "SHORTCUTS", "ACCESOS"), y);
         AddTile(Glyphs.Search, L.T("Applications et recherche", "Apps and search", "Aplicaciones y búsqueda"), Cell(0, y, third, tileH), true, () =>
-        {
-            Close();
-            if (OpenPanel != null) OpenPanel();
-        });
+            Finish(() => { if (OpenPanel != null) OpenPanel(); }));
         AddTile(Glyphs.Settings, L.T("Paramètres", "Settings", "Configuración"), Cell(1, y, third, tileH), true, () => Launch("ms-settings:"));
         AddTile(Glyphs.Folder, L.T("Explorateur", "File Explorer", "Explorador"), Cell(2, y, third, tileH), true, () => Launch("explorer.exe"));
         y += tileH + Gap;
@@ -136,17 +132,28 @@ class StartMenuForm : Form
         Controls.Add(t);
     }
 
-    void Launch(string target)
-    {
-        Close();
-        try { ShellUtil.Open(target, null); } catch { }
-    }
+    void Launch(string target) { Finish(() => ShellUtil.Open(target, null)); }
 
     // L'action part après la fermeture du menu (verrouiller ou se mettre en veille avec le menu ouvert le laisserait au retour)
-    void Run(Action action)
+    void Run(Action action) { Finish(action); }
+
+    bool finishing;
+
+    // Ferme le menu puis lance l'action, une seule fois. La fermeture est différée : fermer le menu (donc détruire la
+    // tuile ou la recherche) pendant qu'elle traite encore son clic ou sa frappe pouvait lever une exception, et une
+    // deuxième frappe rapide relançait la recherche (QA-66).
+    void Finish(Action after)
     {
-        Close();
-        try { action(); } catch { }
+        if (finishing) return;
+        finishing = true;
+        Action run = () =>
+        {
+            Close();
+            if (after != null) try { after(); } catch { }
+        };
+        if (!IsHandleCreated) { run(); return; }
+        Hide();   // disparaît tout de suite ; OnDeactivate ne ferme plus rien (Visible est faux)
+        BeginInvoke(run);
     }
 
     protected override void OnShown(EventArgs e)

@@ -23,7 +23,16 @@ static class SessionActions
     public static void Sleep()
     {
         Sandbox.Guard("mise en veille");
-        Application.SetSuspendState(PowerState.Suspend, false, false);
+        if (Application.SetSuspendState(PowerState.Suspend, false, false)) return;
+        // Veille moderne (beaucoup de portables récents) : Windows refuse la veille classique. Éteindre l'écran, comme
+        // un appui sur le bouton d'alimentation, fait alors entrer le PC en veille.
+        NativeWindow w = new NativeWindow();
+        try
+        {
+            w.CreateHandle(new CreateParams());
+            Native.SendMessagePtr(w.Handle, 0x0112 /*WM_SYSCOMMAND*/, new IntPtr(0xF170) /*SC_MONITORPOWER*/, new IntPtr(2) /*éteint*/);
+        }
+        finally { w.DestroyHandle(); }
     }
 
     public static bool Restart() { return Shutdown(true); }

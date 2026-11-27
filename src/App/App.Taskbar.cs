@@ -9,6 +9,7 @@ partial class App
     bool taskbarRefused;            // un échec n'est signalé qu'une fois, jusqu'à ce que l'option soit coupée
     bool taskbarRestorePending;
     volatile bool sessionEnding;    // fin de session : plus aucun masquage (BAR-11)
+    long sessionEndingTicks;        // moment de la fin de session annoncée (lu sur le fil d'interface)
 
     // Ordre imposé par D-013 : la barre Windows est cachée AVANT que la nôtre ne s'installe, et rendue APRÈS son départ.
     // Tout échec en chemin rend immédiatement la barre Windows (BAR-09).
@@ -111,7 +112,17 @@ partial class App
     // Appelé par Poll environ une fois par seconde
     void KeepWindowsBarHidden()
     {
-        if (sessionEnding) return;
+        if (sessionEnding)
+        {
+            // Déconnexion ou arrêt annulé (par l'utilisateur ou une application) : la session continue. Après une minute,
+            // la barre BureauCache est remise en place au lieu de rester avec la barre Windows par-dessus (QA-66).
+            if (DateTime.UtcNow.Ticks - System.Threading.Interlocked.Read(ref sessionEndingTicks) < TimeSpan.FromMinutes(1).Ticks) return;
+            sessionEnding = false;
+            CloseBar();
+            taskbarRefused = false;
+            ApplyTaskbar();
+            return;
+        }
         if (bar == null)
         {
             if (taskbarRestorePending) RestoreTaskbar();
@@ -132,6 +143,7 @@ partial class App
     // Fin de session (fil de SystemEvents) : on arrête de masquer avant de rendre, chaque étape isolée des autres
     void OnSessionEnding()
     {
+        System.Threading.Interlocked.Exchange(ref sessionEndingTicks, DateTime.UtcNow.Ticks);
         sessionEnding = true;
         try { Settings.Flush(); } catch { }
         try { Native.RestoreDesktopIcons(); } catch { }

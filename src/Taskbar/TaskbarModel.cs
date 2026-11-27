@@ -64,6 +64,7 @@ static class TaskbarModel
 
     // Description des exe déjà lus : la liste des boutons est reconstruite à chaque événement de fenêtre
     static readonly Dictionary<string, string> exeNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    static readonly Dictionary<string, string> appNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);   // null : introuvable
 
     // Nom d'une application : description de l'exe (« Discord »), sinon la fin du titre (« … - Google Chrome »)
     public static string DefaultName(string key, string title)
@@ -82,6 +83,21 @@ static class TaskbarModel
             if (name == null) name = Path.GetFileNameWithoutExtension(path);
             if (exeNames.Count < 500) exeNames[path] = name;
             return name;
+        }
+        // Application du Store ou à identifiant : le nom que lui donne Windows (« Calculatrice »), plutôt qu'un morceau
+        // du titre, qui change avec le document ouvert (un morceau de chanson pour un lecteur de musique, par exemple)
+        if (key != null && key.StartsWith(AumidPrefix))
+        {
+            string shellName;
+            lock (appNames)
+            {
+                if (!appNames.TryGetValue(key, out shellName))
+                {
+                    shellName = Native.ShellDisplayName(@"shell:AppsFolder\" + key.Substring(AumidPrefix.Length));
+                    if (appNames.Count < 500) appNames[key] = shellName;
+                }
+            }
+            if (shellName != null) return shellName;
         }
         if (!string.IsNullOrEmpty(title))
         {

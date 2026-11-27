@@ -157,6 +157,21 @@ public class TaskbarPinsTests
         Assert.AreEqual(new IntPtr(1), rebuilt[2].Window.Handle);
     }
 
+    // QA-66 : les programmes hôtes ne désignent pas l'application (toutes les applis du Store auraient la même épingle)
+    [TestMethod]
+    public void HostProcessesGiveNoAppKey()
+    {
+        Assert.IsNull(WindowList.KeyForWindow(null, @"C:\Windows\System32\ApplicationFrameHost.exe"));
+        Assert.IsNull(WindowList.KeyForWindow(null, @"C:\Windows\System32\DLLHOST.EXE"));
+        Assert.IsNull(WindowList.KeyForWindow("", @"C:\Windows\System32\rundll32.exe"));
+        Assert.AreEqual("aumid:Microsoft.WindowsCalculator_8wekyb3d8bbwe!App",
+            WindowList.KeyForWindow("Microsoft.WindowsCalculator_8wekyb3d8bbwe!App", @"C:\Windows\System32\ApplicationFrameHost.exe"),
+            "Avec un identifiant, l'hôte n'importe pas.");
+        Assert.AreEqual(Notepad, WindowList.KeyForWindow(null, Notepad.Substring(4)));
+        Assert.AreEqual(@"exe:C:\Outils\myapplicationframehost.exe", WindowList.KeyForWindow(null, @"C:\Outils\myapplicationframehost.exe"),
+            "Seul le nom exact du fichier compte.");
+    }
+
     [TestMethod]
     public void WindowKeyPrefersTheAppUserModelId()
     {
