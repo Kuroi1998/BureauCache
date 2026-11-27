@@ -22,7 +22,7 @@ sealed class WindowList : IDisposable
     public IntPtr Active { get; private set; }
 
     readonly Native.WinEventProc proc;
-    readonly List<IntPtr> hooks = new List<IntPtr>();
+    readonly IntPtr[] hooks = new IntPtr[Ranges.Length];   // un crochet par plage ; une plage refusée est retentée (BAR-04)
     readonly Timer debounce = new Timer();
     readonly HashSet<IntPtr> flashing = new HashSet<IntPtr>();
     readonly Func<IntPtr, bool> isOwn;
@@ -36,22 +36,21 @@ sealed class WindowList : IDisposable
         debounce.Tick += (s, e) => { debounce.Stop(); Refresh(); };
     }
 
+    static readonly uint[][] Ranges =
+    {
+        new[] { Native.EVENT_SYSTEM_FOREGROUND, Native.EVENT_SYSTEM_FOREGROUND },
+        new[] { Native.EVENT_SYSTEM_MINIMIZESTART, Native.EVENT_SYSTEM_MINIMIZEEND },
+        new[] { Native.EVENT_OBJECT_CREATE, Native.EVENT_OBJECT_HIDE },
+        new[] { Native.EVENT_OBJECT_NAMECHANGE, Native.EVENT_OBJECT_NAMECHANGE },
+        new[] { Native.EVENT_OBJECT_CLOAKED, Native.EVENT_OBJECT_UNCLOAKED },
+    };
+
     public void Start()
     {
-        if (Sandbox.Active || hooks.Count > 0) return;
-        uint[][] ranges =
-        {
-            new[] { Native.EVENT_SYSTEM_FOREGROUND, Native.EVENT_SYSTEM_FOREGROUND },
-            new[] { Native.EVENT_SYSTEM_MINIMIZESTART, Native.EVENT_SYSTEM_MINIMIZEEND },
-            new[] { Native.EVENT_OBJECT_CREATE, Native.EVENT_OBJECT_HIDE },
-            new[] { Native.EVENT_OBJECT_NAMECHANGE, Native.EVENT_OBJECT_NAMECHANGE },
-            new[] { Native.EVENT_OBJECT_CLOAKED, Native.EVENT_OBJECT_UNCLOAKED },
-        };
-        foreach (uint[] r in ranges)
-        {
-            IntPtr h = Native.SetWinEventHook(r[0], r[1], IntPtr.Zero, proc, 0, 0, Native.WINEVENT_OUTOFCONTEXT);
-            if (h != IntPtr.Zero) hooks.Add(h);
-        }
+        if (Sandbox.Active) return;
+        for (int i = 0; i < Ranges.Length; i++)
+            if (hooks[i] == IntPtr.Zero)
+                hooks[i] = Native.SetWinEventHook(Ranges[i][0], Ranges[i][1], IntPtr.Zero, proc, 0, 0, Native.WINEVENT_OUTOFCONTEXT);
         Refresh();
     }
 
@@ -75,7 +74,8 @@ sealed class WindowList : IDisposable
     public void Refresh()
     {
         List<IntPtr> found = new List<IntPtr>();
-        Native.EnumWindows((h, l) => { if (!isOwn(h) && IsTaskWindow(h)) found.Add(h); return true; }, IntPtr.Zero);
+        // Énumération en échec : la dernière liste reste affichée plutôt qu'une barre vide (BAR-05)
+        if (!Native.EnumWindows((h, l) => { if (!isOwn(h) && IsTaskWindow(h)) found.Add(h); return true; }, IntPtr.Zero)) return;
         found.Reverse();   // EnumWindows suit l'ordre Z : les plus anciennes sont plutôt en dessous
         HashSet<IntPtr> present = new HashSet<IntPtr>(found);
         List<TaskWindow> next = Items.Where(w => present.Contains(w.Handle)).ToList();
@@ -135,22 +135,25 @@ sealed class WindowList : IDisposable
     {
         debounce.Stop();
         debounce.Dispose();
-        foreach (IntPtr h in hooks) Native.UnhookWinEvent(h);
-        hooks.Clear();
+        for (int i = 0; i < hooks.Length; i++)
+            if (hooks[i] != IntPtr.Zero) { Native.UnhookWinEvent(hooks[i]); hooks[i] = IntPtr.Zero; }
+        TaskIcons.Clear();   // images libérées ; une icône absente est recherchée de nouveau à la prochaine barre (BAR-03)
     }
 }
 
 // Icônes des fenêtres : celle que la fenêtre déclare, sinon celle de son application du Store, sinon celle de son exe
 static class TaskIcons
 {
-    static readonly Dictionary<IntPtr, Bitmap> cache = new Dictionary<IntPtr, Bitmap>();
+    // Une image par fenêtre ET par taille : la barre et l'aperçu n'ont pas la même (BAR-03)
+    static readonly Dictionary<Tuple<IntPtr, int>, Bitmap> cache = new Dictionary<Tuple<IntPtr, int>, Bitmap>();
 
     public static Bitmap For(IntPtr h, int px)
     {
+        Tuple<IntPtr, int> key = Tuple.Create(h, px);
         Bitmap b;
-        if (cache.TryGetValue(h, out b)) return b;
+        if (cache.TryGetValue(key, out b)) return b;
         b = Make(h, px);
-        cache[h] = b;
+        cache[key] = b;
         return b;
     }
 
@@ -175,10 +178,12 @@ static class TaskIcons
     // Fenêtres fermées : leurs images sont libérées
     public static void Forget(HashSet<IntPtr> alive)
     {
-        foreach (IntPtr h in cache.Keys.Where(k => !alive.Contains(k)).ToList())
+        foreach (Tuple<IntPtr, int> k in cache.Keys.Where(k => !alive.Contains(k.Item1)).ToList())
         {
-            if (cache[h] != null) cache[h].Dispose();
-            cache.Remove(h);
+            if (cache[k] != null) cache[k].Dispose();
+            cache.Remove(k);
         }
     }
+
+    public static void Clear() { Forget(new HashSet<IntPtr>()); }
 }

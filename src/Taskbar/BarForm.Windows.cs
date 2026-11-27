@@ -12,7 +12,12 @@ partial class BarForm
     readonly List<Rectangle> windowRects = new List<Rectangle>();
     Rectangle overflowRect;
     int shownWindows;
-    readonly ToolTip tip = new ToolTip();
+    // Aperçu au survol : il s'ouvre après un court délai, passe tout de suite d'un bouton à l'autre une fois ouvert, et
+    // reste tant que la souris est sur un bouton de fenêtre ou sur l'aperçu lui-même
+    WindowPreview preview;
+    readonly Timer previewDelay = new Timer { Interval = 400 };
+    readonly Timer previewWatch = new Timer { Interval = 150 };
+    int previewZone = -1;
 
     // Position du bouton Démarrer à l'écran, pour placer le menu juste au-dessus
     public Rectangle StartButtonBounds { get { return RectangleToScreen(zones[0]); } }
@@ -22,6 +27,9 @@ partial class BarForm
         if (windows != null) return;
         windows = new WindowList(h => h == Handle);
         windows.Changed += Invalidate;
+        windows.Changed += OnWindowsChanged;
+        previewDelay.Tick += (s, e) => { previewDelay.Stop(); OpenPreview(previewZone); };
+        previewWatch.Tick += (s, e) => WatchPreview();
         // Messages du shell : une fenêtre qui clignote (demande d'attention) est signalée par HSHELL_FLASH
         shellHook = Native.RegisterWindowMessage("SHELLHOOK");
         Native.RegisterShellHookWindow(Handle);
@@ -32,6 +40,8 @@ partial class BarForm
     {
         if (windows == null) return;
         Native.DeregisterShellHookWindow(Handle);
+        HidePreview();
+        if (preview != null) { preview.Close(); preview.Dispose(); preview = null; }
         windows.Dispose();
         windows = null;
     }
@@ -97,12 +107,53 @@ partial class BarForm
         }
     }
 
+    // Appelé quand la zone survolée change
     void ShowWindowTip(int zone)
     {
+        previewZone = zone;
+        if (WindowAtZone(zone) == null) { previewDelay.Stop(); return; }
+        if (preview != null && preview.Visible) OpenPreview(zone);
+        else { previewDelay.Stop(); previewDelay.Start(); }
+    }
+
+    void OpenPreview(int zone)
+    {
         TaskWindow w = WindowAtZone(zone);
-        if (w == null || w.Title.Length == 0) { tip.Hide(this); return; }
-        Rectangle r = windowRects[zone - WindowZone];
-        tip.Show(w.Title, this, r.Left, -Ui.S(34), 4000);
+        if (w == null || zone != hot) return;
+        if (preview == null)
+        {
+            preview = new WindowPreview();
+            preview.ActivateRequested += h => { HidePreview(); WindowList.Activate(h, false); if (windows != null) windows.Refresh(); };
+            preview.CloseRequested += h => { HidePreview(); WindowList.Close(h); };
+        }
+        Rectangle r = RectangleToScreen(windowRects[zone - WindowZone]);
+        preview.ShowFor(w.Handle, w.Title, TaskIcons.For(w.Handle, Ui.S(32)), r);
+        previewWatch.Start();
+    }
+
+    public void HidePreview()
+    {
+        previewDelay.Stop();
+        previewWatch.Stop();
+        if (preview != null) preview.HideNow();
+    }
+
+    // La souris a quitté les boutons et l'aperçu : il se ferme
+    void WatchPreview()
+    {
+        if (preview == null || !preview.Visible) { previewWatch.Stop(); return; }
+        Point p = Cursor.Position;
+        if (preview.Bounds.Contains(p)) return;
+        Point local = PointToClient(p);
+        if (ClientRectangle.Contains(local) && WindowAtZone(WindowZoneAt(local)) != null) return;
+        HidePreview();
+    }
+
+    // La fenêtre montrée a disparu : l'aperçu aussi
+    void OnWindowsChanged()
+    {
+        if (preview == null || preview.Target == IntPtr.Zero || windows == null) return;
+        if (!windows.Items.Exists(w => w.Handle == preview.Target)) HidePreview();
     }
 
     // Vrai si le clic concernait un bouton de fenêtre (ou « +N ») et a été traité
@@ -111,7 +162,7 @@ partial class BarForm
         if (zone == Overflow) { ShowOverflowMenu(); return true; }
         TaskWindow w = WindowAtZone(zone);
         if (w == null) return false;
-        tip.Hide(this);
+        HidePreview();
         if (button == MouseButtons.Left) { WindowList.Activate(w.Handle, w.Handle == Native.GetForegroundWindow()); windows.Refresh(); }
         else if (button == MouseButtons.Right) ShowWindowMenu(w);
         return true;

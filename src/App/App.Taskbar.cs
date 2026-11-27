@@ -84,6 +84,13 @@ partial class App
         if (bar == null) return;
         startMenu = new StartMenuForm();
         startMenu.OpenPanel += () => { OpenManually(Screen.PrimaryScreen); Native.SetForegroundWindow(panel.Handle); };
+        startMenu.SearchRequested += text =>
+        {
+            OpenManually(Screen.PrimaryScreen);
+            Native.SetForegroundWindow(panel.Handle);
+            panel.SearchFor(text);
+        };
+        bar.HidePreview();
         startMenu.FormClosed += (s, e) => { startMenu = null; };
         Rectangle start = bar.StartButtonBounds;
         Rectangle wa = Screen.PrimaryScreen.WorkingArea;

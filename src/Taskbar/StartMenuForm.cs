@@ -3,16 +3,22 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 
-// Raccourcis (panneau BureauCache, Paramètres, Explorateur), compte (verrouiller, se déconnecter) et alimentation
+// Recherche (envoyée au panneau), session, raccourcis, compte (verrouiller, se déconnecter) et alimentation
 // (veille, redémarrer, arrêter). Il se ferme dès qu'il perd le focus, ou avec Échap.
 class StartMenuForm : Form
 {
     public event Action OpenPanel;
+    public event Action<string> SearchRequested;
     public static DateTime LastClosed = DateTime.MinValue;
 
     readonly string userName;
     readonly Bitmap picture;
-    int headerHeight;
+    TextBox search;
+    Rectangle searchRect, headerRect;
+
+    static int Pad { get { return Ui.S(24); } }
+    static int Gap { get { return Ui.S(10); } }
+    static int MenuWidth { get { return Ui.S(600); } }
 
     public StartMenuForm()
     {
@@ -37,48 +43,68 @@ class StartMenuForm : Form
 
     void Build()
     {
-        int pad = Ui.S(16), width = Ui.S(372), y = pad;
-        headerHeight = Ui.S(56);
-        y += headerHeight + Ui.S(8);
+        int width = MenuWidth, inner = width - 2 * Pad, y = Pad;
 
+        // Recherche : le premier caractère tapé ouvre le panneau avec ce texte, comme dans le menu de Windows
+        searchRect = new Rectangle(Pad, y, inner, Ui.S(44));
+        search = new TextBox { BorderStyle = BorderStyle.None, Font = Ui.Font("Segoe UI", 11.25f), BackColor = Theme.Surface, ForeColor = Theme.Fg,
+                               MaxLength = 256, AccessibleName = L.T("Rechercher", "Search", "Buscar") };
+        search.Bounds = new Rectangle(searchRect.Left + Ui.S(42), searchRect.Top + (searchRect.Height - search.PreferredHeight) / 2,
+                                      searchRect.Width - Ui.S(54), search.PreferredHeight);
+        search.TextChanged += (s, e) =>
+        {
+            string text = search.Text;
+            if (text.Trim().Length == 0) return;
+            Close();
+            if (SearchRequested != null) SearchRequested(text);
+        };
+        Controls.Add(search);
+        y = searchRect.Bottom + Ui.S(16);
+
+        headerRect = new Rectangle(Pad, y, inner, Ui.S(64));
+        y = headerRect.Bottom + Ui.S(16);
+
+        int third = (inner - 2 * Gap) / 3, half = (inner - Gap) / 2, tileH = Ui.S(96);
         y = SectionLabel(L.T("RACCOURCIS", "SHORTCUTS", "ACCESOS"), y);
-        int tileW = (width - 2 * pad - 2 * Ui.S(8)) / 3, tileH = Ui.S(76);
-        AddTile(Glyphs.Search, L.T("Applications et recherche", "Apps and search", "Aplicaciones y búsqueda"), new Rectangle(pad, y, tileW, tileH), true, () =>
+        AddTile(Glyphs.Search, L.T("Applications et recherche", "Apps and search", "Aplicaciones y búsqueda"), Cell(0, y, third, tileH), true, () =>
         {
             Close();
             if (OpenPanel != null) OpenPanel();
         });
-        AddTile(Glyphs.Settings, L.T("Paramètres", "Settings", "Configuración"), new Rectangle(pad + tileW + Ui.S(8), y, tileW, tileH), true,
-            () => Launch("ms-settings:"));
-        AddTile(Glyphs.Folder, L.T("Explorateur", "File Explorer", "Explorador"), new Rectangle(pad + 2 * (tileW + Ui.S(8)), y, tileW, tileH), true,
-            () => Launch("explorer.exe"));
-        y += tileH + Ui.S(14);
+        AddTile(Glyphs.Settings, L.T("Paramètres", "Settings", "Configuración"), Cell(1, y, third, tileH), true, () => Launch("ms-settings:"));
+        AddTile(Glyphs.Folder, L.T("Explorateur", "File Explorer", "Explorador"), Cell(2, y, third, tileH), true, () => Launch("explorer.exe"));
+        y += tileH + Gap;
+        AddTile(Glyphs.Page, L.T("Documents", "Documents", "Documentos"), Cell(0, y, third, tileH), true, () => Launch("shell:Personal"));
+        AddTile(Glyphs.Download, L.T("Téléchargements", "Downloads", "Descargas"), Cell(1, y, third, tileH), true, () => Launch("shell:Downloads"));
+        AddTile(Glyphs.TaskManager, L.T("Gestionnaire des tâches", "Task Manager", "Administrador de tareas"), Cell(2, y, third, tileH), true, () => Launch("taskmgr.exe"));
+        y += tileH + Ui.S(20);
 
-        int half = (width - 2 * pad - Ui.S(8)) / 2, rowH = Ui.S(40);
+        int rowH = Ui.S(56);
         y = SectionLabel(L.T("COMPTE", "ACCOUNT", "CUENTA"), y);
-        AddTile(Glyphs.Lock, L.T("Verrouiller", "Lock", "Bloquear"), new Rectangle(pad, y, half, rowH), false, () => Run(SessionActions.Lock));
-        AddTile(Glyphs.User, L.T("Se déconnecter", "Sign out", "Cerrar sesión"), new Rectangle(pad + half + Ui.S(8), y, half, rowH), false, () => Run(SessionActions.SignOut));
-        y += rowH + Ui.S(14);
+        AddTile(Glyphs.Lock, L.T("Verrouiller", "Lock", "Bloquear"), new Rectangle(Pad, y, half, rowH), false, () => Run(SessionActions.Lock));
+        AddTile(Glyphs.User, L.T("Se déconnecter", "Sign out", "Cerrar sesión"), new Rectangle(Pad + half + Gap, y, half, rowH), false, () => Run(SessionActions.SignOut));
+        y += rowH + Ui.S(20);
 
         bool updates = SessionActions.UpdatesPending;
-        int third = (width - 2 * pad - 2 * Ui.S(8)) / 3;
         y = SectionLabel(L.T("ALIMENTATION", "POWER", "ENERGÍA"), y);
-        AddTile(Glyphs.Sleep, L.T("Mettre en veille", "Sleep", "Suspender"), new Rectangle(pad, y, third, Ui.S(64)), true, () => Run(SessionActions.Sleep));
+        AddTile(Glyphs.Sleep, L.T("Mettre en veille", "Sleep", "Suspender"), Cell(0, y, third, tileH), true, () => Run(SessionActions.Sleep));
         AddTile(Glyphs.Restart, updates ? L.T("Mettre à jour et redémarrer", "Update and restart", "Actualizar y reiniciar") : L.T("Redémarrer", "Restart", "Reiniciar"),
-            new Rectangle(pad + third + Ui.S(8), y, third, Ui.S(64)), true, () => Run(() => SessionActions.Restart()));
+            Cell(1, y, third, tileH), true, () => Run(() => SessionActions.Restart()));
         AddTile(Glyphs.Power, updates ? L.T("Mettre à jour et arrêter", "Update and shut down", "Actualizar y apagar") : L.T("Arrêter", "Shut down", "Apagar"),
-            new Rectangle(pad + 2 * (third + Ui.S(8)), y, third, Ui.S(64)), true, () => Run(() => SessionActions.PowerOff()));
-        y += Ui.S(64) + pad;
+            Cell(2, y, third, tileH), true, () => Run(() => SessionActions.PowerOff()));
+        y += tileH + Pad;
 
         ClientSize = new Size(width, y);
     }
 
+    static Rectangle Cell(int column, int y, int w, int h) { return new Rectangle(Pad + column * (w + Gap), y, w, h); }
+
     int SectionLabel(string text, int y)
     {
-        Label l = new Label { Text = text, AutoSize = false, ForeColor = Theme.FgDim, BackColor = Theme.Bg, Font = Ui.Font("Segoe UI Semibold", 8.25f),
-                              Bounds = new Rectangle(Ui.S(16), y, Ui.S(340), Ui.S(18)) };
+        Label l = new Label { Text = text, AutoSize = false, ForeColor = Theme.FgDim, BackColor = Theme.Bg, Font = Ui.Font("Segoe UI Semibold", 9f),
+                              Bounds = new Rectangle(Pad, y, MenuWidth - 2 * Pad, Ui.S(22)) };
         Controls.Add(l);
-        return y + Ui.S(22);
+        return y + Ui.S(28);
     }
 
     void AddTile(string glyph, string text, Rectangle bounds, bool stacked, Action click)
@@ -105,7 +131,10 @@ class StartMenuForm : Form
     {
         base.OnShown(e);
         Native.SetRoundCorners(Handle);
-        Native.SetDarkTitleBar(Handle, Settings.Dark);
+        // Texte d'invite dans la recherche (EM_SETCUEBANNER), visible même quand elle a le focus
+        Native.SendMessage(search.Handle, 0x1501, new IntPtr(1), L.T("Rechercher des applications, des paramètres et des fichiers",
+            "Search for apps, settings and files", "Buscar aplicaciones, configuración y archivos"));
+        ActiveControl = search;
     }
 
     protected override void OnDeactivate(EventArgs e) { base.OnDeactivate(e); if (Visible) Close(); }
@@ -129,9 +158,12 @@ class StartMenuForm : Form
         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         Ui.Edge(g, Theme.EdgeHot, new RectangleF(0, 0, ClientSize.Width, ClientSize.Height), Ui.S(Ui.RadiusCard));
 
-        // En-tête : photo (ou initiales) et nom de la session
-        int pad = Ui.S(16), size = Ui.S(44);
-        Rectangle pic = new Rectangle(pad, pad + (headerHeight - size) / 2, size, size);
+        Ui.Fill(g, Theme.Surface, searchRect, searchRect.Height / 2f);
+        Ui.Glyph(g, Glyphs.Search, 12f, Theme.FgDim, new Rectangle(searchRect.Left + Ui.S(12), searchRect.Top, Ui.S(24), searchRect.Height));
+
+        // Session : photo (ou initiales), nom, et le PC sur lequel elle est ouverte
+        int size = Ui.S(56);
+        Rectangle pic = new Rectangle(headerRect.Left, headerRect.Top + (headerRect.Height - size) / 2, size, size);
         if (picture != null)
         {
             using (System.Drawing.Drawing2D.GraphicsPath p = new System.Drawing.Drawing2D.GraphicsPath())
@@ -145,13 +177,15 @@ class StartMenuForm : Form
         else
         {
             using (SolidBrush b = new SolidBrush(Theme.Accent)) g.FillEllipse(b, pic);
-            TextRenderer.DrawText(g, SessionActions.Initials(userName), Ui.Font("Segoe UI Semibold", 12f), pic, Color.White,
+            TextRenderer.DrawText(g, SessionActions.Initials(userName), Ui.Font("Segoe UI Semibold", 15f), pic, Color.White,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
         }
-        Rectangle name = new Rectangle(pic.Right + Ui.S(12), pic.Top, ClientSize.Width - pic.Right - Ui.S(28), size);
-        TextRenderer.DrawText(g, userName, Ui.Font("Segoe UI Semibold", 11.25f), name, Theme.Fg,
-            TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-        using (Pen line = new Pen(Theme.Line)) g.DrawLine(line, pad, pad + headerHeight, ClientSize.Width - pad, pad + headerHeight);
+        int textLeft = pic.Right + Ui.S(16), textW = headerRect.Right - textLeft, mid = headerRect.Top + headerRect.Height / 2;
+        TextFormatFlags f = TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.Bottom;
+        TextRenderer.DrawText(g, userName, Ui.Font("Segoe UI Semibold", 14f), new Rectangle(textLeft, headerRect.Top, textW, mid - headerRect.Top), Theme.Fg, f);
+        TextRenderer.DrawText(g, L.T("Session sur ", "Signed in on ", "Sesión en ") + Environment.MachineName, Ui.Font("Segoe UI", 9.75f),
+            new Rectangle(textLeft, mid + Ui.S(2), textW, Ui.S(22)), Theme.FgDim, TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+        using (Pen line = new Pen(Theme.Line)) g.DrawLine(line, Pad, headerRect.Bottom + Ui.S(8), ClientSize.Width - Pad, headerRect.Bottom + Ui.S(8));
     }
 }
 
@@ -170,7 +204,7 @@ class StartTile : FlatControl
         this.glyph = glyph;
         this.stacked = stacked;
         Text = text;
-        Font = Ui.Font("Segoe UI", 9f);
+        Font = Ui.Font("Segoe UI", 10.5f);
         BackColor = Theme.Bg;
         EnableSettingsKeyboard();
     }
@@ -194,14 +228,15 @@ class StartTile : FlatControl
         TextFormatFlags f = TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.WordBreak;
         if (stacked)
         {
-            Ui.Glyph(g, glyph, 15f, Theme.Fg, new Rectangle(0, Ui.S(8), Width, Height / 2 - Ui.S(4)));
-            TextRenderer.DrawText(g, Text, Font, new Rectangle(Ui.S(4), Height / 2, Width - Ui.S(8), Height / 2 - Ui.S(4)), Theme.Fg,
+            int glyphH = Height * 11 / 20;
+            Ui.Glyph(g, glyph, 20f, Theme.Fg, new Rectangle(0, Ui.S(6), Width, glyphH - Ui.S(6)));
+            TextRenderer.DrawText(g, Text, Font, new Rectangle(Ui.S(6), glyphH, Width - Ui.S(12), Height - glyphH - Ui.S(4)), Theme.Fg,
                 f | TextFormatFlags.HorizontalCenter);
         }
         else
         {
-            Ui.Glyph(g, glyph, 12f, Theme.Fg, new Rectangle(Ui.S(8), 0, Ui.S(28), Height));
-            TextRenderer.DrawText(g, Text, Font, new Rectangle(Ui.S(40), 0, Width - Ui.S(44), Height), Theme.Fg,
+            Ui.Glyph(g, glyph, 15f, Theme.Fg, new Rectangle(Ui.S(12), 0, Ui.S(32), Height));
+            TextRenderer.DrawText(g, Text, Font, new Rectangle(Ui.S(54), 0, Width - Ui.S(60), Height), Theme.Fg,
                 f | TextFormatFlags.VerticalCenter);
         }
         DrawSettingsFocus(g);

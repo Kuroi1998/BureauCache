@@ -156,6 +156,14 @@ partial class PanelForm
         StartAnim(true);
     }
 
+    // Recherche lancée depuis le menu Démarrer de la barre (D-013) : le texte tapé arrive dans le panneau ouvert
+    public void SearchFor(string text)
+    {
+        search.Text = text ?? "";
+        search.Focus();
+        search.SelectionStart = search.Text.Length;
+    }
+
     public DateTime LastHidden = DateTime.MinValue;
 
     public void HidePanel()

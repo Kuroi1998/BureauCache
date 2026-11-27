@@ -106,8 +106,9 @@ static class SessionActions
         string result = "";
         foreach (string part in (name ?? "").Split(new[] { ' ', '.', '-', '_' }, StringSplitOptions.RemoveEmptyEntries))
         {
-            result += char.ToUpperInvariant(part[0]);
-            if (result.Length == 2) break;
+            // Premier caractère entier, même hors du plan de base d'Unicode (deux unités UTF-16) (BAR-12)
+            result += System.Globalization.StringInfo.GetNextTextElement(part).ToUpperInvariant();
+            if (new System.Globalization.StringInfo(result).LengthInTextElements == 2) break;
         }
         return result.Length > 0 ? result : "?";
     }

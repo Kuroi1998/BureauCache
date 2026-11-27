@@ -1,4 +1,5 @@
 using System;
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -86,7 +87,7 @@ public class TaskbarWindowsStartTests
         using (StartMenuForm menu = new StartMenuForm())
         {
             StartTile[] tiles = menu.Controls.OfType<StartTile>().ToArray();
-            Assert.AreEqual(8, tiles.Length, "3 raccourcis, 2 actions de compte, 3 d'alimentation.");
+            Assert.AreEqual(11, tiles.Length, "6 raccourcis, 2 actions de compte, 3 d'alimentation.");
             string[] names = tiles.Select(t => t.Text).ToArray();
             foreach (string expected in new[] { L.T("Verrouiller", "Lock", "Bloquear"), L.T("Se déconnecter", "Sign out", "Cerrar sesión"),
                                                 L.T("Mettre en veille", "Sleep", "Suspender") })
@@ -94,6 +95,45 @@ public class TaskbarWindowsStartTests
             Assert.IsTrue(names.Any(n => n.Contains(L.T("redémarrer", "restart", "reiniciar")) || n == L.T("Redémarrer", "Restart", "Reiniciar")));
             Assert.IsTrue(tiles.All(t => t.TabStop), "Chaque tuile est atteignable au clavier.");
             Assert.IsTrue(tiles.All(t => t.AccessibilityObject.Role == AccessibleRole.PushButton), "Lue comme un bouton.");
+        }
+    }
+
+    [TestMethod]
+    public void TypingInTheStartMenuSendsTheTextToThePanelSearch()
+    {
+        using (StartMenuForm menu = new StartMenuForm())
+        {
+            string received = null;
+            menu.SearchRequested += t => received = t;
+            TextBox box = menu.Controls.OfType<TextBox>().Single();
+            box.Text = "   ";
+            Assert.IsNull(received, "Des espaces seuls ne lancent rien.");
+            box.Text = "calc";
+            Assert.AreEqual("calc", received);
+        }
+    }
+
+    [TestMethod]
+    public void StartMenuIsLargeEnoughForTranslatedLabels()
+    {
+        using (StartMenuForm menu = new StartMenuForm())
+            foreach (StartTile t in menu.Controls.OfType<StartTile>())
+            {
+                // Le texte doit tenir sur deux lignes au plus dans la tuile (retour de l'essai : textes coupés)
+                Size need = TextRenderer.MeasureText(t.Text, t.Font, new Size(t.Width - Ui.S(12), int.MaxValue), TextFormatFlags.WordBreak);
+                Assert.IsTrue(need.Height <= 2 * t.Font.Height + 2, t.Text);
+                Assert.IsTrue(t.Height >= Ui.S(56), t.Text);
+            }
+    }
+
+    [TestMethod]
+    public void PreviewDoesNothingInTests()
+    {
+        using (WindowPreview p = new WindowPreview())
+        {
+            p.ShowFor(new IntPtr(1), "Titre", null, new System.Drawing.Rectangle(0, 0, 40, 40));
+            Assert.IsFalse(p.Visible, "Bac à sable : aucune vignette DWM ni fenêtre affichée.");
+            Assert.AreEqual(IntPtr.Zero, p.Target);
         }
     }
 
