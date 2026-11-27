@@ -42,7 +42,20 @@ static partial class Native
     public const uint EVENT_OBJECT_NAMECHANGE = 0x800C, EVENT_OBJECT_CLOAKED = 0x8017, EVENT_OBJECT_UNCLOAKED = 0x8018;
     public const int HSHELL_WINDOWACTIVATED = 4, HSHELL_RUDEAPPACTIVATED = 0x8004, HSHELL_FLASH = 0x8006;
     public const int WM_CLOSE = 0x10, WM_GETICON = 0x7F, ICON_BIG = 1, ICON_SMALL2 = 2;
-    public const int SW_MINIMIZE = 6, SW_RESTORE = 9;
+    public const int SW_MINIMIZE = 6, SW_RESTORE = 9, SW_SHOWMAXIMIZED = 3;
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct WINDOWPLACEMENT { public int length, flags, showCmd, minX, minY, maxX, maxY; public RECT normal; }
+    [DllImport("user32.dll")] static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT placement);
+
+    // Vrai si la fenêtre réduite était agrandie avant (WPF_RESTORETOMAXIMIZED) : elle doit revenir en plein écran.
+    // GetWindowPlacement lit l'état de la fenêtre sans lui envoyer de message : sans risque avec une application figée.
+    public static bool RestoresToMaximized(IntPtr h)
+    {
+        WINDOWPLACEMENT p = new WINDOWPLACEMENT();
+        p.length = Marshal.SizeOf(p);
+        return GetWindowPlacement(h, ref p) && (p.flags & 0x2) != 0;
+    }
 
     public static long WindowStyle(IntPtr h, int index)
     {

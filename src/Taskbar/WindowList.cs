@@ -196,7 +196,14 @@ sealed class WindowList : IDisposable
         if (!Native.IsWindow(h)) return;
         // Demandes postées (ShowWindowAsync) : une application figée ne bloque jamais la barre ni le panneau (CDX-03)
         if (wasActive && !Native.IsIconic(h)) { Native.ShowWindowAsync(h, Native.SW_MINIMIZE); return; }
-        if (Native.IsIconic(h)) Native.ShowWindowAsync(h, Native.SW_RESTORE);
+        // Fenêtre réduite : elle revient dans l'état où elle était, en plein écran si elle l'était. SwitchToThisWindow,
+        // qui la remettait en taille normale, n'est plus utilisé pour elle (retour de l'essai, T-038).
+        if (Native.IsIconic(h))
+        {
+            Native.ShowWindowAsync(h, Native.RestoresToMaximized(h) ? Native.SW_SHOWMAXIMIZED : Native.SW_RESTORE);
+            Native.SetForegroundWindow(h);
+            return;
+        }
         // Le dernier clic vient de notre processus : Windows nous laisse donner le premier plan
         if (!Native.SetForegroundWindow(h) || Native.GetForegroundWindow() != h) Native.SwitchToThisWindow(h, true);
     }

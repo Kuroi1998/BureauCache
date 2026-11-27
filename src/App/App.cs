@@ -237,7 +237,8 @@ partial class App : ApplicationContext
     {
         if (settingsForm == null || settingsForm.IsDisposed) settingsForm = new SettingsForm(Actions());
         if (!settingsForm.Visible) settingsForm.Show();
-        if (settingsForm.WindowState == FormWindowState.Minimized) settingsForm.WindowState = FormWindowState.Normal;
+        // SW_RESTORE ramène une fenêtre réduite à son état d'avant, agrandi compris (T-038)
+        if (settingsForm.WindowState == FormWindowState.Minimized) Native.ShowWindow(settingsForm.Handle, Native.SW_RESTORE);
         settingsForm.Activate();
         Native.SetForegroundWindow(settingsForm.Handle);
     }

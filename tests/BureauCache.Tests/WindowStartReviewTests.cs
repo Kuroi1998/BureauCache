@@ -29,7 +29,9 @@ static class Native {
         return new IntPtr(a);
     }
     public static bool UnhookWinEvent(IntPtr h) {return true;}
-    public static bool TwoWindows, Cloaked, Iconic;
+    public static bool TwoWindows, Cloaked, Iconic, Maximized;
+    public static bool RestoresToMaximized(IntPtr h){return Maximized;}
+    public const int SW_SHOWMAXIMIZED=3;
     public static int SyncShows, AsyncShows, LastShow;
     public static IntPtr BorrowedIcon;
     public static bool EnumWindows(Func<IntPtr,IntPtr,bool> cb, IntPtr p) {
@@ -220,6 +222,19 @@ static class Icons {
 
         Assert.AreEqual(0, native.GetField("SyncShows").GetValue(null), "Aucun ShowWindow synchrone vers une autre application.");
         Assert.AreEqual(2, native.GetField("AsyncShows").GetValue(null));
+    }
+
+    // T-038 : une fenêtre réduite depuis le plein écran revient en plein écran, sans repasser par SwitchToThisWindow
+    [TestMethod]
+    public void T038_MinimizedMaximizedWindowComesBackMaximized()
+    {
+        IntPtr hwnd = new IntPtr(1);
+        MethodInfo activate = listType.GetMethod("Activate");
+        native.GetField("Iconic").SetValue(null, true);
+        native.GetField("Maximized").SetValue(null, true);
+        activate.Invoke(null, new object[] { hwnd, false });
+        Assert.AreEqual(3, native.GetField("LastShow").GetValue(null), "SW_SHOWMAXIMIZED, pas SW_RESTORE.");
+        Assert.AreEqual(1, native.GetField("AsyncShows").GetValue(null));
     }
 
     [TestMethod]
