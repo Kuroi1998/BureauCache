@@ -193,7 +193,35 @@ partial class PanelForm
 
     static void Recycle(string stash)
     {
-        foreach (string p in Directory.GetFileSystemEntries(stash)) FileOps.Recycle(p, false);
+        FinishDelete(stash, FileOps.Move, p => FileOps.Recycle(p, false));
+    }
+
+    // Emplacement d'origine de l'élément mis de côté, écrit à côté de lui
+    internal const string OriginFile = "bureaucache-origine.txt";
+
+    // Fin d'une suppression annulable : l'élément retourne d'abord à son emplacement d'origine, puis part à la
+    // corbeille DE LÀ. Envoyé depuis le dossier de mise de côté, « Restaurer » dans la Corbeille de Windows le remettait
+    // dans AppData\BureauCache\suppression au lieu du bureau (QA-68). Si la place d'origine a été reprise entre-temps
+    // (ou si l'origine est inconnue, mise de côté d'une ancienne version), il part depuis le dossier de mise de côté.
+    internal static void FinishDelete(string stash, Action<string, string, bool> move, Action<string> recycle)
+    {
+        string originPath = Path.Combine(stash, OriginFile), origin = null;
+        try { if (File.Exists(originPath)) origin = File.ReadAllText(originPath).Trim(); } catch { }
+        foreach (string p in Directory.GetFileSystemEntries(stash))
+        {
+            if (string.Equals(Path.GetFileName(p), OriginFile, StringComparison.OrdinalIgnoreCase)) continue;
+            bool folder = Directory.Exists(p);
+            if (origin != null && string.Equals(Path.GetFileName(origin), Path.GetFileName(p), StringComparison.OrdinalIgnoreCase) &&
+                !File.Exists(origin) && !Directory.Exists(origin) && Directory.Exists(Path.GetDirectoryName(origin)))
+            {
+                bool movedBack = false;
+                try { move(p, origin, folder); movedBack = true; } catch { }
+                // Revenu sur le bureau : s'il ne part pas à la corbeille, il y reste, visible (rien n'est perdu)
+                if (movedBack) { recycle(origin); continue; }
+            }
+            recycle(p);
+        }
+        try { if (File.Exists(originPath)) File.Delete(originPath); } catch { }
         Directory.Delete(stash);
     }
 
@@ -220,6 +248,9 @@ partial class PanelForm
         try
         {
             Directory.CreateDirectory(stash);
+            // Origine notée AVANT le déplacement : même après une fermeture brutale, l'élément repart du bureau (QA-68)
+            if (!string.Equals(Path.GetFileName(original), OriginFile, StringComparison.OrdinalIgnoreCase))
+                File.WriteAllText(Path.Combine(stash, OriginFile), original, new System.Text.UTF8Encoding(false));
             FileOps.Move(original, held, folder);
         }
         catch

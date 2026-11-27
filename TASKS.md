@@ -22,6 +22,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-033 | Barre, étape 2 : fenêtres ouvertes (activer, réduire, fermer, clignotement, bureaux virtuels) | En cours : code et tests faits (QA-56) ; revue ChatGPT et essai réel à faire | Claude puis Toi | `feat/T-033-fenetres-demarrer` | D-013, QA-56 |
 | T-034 | Barre, étape 3 : menu Démarrer avec compte et alimentation | En cours : code et tests faits (QA-56) ; revue ChatGPT et essai réel à faire | Claude puis Toi | `feat/T-033-fenetres-demarrer` | D-013, QA-56 |
 | T-035 | Barre, étape 4 : bouton « ^ » avec les vraies icônes de notification (prototype, recherche Gemini, puis version finale) | À faire | Gemini, Claude, Toi | — | D-013 |
+| T-036 | Chasse aux bugs hors de la barre : mises à jour, installation, panneau, Paramètres, recherche, presse-papiers, météo (Codex en lecture seule, puis Claude) | En cours | Codex, Claude | `fix/T-036-chasse-bugs` | QA-68 |
 | T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel fait sur la 3.9 installée | Claude puis Toi | PR #19 | D-007, QA-32, QA-33 |
 | T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |
 | T-018 | Verbes du shell sur un fil dédié, liste des écrans suivie (QA-28, QA-29) | Fait (3.8) ; essais manuels encore à faire | Claude | PR #16 | QA-28 |
