@@ -1,6 +1,6 @@
 ﻿# Nouveautés
 
-## Non publié
+## 3.10.1 — Refonte UIX
 
 - Importer des réglages ne change plus le dépôt ni la vérification des mises à jour, l'historique du presse-papiers, le rangement automatique ni le journal d'annulation : ces choix restent ceux de ton PC, et la fenêtre dit lesquels ont été gardés.
 - Une mise à jour venant d'un dépôt non officiel est signalée comme non signée, et « Non » est proposé par défaut.
