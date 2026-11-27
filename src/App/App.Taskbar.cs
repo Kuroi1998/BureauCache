@@ -87,6 +87,8 @@ partial class App
         if (bar == null) return;
         startMenu = new StartMenuForm();
         startMenu.OpenPanel += () => { OpenManually(Screen.PrimaryScreen); Native.SetForegroundWindow(panel.Handle); };
+        startMenu.OpenSettings += ShowSettings;
+        startMenu.OpenTour += ShowWelcome;
         startMenu.SearchRequested += text =>
         {
             OpenManually(Screen.PrimaryScreen);
