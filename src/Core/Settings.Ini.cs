@@ -106,6 +106,9 @@ static partial class Settings
                     case "StartPower": StartPower = b; break;
                     case "StartHidden": StartHidden = SplitList(v); break;
                     case "StartShortcuts": StartShortcuts = SplitList(v); break;
+                    case "Palette": if (int.TryParse(v, out n)) Palette = Math.Max(0, Math.Min(Palettes.All.Length - 1, n)); break;
+                    case "InterfaceZoom": if (int.TryParse(v, out n) && Array.IndexOf(Zooms, n) >= 0) InterfaceZoom = n; break;
+                    case "AccentFromWindows": AccentFromWindows = b; break;
                     case "NewBadge": NewBadge = b; break;
                     case "ArchiveOn": ArchiveOn = b; break;
                     case "HoverPreview": HoverPreview = b; break;
@@ -315,7 +318,8 @@ static partial class Settings
                 "TaskbarStyle=" + TaskbarStyle, "TaskbarLine=" + B(TaskbarLine), "TaskbarAutoHide=" + B(TaskbarAutoHide), "TaskbarGroup=" + B(TaskbarGroup),
                 "TaskbarMiddleClose=" + B(TaskbarMiddleClose), "TaskbarWheel=" + B(TaskbarWheel),
                 "StartSearch=" + B(StartSearch), "StartAccount=" + B(StartAccount), "StartBureauCache=" + B(StartBureauCache), "StartWindows=" + B(StartWindows),
-                "StartSession=" + B(StartSession), "StartPower=" + B(StartPower), "StartHidden=" + string.Join("|", StartHidden), "StartShortcuts=" + string.Join("|", StartShortcuts), "NewBadge=" + B(NewBadge), "ArchiveOn=" + B(ArchiveOn),
+                "StartSession=" + B(StartSession), "StartPower=" + B(StartPower), "StartHidden=" + string.Join("|", StartHidden), "StartShortcuts=" + string.Join("|", StartShortcuts),
+                "Palette=" + Palette, "InterfaceZoom=" + InterfaceZoom, "AccentFromWindows=" + B(AccentFromWindows), "NewBadge=" + B(NewBadge), "ArchiveOn=" + B(ArchiveOn),
                 "HoverPreview=" + B(HoverPreview), "Widgets=" + B(Widgets), "AutoUpdate=" + B(AutoUpdate),
                 "Pinned=" + B(Pinned), "QuietStart=" + B(QuietStart), "TrayHintShown=" + B(TrayHintShown), "LastVersion=" + LastVersion, "ArchiveLog=" + string.Join("|", ArchiveLog),
                 "ThemeMode=" + ThemeMode, "Language=" + Language, "Delay=" + Delay, "PanelWidth=" + PanelWidth,

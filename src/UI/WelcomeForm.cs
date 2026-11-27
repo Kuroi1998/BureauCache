@@ -119,7 +119,7 @@ class WelcomeForm : Form
         StartPosition = FormStartPosition.CenterScreen;
         AutoScaleMode = AutoScaleMode.None;
         ClientSize = new Size(W, H);
-        Icon = Ui.MakeIcon(Settings.Accent);
+        Icon = Ui.MakeIcon(Settings.EffectiveAccent);
         BackColor = Theme.Bg;
         DoubleBuffered = true;
         KeyPreview = true;

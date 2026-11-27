@@ -55,6 +55,14 @@ static partial class Settings
     // Menu Démarrer à la carte (T-044) : parties affichées, tuiles masquées (par identifiant), raccourcis personnels
     public static bool StartSearch = true, StartAccount = true, StartBureauCache = true, StartWindows = true, StartSession = true, StartPower = true;
     public static List<string> StartHidden = new List<string>(), StartShortcuts = new List<string>();
+    // Thèmes (T-045) : palette des fonds, accent repris de Windows, taille de l'interface en % (au prochain démarrage)
+    public static int Palette = 0, InterfaceZoom = 100;
+    public static bool AccentFromWindows = false;
+    static Color windowsAccent = Color.Empty;
+    public static readonly int[] Zooms = { 90, 100, 115, 130 };
+    // Accent réellement utilisé : celui de Windows s'il est suivi et lisible, sinon celui choisi
+    public static Color EffectiveAccent { get { return AccentFromWindows && !windowsAccent.IsEmpty ? windowsAccent : Accent; } }
+    internal static void SetWindowsAccentForTests(Color c) { windowsAccent = c; }
     public static string WeatherPlace = "", WeatherShort = "";   // libellé complet et « Ville, Pays » (QA52-05)
     public static double WeatherLat = double.NaN, WeatherLon = double.NaN;
     public static Color Accent = Color.FromArgb(59, 130, 246);
@@ -69,6 +77,7 @@ static partial class Settings
 
     static bool sysDark = true;
     public static bool Dark { get { return ThemeMode == 1 || (ThemeMode == 0 && sysDark); } }
+    public static bool SystemDark { get { return sysDark; } }
 
     // Dossier de remplacement, posé par les tests : ils ne doivent jamais écrire dans les vrais réglages (QA-32)
     internal static string DirOverride;
@@ -78,6 +87,16 @@ static partial class Settings
     // Historique d'usage borné : au-delà, les entrées les plus anciennes sont oubliées, pour que le fichier
     // écrit reste toujours relisible sous MaxFileSize (R-14). 2 000 chemins de 260 caractères font ~550 Ko.
     public const int MaxUsage = 2000;
+
+    // Relit l'accent de Windows ; vrai s'il a changé
+    public static bool RefreshWindowsAccent()
+    {
+        Color? read = Palettes.ReadWindowsAccent();
+        Color now = read.HasValue ? read.Value : Color.Empty;
+        bool changed = now.ToArgb() != windowsAccent.ToArgb();
+        windowsAccent = now;
+        return changed;
+    }
 
     public static bool RefreshSystemTheme()
     {

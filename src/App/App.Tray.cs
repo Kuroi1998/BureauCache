@@ -154,12 +154,12 @@ partial class App
         else if (newFiles > 0) tip += "\n" + newFiles + L.T(newFiles > 1 ? " nouveaux fichiers" : " nouveau fichier", newFiles > 1 ? " new files" : " new file", newFiles > 1 ? " archivos nuevos" : " archivo nuevo");
         if (tip.Length > 63) tip = tip.Substring(0, 62) + "…"; // limite imposée par Windows
 
-        string state = Settings.Accent.ToArgb() + "|" + (badge.HasValue ? badge.Value.ToArgb().ToString() : "-");
+        string state = Settings.EffectiveAccent.ToArgb() + "|" + (badge.HasValue ? badge.Value.ToArgb().ToString() : "-");
         if (state != trayState)
         {
             trayState = state;
             Icon old = tray.Icon;
-            tray.Icon = Ui.MakeIcon(Settings.Accent, badge);
+            tray.Icon = Ui.MakeIcon(Settings.EffectiveAccent, badge);
             if (old != null) old.Dispose();
         }
         if (tray.Text != tip) tray.Text = tip;

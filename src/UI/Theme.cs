@@ -16,6 +16,8 @@ static class Theme
 {
     static Color D(int r, int g, int b, int lr, int lg, int lb)
     { return Settings.Dark ? Color.FromArgb(r, g, b) : Color.FromArgb(lr, lg, lb); }
+    // Fond teinté par la palette choisie (T-045) ; le texte n'est jamais teinté
+    static Color P(int r, int g, int b, int lr, int lg, int lb) { return Palettes.Apply(D(r, g, b, lr, lg, lb)); }
 
     // Mode Contraste élevé de Windows : les couleurs du thème choisi par l'utilisateur remplacent celles de
     // BureauCache, dans le panneau comme dans les fenêtres (GEM-10). Forçable par les tests.
@@ -23,13 +25,13 @@ static class Theme
     public static bool HighContrast { get { return HighContrastOverride ?? SystemInformation.HighContrast; } }
     static Color H(Color system, Color normal) { return HighContrast ? system : normal; }
 
-    public static Color Bg { get { return H(SystemColors.Window, D(24, 24, 28, 243, 243, 247)); } }
-    public static Color Side { get { return H(SystemColors.Window, D(31, 31, 37, 233, 233, 239)); } }
-    public static Color Card { get { return H(SystemColors.Window, D(36, 36, 42, 255, 255, 255)); } }
-    public static Color Surface { get { return H(SystemColors.Control, D(46, 46, 54, 232, 232, 238)); } }
-    public static Color Hover { get { return H(SystemColors.Highlight, D(54, 54, 63, 222, 222, 230)); } }
-    public static Color Line { get { return H(SystemColors.WindowText, D(50, 50, 58, 228, 228, 235)); } }
-    public static Color Track { get { return H(SystemColors.WindowText, D(72, 72, 84, 200, 200, 210)); } }
+    public static Color Bg { get { return H(SystemColors.Window, P(24, 24, 28, 243, 243, 247)); } }
+    public static Color Side { get { return H(SystemColors.Window, P(31, 31, 37, 233, 233, 239)); } }
+    public static Color Card { get { return H(SystemColors.Window, P(36, 36, 42, 255, 255, 255)); } }
+    public static Color Surface { get { return H(SystemColors.Control, P(46, 46, 54, 232, 232, 238)); } }
+    public static Color Hover { get { return H(SystemColors.Highlight, P(54, 54, 63, 222, 222, 230)); } }
+    public static Color Line { get { return H(SystemColors.WindowText, P(50, 50, 58, 228, 228, 235)); } }
+    public static Color Track { get { return H(SystemColors.WindowText, P(72, 72, 84, 200, 200, 210)); } }
     public static Color Fg { get { return H(SystemColors.WindowText, D(236, 236, 241, 24, 24, 28)); } }
     // Thème clair : (92, 92, 102) donne 5,4:1 sur Surface, au-dessus du seuil AA de 4,5:1 (GEM-10 : 4,45:1 avant)
     public static Color FgDim { get { return H(SystemColors.GrayText, D(150, 150, 162, 92, 92, 102)); } }
@@ -37,7 +39,7 @@ static class Theme
     // Bordure lumineuse de 1 px des cartes et tuiles : blanc à 9 % (sombre), noir à 8 % (clair) ; plus marquée au survol (D-012)
     public static Color Edge { get { return HighContrast ? SystemColors.WindowText : Settings.Dark ? Color.FromArgb(24, 255, 255, 255) : Color.FromArgb(20, 0, 0, 0); } }
     public static Color EdgeHot { get { return HighContrast ? SystemColors.Highlight : Settings.Dark ? Color.FromArgb(46, 255, 255, 255) : Color.FromArgb(40, 0, 0, 0); } }
-    public static Color Accent { get { return H(SystemColors.Highlight, Settings.Accent); } }
+    public static Color Accent { get { return H(SystemColors.Highlight, Settings.EffectiveAccent); } }
     public static Color HoverOverlay { get { return Settings.Dark ? Color.FromArgb(26, 255, 255, 255) : Color.FromArgb(16, 0, 0, 0); } }
     // Contraste élevé : la sélection prend la paire Highlight / HighlightText choisie par l'utilisateur (QA52-07)
     public static Color SelOverlay { get { return HighContrast ? SystemColors.Highlight : Settings.Dark ? Color.FromArgb(44, 255, 255, 255) : Color.FromArgb(28, 0, 0, 0); } }
@@ -53,6 +55,8 @@ static class Ui
 {
     public static float Scale = 1f;
     public static int S(int v) { return (int)Math.Round(v * Scale); }
+    // Taille de l'interface choisie (T-045) : appliquée au démarrage aux mesures (Scale) comme aux polices
+    public static float FontZoom = 1f;
 
     // Rayons communs (D-012) : cartes et tuiles 10 px, contrôles 8 px, avant mise à l'échelle
     public const int RadiusCard = 10, RadiusControl = 8;
@@ -157,11 +161,11 @@ static class Ui
 
     public static Font Font(string name, float pt, FontStyle style = FontStyle.Regular)
     {
-        string key = name + "|" + pt.ToString(CultureInfo.InvariantCulture) + "|" + (int)style;
+        string key = name + "|" + pt.ToString(CultureInfo.InvariantCulture) + "|" + (int)style + "|" + FontZoom.ToString(CultureInfo.InvariantCulture);
         lock (fonts)
         {
             Font f;
-            if (!fonts.TryGetValue(key, out f)) fonts[key] = f = new Font(name, pt, style);
+            if (!fonts.TryGetValue(key, out f)) fonts[key] = f = new Font(name, pt * FontZoom, style);
             return f;
         }
     }

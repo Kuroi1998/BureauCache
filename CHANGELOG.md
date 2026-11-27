@@ -2,6 +2,7 @@
 
 ## Non publié
 
+- Thèmes prêts en un clic dans Paramètres > Apparence (Classique, Minuit, Forêt, Prune, Ambre, Ardoise), teinte des fonds au choix, couleur d'accent qui peut suivre celle de Windows, et taille de l'interface (90 à 130 %).
 - Menu Démarrer à la carte : chaque partie (recherche, compte, BureauCache, Windows, session, alimentation) peut être masquée, une tuile se masque d'un clic droit, et la section « Mes raccourcis » accueille jusqu'à 12 applications, dossiers ou sites de ton choix.
 - Barre des tâches, suite : fond uni, en verre (le fond d'écran flouté) ou teinté de la couleur d'accent ; masquage automatique ; fenêtres d'une même application regroupées sur un seul bouton ; clic du milieu au choix (nouvelle fenêtre ou fermer) ; molette sur l'icône du son pour régler le volume.
 - Nouvelle page « Barre des tâches » dans les Paramètres : taille de la barre (petite, normale, grande), icônes à gauche ou centrées comme Windows 11, titres des fenêtres à côté des icônes comme Windows 10, et choix des éléments affichés (réseau et son, cloche, date, secondes). La barre change en direct.

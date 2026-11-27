@@ -143,7 +143,7 @@ partial class PanelForm : Form
 
     public void RefreshCatalog()
     {
-        int px = ListPx, language = L.CurrentLanguage, accent = Settings.Accent.ToArgb();
+        int px = ListPx, language = L.CurrentLanguage, accent = Settings.EffectiveAccent.ToArgb();
         bool hidesIcons = Settings.HideIcons;
         bool refreshNames = catalogPx != px || catalogLanguage != language;
         if (refreshNames) winSettings = SystemCatalog.WindowsSettings(px);

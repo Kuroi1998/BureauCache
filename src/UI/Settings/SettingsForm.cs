@@ -6,7 +6,7 @@ using System.Windows.Forms;
 
 class SettingsActions
 {
-    public Action Preview, Quit, Install, Uninstall, InstallUpdate, Welcome, HiddenToTray;
+    public Action Preview, Quit, Install, Uninstall, InstallUpdate, Welcome, HiddenToTray, Restart;
     public Func<bool> HotkeyOk;
 }
 
@@ -31,6 +31,10 @@ partial class SettingsForm : Form
     Segmented sSide, sZone, sScreen, sTheme, sView, sLang, sEngine, sNewDays, sArchDays;
     Slider slDelay, slWidth;
     Swatches swatch;
+    ThemePicker themes;
+    Toggle tAccentWindows;
+    Segmented sPalette, sZoom;
+    Label lZoom;
     HotkeyBox hk;
     InputBox repo;
     Label lDelay, lWidth, lHotStatus, lInstall, lArchive, lUpdate, lTray, lWeatherPlace, lExport, lImport, lRestore, lArchiveUndo;

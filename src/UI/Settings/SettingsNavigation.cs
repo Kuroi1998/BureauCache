@@ -91,7 +91,7 @@ sealed class SettingsNavigation : Panel
     {
         base.OnPaint(e);
         int x = Ui.S(16);
-        Ui.DrawLogo(e.Graphics, new Rectangle(x, Ui.S(21), Ui.S(34), Ui.S(34)), Settings.Accent);
+        Ui.DrawLogo(e.Graphics, new Rectangle(x, Ui.S(21), Ui.S(34), Ui.S(34)), Settings.EffectiveAccent);
         Color text = SystemInformation.HighContrast ? SystemColors.ControlText : Theme.Fg;
         TextRenderer.DrawText(e.Graphics, "BureauCache", Font, new Point(Ui.S(60), Ui.S(28)), text, TextFormatFlags.NoPrefix);
         using (Pen pen = new Pen(SystemInformation.HighContrast ? SystemColors.ControlDark : Theme.Line))

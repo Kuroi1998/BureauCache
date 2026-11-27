@@ -18,7 +18,7 @@ class ThemedDialog : Form
         AutoScaleMode = AutoScaleMode.None;
         ClientSize = new Size(w, h);
         BackColor = Theme.Bg;
-        Icon = ownedIcon = Ui.MakeIcon(Settings.Accent);
+        Icon = ownedIcon = Ui.MakeIcon(Settings.EffectiveAccent);
     }
 
     readonly Icon ownedIcon;

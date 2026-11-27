@@ -276,7 +276,7 @@ partial class PanelForm
             Key = "s:web", Title = "Web", Glyph = Glyphs.Globe,
             Items = { new DesktopItem {
                 Kind = ItemKind.Web, Key = "web", Name = L.T("Rechercher « " + q + " » sur " + engine, "Search " + engine + " for \"" + q + "\"", "Buscar «" + q + "» en " + engine),
-                Detail = url, Icon = IconCache.Tile(Glyphs.Globe, Ui.GlyphFont, Settings.Accent, px), Run = () => ShellUtil.Open(url, null) } }
+                Detail = url, Icon = IconCache.Tile(Glyphs.Globe, Ui.GlyphFont, Settings.EffectiveAccent, px), Run = () => ShellUtil.Open(url, null) } }
         };
     }
 

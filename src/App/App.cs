@@ -103,7 +103,8 @@ partial class App : ApplicationContext
             bool contrast = SystemInformation.HighContrast;
             bool contrastChanged = contrast != lastContrast;
             lastContrast = contrast;
-            if ((Settings.RefreshSystemTheme() && Settings.ThemeMode == 0) || contrastChanged)
+            bool accentChanged = Settings.RefreshWindowsAccent() && Settings.AccentFromWindows;   // accent de Windows suivi (T-045)
+            if ((Settings.RefreshSystemTheme() && Settings.ThemeMode == 0) || contrastChanged || accentChanged)
                 panel.BeginInvoke(new Action(Settings.Fire));
         };
         SystemEvents.SessionEnding += delegate { OnSessionEnding(); };
@@ -218,7 +219,8 @@ partial class App : ApplicationContext
         return new SettingsActions
         {
             Preview = Preview, Quit = QuitByUser, Install = DoInstall, Uninstall = DoUninstall,
-            InstallUpdate = InstallUpdate, HotkeyOk = () => hotkeyOk, Welcome = ShowWelcome, HiddenToTray = OnHiddenToTray
+            InstallUpdate = InstallUpdate, HotkeyOk = () => hotkeyOk, Welcome = ShowWelcome, HiddenToTray = OnHiddenToTray,
+            Restart = RestartByUser
         };
     }
 
@@ -367,6 +369,13 @@ partial class App : ApplicationContext
     {
         ConfirmTrial();
         ExitThread();
+    }
+
+    // Taille de l'interface changée (T-045) : BureauCache se relance une fois fermé, comme après une installation
+    void RestartByUser()
+    {
+        RelaunchPath = Application.ExecutablePath;
+        QuitByUser();
     }
 
     protected override void ExitThreadCore()

@@ -31,6 +31,11 @@ partial class SettingsForm
         hk.Invalidate();
         sTheme.Selected = Settings.ThemeMode;
         swatch.Selected = Settings.Accent;
+        themes.Selected = Palettes.CurrentPreset();
+        themes.Invalidate();
+        tAccentWindows.Checked = Settings.AccentFromWindows;
+        sPalette.Selected = Math.Max(0, Math.Min(Palettes.All.Length - 1, Settings.Palette));
+        sZoom.Selected = Math.Max(0, Array.IndexOf(Settings.Zooms, Settings.InterfaceZoom));
         swatch.Invalidate();
         tGlass.Checked = Settings.Glass;
         tLive.Checked = Settings.LiveBlur;
@@ -205,12 +210,12 @@ partial class SettingsForm
         BackColor = SystemInformation.HighContrast ? SystemColors.Window : Theme.Bg;
         nav.RefreshPalette();
         Style(this);
-        if (settingsIcon == null || iconAccent != Settings.Accent.ToArgb())
+        if (settingsIcon == null || iconAccent != Settings.EffectiveAccent.ToArgb())
         {
             Icon old = settingsIcon;
-            settingsIcon = Ui.MakeIcon(Settings.Accent);
+            settingsIcon = Ui.MakeIcon(Settings.EffectiveAccent);
             Icon = settingsIcon;
-            iconAccent = Settings.Accent.ToArgb();
+            iconAccent = Settings.EffectiveAccent.ToArgb();
             if (old != null) old.Dispose();
         }
         if (IsHandleCreated) Ui.ThemeTitleBar(Handle);

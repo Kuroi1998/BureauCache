@@ -28,6 +28,10 @@ static class Program
         if (cmd == "--restore") { Native.RestoreDesktopIcons(); WindowsBar.Restore(); TaskbandRoute.Restore(); return; }
         Settings.Load();
         L.Refresh();
+        // Taille de l'interface (T-045) : fixée pour toute la session, comme l'échelle de l'écran
+        Ui.FontZoom = Settings.InterfaceZoom / 100f;
+        Ui.Scale *= Ui.FontZoom;
+        Settings.RefreshWindowsAccent();
         if (cmd == "--uninstall") { UninstallFromCommandLine(); return; }
 
         bool created;

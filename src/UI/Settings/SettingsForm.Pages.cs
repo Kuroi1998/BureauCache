@@ -99,12 +99,32 @@ partial class SettingsForm
     void BuildLook()
     {
         NewPage(T("Apparence", "Appearance", "Apariencia"), T("Thème, disposition et widgets du panneau.", "Theme, layout and panel widgets.", "Tema, diseño y widgets del panel."));
+        Section(T("THÈMES PRÊTS", "READY-MADE THEMES", "TEMAS LISTOS"));
+        themes = new ThemePicker();
+        themes.Changed += (s, e) => { if (loading || themes.Selected < 0) return; Palettes.ApplyPreset(themes.Selected); Settings.Notify(); };
+        Row(T("En un clic", "In one click", "Con un clic"), T("Couleurs des fonds, accent, mode et fond de la barre. Chaque réglage reste modifiable ci-dessous.",
+            "Background colors, accent, mode and taskbar background. Each setting can still be changed below.",
+            "Colores de fondo, acento, modo y fondo de la barra. Cada ajuste se puede cambiar debajo."), themes, null);
+
         Section(T("THÈME", "THEME", "TEMA"));
         sTheme = NewSeg(v => Settings.ThemeMode = v, T("Système", "System", "Sistema"), T("Sombre", "Dark", "Oscuro"), T("Clair", "Light", "Claro"));
         Row(T("Thème", "Theme", "Tema"), T("« Système » suit Windows.", "\"System\" follows Windows.", "«Sistema» sigue la configuración de Windows."), sTheme, null);
         swatch = new Swatches();
-        swatch.Changed += (s, e) => { if (loading) return; Settings.Accent = swatch.Selected; Settings.Notify(); };
+        swatch.Changed += (s, e) => { if (loading) return; Settings.Accent = swatch.Selected; Settings.AccentFromWindows = false; Settings.Notify(); };
         Row(T("Couleur d'accent", "Accent color", "Color de énfasis"), null, swatch, null);
+        tAccentWindows = NewToggle(v => { Settings.AccentFromWindows = v; Settings.RefreshWindowsAccent(); });
+        Row(T("Suivre l'accent de Windows", "Follow the Windows accent", "Seguir el acento de Windows"),
+            T("La couleur choisie dans Paramètres Windows > Personnalisation > Couleurs.", "The color chosen in Windows Settings > Personalization > Colors.",
+              "El color elegido en Configuración de Windows > Personalización > Colores."), tAccentWindows, null);
+        string[] paletteNames = new string[Palettes.All.Length];
+        for (int i = 0; i < paletteNames.Length; i++) paletteNames[i] = Palettes.All[i].Name;
+        sPalette = NewSeg(v => Settings.Palette = v, paletteNames);
+        Row(T("Teinte des fonds", "Background tint", "Tono de los fondos"), T("Une nuance discrète sur les fonds ; le texte garde son contraste.", "A subtle shade on backgrounds; text keeps its contrast.",
+            "Un matiz discreto en los fondos; el texto conserva su contraste."), sPalette, null);
+        sZoom = NewSeg(v => Settings.InterfaceZoom = Settings.Zooms[v], "90 %", "100 %", "115 %", "130 %");
+        lZoom = Row(T("Taille de l'interface", "Interface size", "Tamaño de la interfaz"),
+            T("Textes et éléments de BureauCache. S'applique au prochain démarrage.", "BureauCache text and elements. Applies at next start.", "Textos y elementos de BureauCache. Se aplica en el próximo inicio."), sZoom, null,
+            null, Button(T("Redémarrer", "Restart", "Reiniciar"), false, S(120), () => { if (act.Restart != null) act.Restart(); }));
         tGlass = NewToggle(v => Settings.Glass = v);
         Row(T("Effet verre", "Glass effect", "Efecto de cristal"), T("Le panneau laisse deviner ce qu'il y a derrière.", "The panel shows a blur of what's behind it.", "Difumina el fondo del panel."), tGlass, null);
         tLive = NewToggle(v => Settings.LiveBlur = v);

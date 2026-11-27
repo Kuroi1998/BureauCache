@@ -23,7 +23,7 @@ partial class PanelForm
                 // Le texte complet sert à la recherche, l'aperçu court à l'affichage (QA42-05)
                 Keywords = string.Join(" ", text.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)),
                 Detail = text.Length + L.T(" caractère(s) · copié à ", " character(s) · copied at ", " carácter(es) · copiado a las ") + e.At.ToString("HH:mm"),
-                Icon = IconCache.Tile(Glyphs.Copy, Ui.GlyphFont, Settings.Accent, px),
+                Icon = IconCache.Tile(Glyphs.Copy, Ui.GlyphFont, Settings.EffectiveAccent, px),
                 Run = () => { try { Clipboard.SetText(text); } catch { } }
             });
         }

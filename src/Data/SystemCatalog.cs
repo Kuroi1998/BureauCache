@@ -108,9 +108,9 @@ static class SystemCatalog
         add("Explorateur de fichiers", "File Explorer", "Explorador de archivos", Glyphs.Folder, slate, "explorer dossiers", () => Start("explorer.exe", null));
         add(Settings.HideIcons ? "Afficher les icônes du bureau" : "Cacher les icônes du bureau",
             Settings.HideIcons ? "Show desktop icons" : "Hide desktop icons",
-            Settings.HideIcons ? "Mostrar los iconos del escritorio" : "Ocultar los iconos del escritorio", Glyphs.Eye, Settings.Accent, "icones bureau desktop", () =>
+            Settings.HideIcons ? "Mostrar los iconos del escritorio" : "Ocultar los iconos del escritorio", Glyphs.Eye, Settings.EffectiveAccent, "icones bureau desktop", () =>
             { Settings.HideIcons = !Settings.HideIcons; Settings.Notify(); });
-        add("Paramètres de BureauCache", "BureauCache settings", "Configuración de BureauCache", Glyphs.Settings, Settings.Accent, "bureaucache reglages options", openSettings);
+        add("Paramètres de BureauCache", "BureauCache settings", "Configuración de BureauCache", Glyphs.Settings, Settings.EffectiveAccent, "bureaucache reglages options", openSettings);
         return c;
     }
 }
