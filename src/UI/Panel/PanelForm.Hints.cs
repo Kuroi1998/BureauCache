@@ -8,6 +8,7 @@ partial class PanelForm
 {
     // Pastilles du champ de recherche : = calcul, ? web, > commandes système. Elles n'apparaissent que champ vide.
     static readonly string[] ChipPrefixes = { "=", "?", ">" };
+    static readonly string[] ChipGlyphs = { Glyphs.Calculator, Glyphs.Help, Glyphs.Terminal };
     const int ChipFirst = 7;   // codes de HitButton : 7, 8 et 9
     readonly Rectangle[] rcChips = new Rectangle[3];
     ToolTip tips;
@@ -38,9 +39,9 @@ partial class PanelForm
         for (int i = 0; i < 3; i++)
         {
             bool hot = hoverBtn == ChipFirst + i;
-            Ui.Fill(g, hot ? Theme.SelOverlay : Theme.HoverOverlay, rcChips[i], S(6));
-            TextRenderer.DrawText(g, ChipPrefixes[i], fCount, rcChips[i], hot ? Theme.Accent : Theme.FgDim,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            // Icônes au lieu des caractères = ? > : calculatrice, aide, commande ; l'infobulle donne le préfixe (D-012)
+            Ui.Card(g, hot ? Theme.SelOverlay : Theme.HoverOverlay, rcChips[i], S(6), hot);
+            Ui.Glyph(g, ChipGlyphs[i], 9f, hot ? Theme.Accent : Theme.FgDim, rcChips[i]);
         }
     }
 

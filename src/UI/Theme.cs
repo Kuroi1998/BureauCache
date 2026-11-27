@@ -54,7 +54,16 @@ static class Ui
 
     // Rayons communs (D-012) : cartes et tuiles 10 px, contrôles 8 px, avant mise à l'échelle
     public const int RadiusCard = 10, RadiusControl = 8;
-    public const string GlyphFont = "Segoe MDL2 Assets";
+    // Police des icônes (D-012) : Segoe Fluent Icons (Windows 11) si elle est installée, sinon Segoe MDL2 Assets
+    // (Windows 10). Les deux partagent les mêmes points de code pour les icônes utilisées ici.
+    public static readonly string GlyphFont = PickGlyphFont(new System.Drawing.Text.InstalledFontCollection().Families.Select(f => f.Name));
+
+    internal static string PickGlyphFont(IEnumerable<string> installed)
+    {
+        foreach (string name in installed)
+            if (string.Equals(name, "Segoe Fluent Icons", StringComparison.OrdinalIgnoreCase)) return "Segoe Fluent Icons";
+        return "Segoe MDL2 Assets";
+    }
 
     public static GraphicsPath Round(RectangleF r, float rad)
     {

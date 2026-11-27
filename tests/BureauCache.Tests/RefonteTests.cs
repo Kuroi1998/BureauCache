@@ -158,4 +158,22 @@ public class RefonteTests
         }
         finally { Settings.ThemeMode = mode; }
     }
+
+    [TestMethod]
+    public void IconFontPrefersFluentAndFallsBackToMdl2()
+    {
+        Assert.AreEqual("Segoe Fluent Icons", Ui.PickGlyphFont(new[] { "Arial", "Segoe MDL2 Assets", "Segoe Fluent Icons" }));
+        Assert.AreEqual("Segoe MDL2 Assets", Ui.PickGlyphFont(new[] { "Arial", "Segoe MDL2 Assets" }), "Windows 10 : repli sur MDL2.");
+        Assert.AreEqual("Segoe MDL2 Assets", Ui.PickGlyphFont(new string[0]));
+    }
+
+    [TestMethod]
+    public void SearchChipsAreIconsWithTheirPrefixInTheTooltip()
+    {
+        BindingFlags priv = BindingFlags.Static | BindingFlags.NonPublic;
+        string[] glyphs = (string[])typeof(PanelForm).GetField("ChipGlyphs", priv).GetValue(null);
+        CollectionAssert.AreEqual(new[] { Glyphs.Calculator, Glyphs.Help, Glyphs.Terminal }, glyphs);
+        string[] prefixes = (string[])typeof(PanelForm).GetField("ChipPrefixes", priv).GetValue(null);
+        CollectionAssert.AreEqual(new[] { "=", "?", ">" }, prefixes, "Le clic écrit toujours le préfixe.");
+    }
 }

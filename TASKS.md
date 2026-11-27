@@ -17,7 +17,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-028 | Audit global : sécurité, fonctionnalités, environnement, expérience, failles (Claude, Gemini, ChatGPT) | Tri fait (3 avis) ; corrections en T-029 et T-030 | Claude, Gemini, ChatGPT | `audit/T-028-audit-global` | QA-44, QA-45, QA-46 |
 | T-029 | Durcissement de sécurité issu de l'audit (import, désinstallation, SEC-01 à 12) | Codée (457 tests réussis), revue à faire | Claude | `fix/T-029-durcissement` | QA-44, QA-46, QA-47 |
 | T-030 | Expérience issue de l'audit (Premiers pas au clavier, lecteurs d'écran, contraste, erreurs réseau) | Codée (464 tests réussis), revue à faire | Claude | `fix/T-030-experience` | QA-45, QA-48 |
-| T-031 | Refonte visuelle « Windows 11 » en quatre étapes | Étapes 1 et 2 validées ; étape 3 codée (470 tests réussis), à essayer | Claude puis Toi | `feat/T-031-refonte` | D-012, QA-49 à QA-51 |
+| T-031 | Refonte visuelle « Windows 11 » en quatre étapes | Étapes 1 à 3 validées ; étape 4 codée (472 tests réussis), à essayer ; revue à faire | Claude puis Toi | `feat/T-031-refonte` | D-012, QA-49 à QA-52 |
 | T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel fait sur la 3.9 installée | Claude puis Toi | PR #19 | D-007, QA-32, QA-33 |
 | T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |
 | T-018 | Verbes du shell sur un fil dédié, liste des écrans suivie (QA-28, QA-29) | Fait (3.8) ; essais manuels encore à faire | Claude | PR #16 | QA-28 |
@@ -97,6 +97,8 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-27 · Claude · T-031, étape 2 : jetons de style (bordure fine, rayons) appliqués aux widgets, à la recherche, aux tuiles, au presse-papiers et aux cartes des Paramètres (QA-50). Suite : 468 réussis.
 - 2026-11-27 · Toi · Étape 2 validée à l'écran.
 - 2026-11-27 · Claude · T-031, étape 3 : barre de titre (attributs 19, 20, 35, 36), boutons secondaire, discret et danger sobre, onglet actif translucide, focus seulement au clavier (QA-51). Suite : 470 réussis.
+- 2026-11-27 · Toi · Étape 3 validée à l'écran.
+- 2026-11-27 · Claude · T-031, étape 4 : Segoe Fluent Icons avec repli sur MDL2, pastilles = ? > en icônes (QA-52). Suite : 472 réussis.
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.
