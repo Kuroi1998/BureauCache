@@ -13,6 +13,22 @@ partial class SettingsForm
         Section(T("BUREAU", "DESKTOP", "ESCRITORIO"));
         tHide = NewToggle(v => Settings.HideIcons = v);
         Row(T("Cacher les icônes du bureau", "Hide desktop icons", "Ocultar los iconos del escritorio"), T("Elles restent accessibles depuis le panneau.", "They stay available in the panel.", "Siguen accesibles desde el panel."), tHide, null);
+        tTaskbar = new Toggle();
+        tTaskbar.Changed += (s, e) =>
+        {
+            if (loading) return;
+            // Confirmation : la barre de Windows disparaît, on dit tout de suite comment la retrouver (D-013)
+            if (tTaskbar.Checked && !Ask(T("La barre des tâches de Windows sera cachée tant que BureauCache est ouvert, et remplacée par la sienne : bouton Démarrer (ouvre le panneau), Paramètres rapides et horloge.\n\nPour la retrouver : clic droit sur la barre BureauCache, puis « Rétablir la barre des tâches de Windows ». Quitter BureauCache la rend aussi.\n\nRemplacer la barre des tâches ?",
+                    "The Windows taskbar will be hidden while BureauCache is running, and replaced by its own: Start button (opens the panel), Quick Settings and clock.\n\nTo get it back: right-click the BureauCache bar, then \"Bring back the Windows taskbar\". Quitting BureauCache also brings it back.\n\nReplace the taskbar?",
+                    "La barra de tareas de Windows se ocultará mientras BureauCache esté abierto y se reemplazará por la suya: botón Inicio (abre el panel), Configuración rápida y reloj.\n\nPara recuperarla: clic derecho en la barra de BureauCache y luego «Restablecer la barra de tareas de Windows». Al salir de BureauCache también vuelve.\n\n¿Reemplazar la barra de tareas?")))
+            {
+                loading = true; tTaskbar.Checked = false; loading = false;
+                return;
+            }
+            Settings.TaskbarOn = tTaskbar.Checked;
+            Settings.Notify();
+        };
+        Row(T("Remplacer la barre des tâches", "Replace the taskbar", "Reemplazar la barra de tareas"), T("Barre BureauCache en bas de l'écran principal. Version d'essai : fenêtres ouvertes et icônes près de l'horloge à venir.", "BureauCache bar at the bottom of the main screen. Preview: open windows and tray icons are coming.", "Barra de BureauCache en la parte inferior de la pantalla principal. Versión preliminar: las ventanas abiertas y los iconos junto al reloj llegarán más adelante."), tTaskbar, null);
 
         Section("WINDOWS");
         tStartup = new Toggle();

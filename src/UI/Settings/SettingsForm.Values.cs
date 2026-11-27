@@ -47,6 +47,7 @@ partial class SettingsForm
         tSCmd.Checked = Settings.SearchCommands;
         tSContent.Checked = Settings.SearchContent;
         tClip.Checked = Settings.ClipboardOn;
+        tTaskbar.Checked = Settings.TaskbarOn;
         sEngine.Selected = Settings.WebEngine;
         tGroups.Checked = Settings.GroupCats;
         tRecents.Checked = Settings.ShowRecents;

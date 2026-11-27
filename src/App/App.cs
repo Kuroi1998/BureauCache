@@ -91,6 +91,7 @@ partial class App : ApplicationContext
         Settings.Changed += OnSettingsChanged;
         ClipboardHistory.Changed += panel.OnClipboardChanged;
         ApplyClipboard();
+        ApplyTaskbar();
         bool lastContrast = SystemInformation.HighContrast;
         SystemEvents.UserPreferenceChanged += (s, e) =>
         {
@@ -101,12 +102,12 @@ partial class App : ApplicationContext
             if ((Settings.RefreshSystemTheme() && Settings.ThemeMode == 0) || contrastChanged)
                 panel.BeginInvoke(new Action(Settings.Fire));
         };
-        SystemEvents.SessionEnding += delegate { Settings.Flush(); Native.RestoreDesktopIcons(); };
+        SystemEvents.SessionEnding += delegate { Settings.Flush(); Native.RestoreDesktopIcons(); WindowsBar.Restore(); };
         screenSignature = ScreenSignature(screens);
         SystemEvents.DisplaySettingsChanged += delegate
         {
             screens = Screen.AllScreens;
-            try { panel.BeginInvoke(new Action(OnDisplaysChanged)); } catch { }
+            try { panel.BeginInvoke(new Action(OnDisplaysChanged)); panel.BeginInvoke(new Action(OnDisplaysChangedForBar)); } catch { }
         };
 
         ApplyIconVisibility();
@@ -158,6 +159,7 @@ partial class App : ApplicationContext
         ApplyIconVisibility();
         RegisterHotkey();
         ApplyClipboard();
+        ApplyTaskbar();
         panel.OnSettingsChanged();
         RefreshTray();
         if (L.CurrentLanguage != lastLanguage)
@@ -367,6 +369,7 @@ partial class App : ApplicationContext
         try { panel.Unpin(); } catch { }
         try { hotkey.Register(false, 0, 0); hotkey.DestroyHandle(); } catch { }
         try { clipboard.Close(); } catch { }
+        CloseBar();
         Native.RestoreDesktopIcons();
         foreach (FileSystemWatcher w in watchers) w.Dispose();
         tray.Visible = false;

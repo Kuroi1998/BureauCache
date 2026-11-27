@@ -1,5 +1,10 @@
 ﻿# Nouveautés
 
+## Non publié
+
+- Nouvelle option « Remplacer la barre des tâches » (Paramètres → Général, désactivée par défaut) : la barre de Windows est cachée tant que BureauCache est ouvert et remplacée par une barre BureauCache avec un bouton Démarrer (ouvre le panneau), les Paramètres rapides, les notifications et l'horloge. Version d'essai : les fenêtres ouvertes et les icônes près de l'horloge arriveront ensuite.
+- La barre de Windows revient toujours : en quittant BureauCache, par clic droit sur la barre puis « Rétablir la barre des tâches de Windows », et même si BureauCache plante.
+
 ## 3.10.1 — Refonte UIX
 
 - Importer des réglages ne change plus le dépôt ni la vérification des mises à jour, l'historique du presse-papiers, le rangement automatique ni le journal d'annulation : ces choix restent ceux de ton PC, et la fenêtre dit lesquels ont été gardés.

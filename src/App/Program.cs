@@ -25,7 +25,7 @@ static class Program
         string cmd = args.Length > 0 ? args[0].ToLowerInvariant() : "";
         if (cmd == "--watchdog" && args.Length > 1) { Watchdog(args[1]); return; }
         if (cmd == "--make-icon" && args.Length > 1) { Ui.WriteIco(args[1]); return; }
-        if (cmd == "--restore") { Native.RestoreDesktopIcons(); return; }
+        if (cmd == "--restore") { Native.RestoreDesktopIcons(); WindowsBar.Restore(); return; }
         Settings.Load();
         L.Refresh();
         if (cmd == "--uninstall") { UninstallFromCommandLine(); return; }
@@ -62,7 +62,7 @@ static class Program
                     if (Installer.RunningFromInstall) try { Installer.RegisterVersion(); } catch { }
                     StartWatchdog();
                     try { Application.Run(new App(show, quit)); }
-                    finally { Native.RestoreDesktopIcons(); }
+                    finally { Native.RestoreDesktopIcons(); WindowsBar.Restore(); }
                 }
             }
         }
@@ -88,7 +88,7 @@ static class Program
         if (!int.TryParse(pidText, out pid)) return;
         try { Process.GetProcessById(pid).WaitForExit(); } catch { }
         Thread.Sleep(1500);
-        if (!InstanceExists()) Native.RestoreDesktopIcons();
+        if (!InstanceExists()) { Native.RestoreDesktopIcons(); WindowsBar.Restore(); }   // plantage : icônes et barre Windows reviennent
     }
 
     static bool InstanceExists()

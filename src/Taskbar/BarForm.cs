@@ -1,0 +1,211 @@
+// BureauCache — BarForm : barre des tâches BureauCache en bas de l'écran principal (D-013, étape 1)
+using System;
+using System.Drawing;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
+
+// Fenêtre AppBar : Windows réserve sa hauteur, les fenêtres agrandies s'arrêtent au-dessus. Elle ne prend jamais
+// le focus (WS_EX_NOACTIVATE) et n'apparaît ni dans Alt+Tab ni dans la liste des fenêtres (WS_EX_TOOLWINDOW).
+class BarForm : Form
+{
+    public event Action StartClicked, MenuRequested, ExplorerRestarted;
+
+    readonly uint abMsg = Native.RegisterWindowMessage("BureauCache.Barre");
+    readonly uint taskbarCreated = Native.RegisterWindowMessage("TaskbarCreated");
+    readonly Timer clock = new Timer();
+    bool appbar;
+    int hot = -1;   // zone survolée : 0 Démarrer, 1 Paramètres rapides, 2 horloge
+    Rectangle[] zones = new Rectangle[3];
+
+    public static int BarHeight { get { return Ui.S(48); } }
+
+    public BarForm()
+    {
+        FormBorderStyle = FormBorderStyle.None;
+        ShowInTaskbar = false;
+        StartPosition = FormStartPosition.Manual;
+        DoubleBuffered = true;
+        Text = "BureauCache";
+        AccessibleName = L.T("Barre des tâches BureauCache", "BureauCache taskbar", "Barra de tareas de BureauCache");
+        AccessibleRole = AccessibleRole.ToolBar;
+        Rectangle s = Screen.PrimaryScreen.Bounds;
+        Bounds = new Rectangle(s.Left, s.Bottom - BarHeight, s.Width, BarHeight);
+        ApplyTheme();
+        clock.Tick += (o, e) => { ScheduleClock(); Invalidate(zones[2]); };
+        ScheduleClock();
+    }
+
+    protected override CreateParams CreateParams
+    {
+        get
+        {
+            CreateParams cp = base.CreateParams;
+            cp.ExStyle |= 0x80 /*WS_EX_TOOLWINDOW*/ | 0x8 /*WS_EX_TOPMOST*/ | 0x08000000 /*WS_EX_NOACTIVATE*/;
+            return cp;
+        }
+    }
+
+    protected override bool ShowWithoutActivation { get { return true; } }
+
+    public void ApplyTheme()
+    {
+        BackColor = Theme.Bg;
+        Invalidate();
+    }
+
+    // Le minuteur se recale sur le début de chaque minute : un seul réveil par minute
+    void ScheduleClock()
+    {
+        clock.Stop();
+        DateTime now = DateTime.Now;
+        clock.Interval = Math.Max(1000, (60 - now.Second) * 1000 - now.Millisecond + 50);
+        clock.Start();
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        AppBarRegister();
+    }
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        clock.Stop();
+        AppBarRemove();
+        base.OnFormClosed(e);
+    }
+
+    void AppBarRegister()
+    {
+        if (appbar) return;
+        Native.APPBARDATA d = new Native.APPBARDATA();
+        d.cbSize = Marshal.SizeOf(d);
+        d.hWnd = Handle;
+        d.uCallbackMessage = abMsg;
+        if (Native.SHAppBarMessage(Native.ABM_NEW, ref d) == UIntPtr.Zero) return;
+        appbar = true;
+        Reposition();
+    }
+
+    // Place la barre en bas de l'écran principal et y réserve sa hauteur
+    public void Reposition()
+    {
+        Rectangle s = Screen.PrimaryScreen.Bounds;
+        if (!appbar) { Bounds = new Rectangle(s.Left, s.Bottom - BarHeight, s.Width, BarHeight); return; }
+        Native.APPBARDATA d = new Native.APPBARDATA();
+        d.cbSize = Marshal.SizeOf(d);
+        d.hWnd = Handle;
+        d.uEdge = Native.ABE_BOTTOM;
+        d.rc = new Native.RECT { Left = s.Left, Top = s.Bottom - BarHeight, Right = s.Right, Bottom = s.Bottom };
+        Native.SHAppBarMessage(Native.ABM_QUERYPOS, ref d);
+        d.rc.Top = d.rc.Bottom - BarHeight;
+        Native.SHAppBarMessage(Native.ABM_SETPOS, ref d);
+        Bounds = Rectangle.FromLTRB(d.rc.Left, d.rc.Top, d.rc.Right, d.rc.Bottom);
+    }
+
+    void AppBarRemove()
+    {
+        if (!appbar) return;
+        Native.APPBARDATA d = new Native.APPBARDATA();
+        d.cbSize = Marshal.SizeOf(d);
+        d.hWnd = Handle;
+        Native.SHAppBarMessage(Native.ABM_REMOVE, ref d);
+        appbar = false;
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        if (m.Msg == 0x21 /*WM_MOUSEACTIVATE*/) { m.Result = new IntPtr(3 /*MA_NOACTIVATE*/); return; }
+        if (appbar && m.Msg == (int)abMsg)
+        {
+            int code = m.WParam.ToInt32();
+            if (code == Native.ABN_POSCHANGED) Reposition();
+            else if (code == Native.ABN_FULLSCREENAPP) TopMost = m.LParam == IntPtr.Zero;   // s'efface devant le plein écran
+        }
+        else if (m.Msg == (int)taskbarCreated)
+        {
+            // Explorer a redémarré : il a oublié notre réservation, et sa barre réapparaît
+            appbar = false;
+            AppBarRegister();
+            if (ExplorerRestarted != null) ExplorerRestarted();
+        }
+        base.WndProc(ref m);
+    }
+
+    // ---- Dessin -------------------------------------------------------------------------------------------------
+
+    void Layout2()
+    {
+        int h = ClientSize.Height, pad = Ui.S(4), btn = h - 2 * pad;
+        zones[0] = new Rectangle(Ui.S(8), pad, btn, btn);
+        string time, date; ClockText(out time, out date);
+        int clockW = Math.Max(TextRenderer.MeasureText(time, ClockFont).Width, TextRenderer.MeasureText(date, ClockFont).Width) + Ui.S(20);
+        zones[2] = new Rectangle(ClientSize.Width - Ui.S(8) - clockW, pad, clockW, btn);
+        zones[1] = new Rectangle(zones[2].Left - Ui.S(4) - Ui.S(72), pad, Ui.S(72), btn);
+    }
+
+    static Font ClockFont { get { return Ui.Font("Segoe UI", 9f); } }
+
+    static void ClockText(out string time, out string date)
+    {
+        DateTime now = DateTime.Now;
+        time = now.ToString("t", L.Culture);
+        date = now.ToString("d", L.Culture);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        Graphics g = e.Graphics;
+        Layout2();
+        using (Pen line = new Pen(Theme.Line)) g.DrawLine(line, 0, 0, ClientSize.Width, 0);
+        for (int i = 0; i < zones.Length; i++)
+            if (i == hot) Ui.Fill(g, Theme.HoverOverlay, zones[i], Ui.S(4));
+
+        int logo = Ui.S(26);
+        Rectangle z = zones[0];
+        Ui.DrawLogo(g, new Rectangle(z.Left + (z.Width - logo) / 2, z.Top + (z.Height - logo) / 2, logo, logo), Theme.Accent);
+
+        z = zones[1];
+        int third = z.Width / 3;
+        Ui.Glyph(g, Glyphs.Wifi, 11f, Theme.Fg, new Rectangle(z.Left, z.Top, third, z.Height));
+        Ui.Glyph(g, Glyphs.Volume, 11f, Theme.Fg, new Rectangle(z.Left + third, z.Top, third, z.Height));
+        Ui.Glyph(g, Glyphs.Bell, 11f, Theme.Fg, new Rectangle(z.Left + 2 * third, z.Top, third, z.Height));
+
+        string time, date; ClockText(out time, out date);
+        z = zones[2];
+        int half = z.Height / 2;
+        TextFormatFlags f = TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPadding;
+        TextRenderer.DrawText(g, time, ClockFont, new Rectangle(z.Left, z.Top + half - ClockFont.Height, z.Width, ClockFont.Height), Theme.Fg, f);
+        TextRenderer.DrawText(g, date, ClockFont, new Rectangle(z.Left, z.Top + half, z.Width, ClockFont.Height), Theme.Fg, f);
+    }
+
+    int ZoneAt(Point p)
+    {
+        for (int i = 0; i < zones.Length; i++) if (zones[i].Contains(p)) return i;
+        return -1;
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        int z = ZoneAt(e.Location);
+        if (z != hot) { hot = z; Invalidate(); }
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        if (hot != -1) { hot = -1; Invalidate(); }
+    }
+
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        base.OnMouseUp(e);
+        int z = ZoneAt(e.Location);
+        if (e.Button == MouseButtons.Right) { if (MenuRequested != null) MenuRequested(); return; }
+        if (e.Button != MouseButtons.Left) return;
+        if (z == 0 && StartClicked != null) StartClicked();
+        else if (z == 1) Native.PressWinKey(0x41);   // Windows + A : Paramètres rapides (réseau, son, batterie)
+        else if (z == 2) Native.PressWinKey(0x4E);   // Windows + N : notifications et calendrier
+    }
+}
