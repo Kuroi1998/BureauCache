@@ -26,6 +26,33 @@ class WelcomeForm : Form
     Toggle taskbar;
     bool settingTaskbar;
     readonly int W, H, IllusH;
+    // Mise en page mesurée (retour de l'essai : texte rogné) : décalages depuis le bas de l'illustration, calculés
+    // d'après la hauteur réelle de chaque texte, dans la langue et au zoom courants
+    readonly int[] controlsOff = new int[Pages], tipsOff = new int[Pages], endOff = new int[Pages];
+    int examplesOff;
+    const TextFormatFlags Wrap = TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix;
+    int TextWidth { get { return W - S(80); } }
+    int TipWidth { get { return W - S(104); } }
+    static int Measure(string text, Font font, int width) { return TextRenderer.MeasureText(text, font, new Size(width, int.MaxValue), Wrap).Height; }
+
+    // Hauteur des réglages d'un écran (choix du bord et interrupteur, raccourci, interrupteur seul)
+    internal static int ControlsHeight(int p) { return p == 0 ? S(86) : p == 1 ? S(48) : p == 4 || p == 5 ? S(38) : 0; }
+
+    void ComputeLayout()
+    {
+        string[] texts = Texts;
+        string[][] tips = Tips;
+        for (int p = 0; p < Pages; p++)
+        {
+            int off = S(68) + Measure(texts[p], fText, TextWidth) + S(14);
+            controlsOff[p] = off;
+            off += ControlsHeight(p);
+            if (p == 2) { examplesOff = off; off += 4 * S(32); }
+            tipsOff[p] = off;
+            foreach (string t in tips[p]) off += Measure(t, fSmall, TipWidth) + S(8);
+            endOff[p] = off;
+        }
+    }
 
     static int S(int v) { return Ui.S(v); }
     static string T(string fr, string en, string es = null) { return L.T(fr, en, es); }
@@ -78,7 +105,10 @@ class WelcomeForm : Form
     public WelcomeForm(Action onFinish)
     {
         this.onFinish = onFinish;
-        W = S(620); H = S(620); IllusH = S(220);
+        W = S(620); IllusH = S(220);
+        ComputeLayout();
+        // La fenêtre a la hauteur de l'écran le plus long, plus la pagination et les boutons
+        H = IllusH + endOff.Max() + S(104);
         // Petite zone de travail (zoom de 150 % sur un écran de 768 px) : l'illustration rétrécit pour que les
         // boutons du bas restent visibles (R-17)
         int over = H + S(40) - Screen.FromPoint(Cursor.Position).WorkingArea.Height;
@@ -95,7 +125,7 @@ class WelcomeForm : Form
         KeyPreview = true;
         for (int i = 0; i < Pages; i++) pageControls[i] = new List<Control>();
 
-        int cy = IllusH + S(130);
+        int cy = IllusH + controlsOff[0];
         side = new Segmented(T("Gauche", "Left", "Izquierda"), T("Droite", "Right", "Derecha")) { Location = new Point(S(40), cy) };
         side.Selected = Settings.RightSide ? 1 : 0;
         side.Changed += (s, e) => { Settings.RightSide = side.Selected == 1; Settings.Notify(); Invalidate(); };
@@ -106,18 +136,20 @@ class WelcomeForm : Form
         hide.AccessibleName = hideL.Text;
         AddTo(0, side, hide, hideL);
 
-        hk = new HotkeyBox { Location = new Point(S(40), cy), Mods = Settings.HotMods, Key = Settings.HotKey };
+        hk = new HotkeyBox { Location = new Point(S(40), IllusH + controlsOff[1]), Mods = Settings.HotMods, Key = Settings.HotKey };
         hk.Changed += (s, e) => { Settings.HotMods = hk.Mods; Settings.HotKey = hk.Key; Settings.HotkeyOn = true; Settings.Notify(); Invalidate(); };
         hk.AccessibleName = T("Raccourci clavier", "Keyboard shortcut", "Atajo de teclado");
         AddTo(1, hk);
 
         // Écran 5 : la même option et la même confirmation que dans les Paramètres (la barre Windows va disparaître)
+        cy = IllusH + controlsOff[4];
         taskbar = new Toggle { Location = new Point(S(40), cy), Checked = Settings.TaskbarOn };
         taskbar.Changed += (s, e) => OnTaskbarToggled();
         Label taskbarL = new Label { Text = TaskbarConsent.Label, AutoSize = true, Font = fSmall, Location = new Point(S(94), cy + S(2)) };
         taskbar.AccessibleName = taskbarL.Text;
         AddTo(4, taskbar, taskbarL);
 
+        cy = IllusH + controlsOff[5];
         Toggle start = new Toggle { Location = new Point(S(40), cy), Checked = Startup.Enabled };
         start.Changed += (s, e) => { try { Startup.Set(start.Checked, Installer.IsInstalled ? Installer.Exe : null); } catch { } };
         Label startL = new Label { Text = T("Lancer BureauCache au démarrage de Windows", "Start BureauCache with Windows", "Iniciar BureauCache con Windows"), AutoSize = true, Font = fSmall, Location = new Point(S(94), cy + S(2)) };
@@ -218,12 +250,11 @@ class WelcomeForm : Form
         g.ResetTransform();
         g.ResetClip();
         TextRenderer.DrawText(g, Titles[page], fTitle, new Point(S(38), IllusH + S(26)), Theme.Fg, TextFormatFlags.NoPrefix);
-        TextRenderer.DrawText(g, Texts[page], fText, new Rectangle(S(40), IllusH + S(68), W - S(80), S(60)), Theme.FgDim,
-            TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
-        if (page == 2) DrawExamples(g, IllusH + S(126));
-        // Conseils : sous le texte, ou sous l'interrupteur de l'écran quand il en a un
+        string text = Texts[page];
+        TextRenderer.DrawText(g, text, fText, new Rectangle(S(40), IllusH + S(68), TextWidth, Measure(text, fText, TextWidth) + S(4)), Theme.FgDim, Wrap);
+        if (page == 2) DrawExamples(g, IllusH + examplesOff);
         string[] tips = Tips[page];
-        if (tips.Length > 0) DrawTips(g, IllusH + (pageControls[page].Count > 0 ? S(176) : S(124)), tips);
+        if (tips.Length > 0) DrawTips(g, IllusH + tipsOff[page], tips);
         int step = S(22), x0 = W / 2 - (Pages * step + S(14)) / 2;
         for (int i = 0; i < Pages; i++)
         {
@@ -381,31 +412,23 @@ class WelcomeForm : Form
         }
     }
 
-    // Conseils sur deux lignes au plus : la hauteur de chacun est mesurée, pour qu'aucun ne chevauche le suivant
+    // Conseils : chacun a la hauteur de son texte, le suivant commence dessous
     void DrawTips(Graphics g, int y, string[] tips)
     {
-        const TextFormatFlags f = TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis;
-        int width = W - S(104);
         foreach (string t in tips)
         {
-            int h = Math.Min(2 * fSmall.Height + S(2), TextRenderer.MeasureText(g, t, fSmall, new Size(width, int.MaxValue), f).Height);
+            int h = Measure(t, fSmall, TipWidth);
             Ui.Glyph(g, Glyphs.Check, 9f, Theme.Accent, new Rectangle(S(36), y, S(24), fSmall.Height + S(4)));
-            TextRenderer.DrawText(g, t, fSmall, new Rectangle(S(64), y + S(2), width, h), Theme.Fg, f);
+            TextRenderer.DrawText(g, t, fSmall, new Rectangle(S(64), y + S(2), TipWidth, h + S(2)), Theme.Fg, Wrap);
             y += h + S(8);
         }
     }
 
-    // Bas des conseils d'un écran, pour vérifier qu'ils ne recouvrent pas les points de pagination (tests)
-    internal int TipsBottom(int p)
-    {
-        string[] tips = Tips[p];
-        if (tips.Length == 0) return 0;
-        const TextFormatFlags f = TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis;
-        int y = IllusH + (pageControls[p].Count > 0 ? S(176) : S(124)), width = W - S(104);
-        foreach (string t in tips)
-            y += Math.Min(2 * fSmall.Height + S(2), TextRenderer.MeasureText(t, fSmall, new Size(width, int.MaxValue), f).Height) + S(8);
-        return y;
-    }
+    // Bas du contenu d'un écran (texte, réglages, exemples, conseils), pour les tests
+    internal int ContentBottom(int p) { return IllusH + endOff[p]; }
+    internal int TextBottom(int p) { return IllusH + S(68) + Measure(Texts[p], fText, TextWidth); }
+    internal int ControlsTop(int p) { return IllusH + controlsOff[p]; }
+    internal int TipsBottom(int p) { return ContentBottom(p); }
 
     internal int DotsTop { get { return H - S(90); } }
     internal int PageCount { get { return Pages; } }
