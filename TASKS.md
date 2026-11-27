@@ -107,6 +107,8 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-27 · Toi · Publication demandée en 3.10.1 (Refonte UIX).
 - 2026-11-27 · Claude · PR #24 fusionnée (T-028 à T-031 en une seule PR) ; CI au vert.
 - 2026-11-27 · Toi · Version 3.10.1 (Refonte UIX) publiée et signée ; mise à jour installée depuis la 3.10.
+- 2026-11-27 · Claude · T-032 à T-035 : conception de la barre BureauCache proposée (D-013).
+- 2026-11-27 · Gemini puis Claude · T-035 : recherche sur l'hôte d'icônes de notification ; six points vérifiés dans le code de ManagedShell. Retenus : ordre Z, format 32 bits, `TaskbarCreated` sans retransmission des icônes, réponse à `SHAppBarMessage`, clics. Écartés : lecture de la mémoire d'Explorer, structure 64 bits « brute » (complément de D-013).
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.
