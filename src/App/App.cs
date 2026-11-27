@@ -102,7 +102,7 @@ partial class App : ApplicationContext
             if ((Settings.RefreshSystemTheme() && Settings.ThemeMode == 0) || contrastChanged)
                 panel.BeginInvoke(new Action(Settings.Fire));
         };
-        SystemEvents.SessionEnding += delegate { Settings.Flush(); Native.RestoreDesktopIcons(); WindowsBar.Restore(); };
+        SystemEvents.SessionEnding += delegate { OnSessionEnding(); };
         screenSignature = ScreenSignature(screens);
         SystemEvents.DisplaySettingsChanged += delegate
         {

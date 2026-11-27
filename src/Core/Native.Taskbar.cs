@@ -10,6 +10,9 @@ static partial class Native
     public const int ABE_BOTTOM = 3;
     public const int SW_SHOWNA = 8;
 
+    [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+    public static readonly IntPtr HWND_BOTTOM = new IntPtr(1);
+    public const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOACTIVATE = 0x10;
     [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
 
     // Barre principale d'Explorer (écran principal). Les barres des autres écrans sont « Shell_SecondaryTrayWnd ».

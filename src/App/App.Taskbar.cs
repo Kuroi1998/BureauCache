@@ -5,29 +5,50 @@ using System.Windows.Forms;
 partial class App
 {
     BarForm bar;
+    bool taskbarRefused;            // un échec n'est signalé qu'une fois, jusqu'à ce que l'option soit coupée
+    volatile bool sessionEnding;    // fin de session : plus aucun masquage (BAR-11)
 
-    // Ordre imposé par D-013 : la barre Windows est cachée AVANT que la nôtre ne s'installe, et rendue APRÈS son départ
+    // Ordre imposé par D-013 : la barre Windows est cachée AVANT que la nôtre ne s'installe, et rendue APRÈS son départ.
+    // Tout échec en chemin rend immédiatement la barre Windows (BAR-09).
     void ApplyTaskbar()
     {
-        bool want = Settings.TaskbarOn && !Sandbox.Active;
-        if (want && bar == null)
+        bool want = Settings.TaskbarOn && !Sandbox.Active && !sessionEnding;
+        if (!want) taskbarRefused = false;
+        if (want && bar == null && !taskbarRefused)
         {
-            if (!WindowsBar.Hide())
+            // Sans le processus de surveillance, un plantage laisserait la barre Windows cachée (BAR-07)
+            if (!Program.WatchdogStarted || !WindowsBar.Hide()) { RefuseTaskbar(); return; }
+            BarForm created = null;
+            try
             {
-                Balloon(L.T("La barre des tâches de Windows n'a pas pu être remplacée. Elle reste affichée.",
-                            "The Windows taskbar couldn't be replaced. It stays visible.",
-                            "No se pudo reemplazar la barra de tareas de Windows. Sigue visible."), null);
+                created = new BarForm();
+                created.StartClicked += StartFromBar;
+                created.MenuRequested += ShowTrayMenu;
+                created.ExplorerRestarted += OnExplorerRestarted;
+                created.Show();
+            }
+            catch { }
+            if (created == null || !created.Registered)
+            {
+                try { if (created != null) { created.Close(); created.Dispose(); } } catch { }
+                RefuseTaskbar();
                 return;
             }
-            bar = new BarForm();
-            bar.StartClicked += StartFromBar;
-            bar.MenuRequested += ShowTrayMenu;
-            bar.ExplorerRestarted += WindowsBar.Reapply;
-            bar.Show();
+            bar = created;
         }
         else if (!want && bar != null) CloseBar();
         else if (!want) WindowsBar.Restore();   // reste d'un plantage ou d'un arrêt brutal : la barre Windows revient
         if (bar != null) bar.ApplyTheme();
+    }
+
+    void RefuseTaskbar()
+    {
+        WindowsBar.Restore();
+        if (taskbarRefused) return;
+        taskbarRefused = true;
+        Balloon(L.T("La barre des tâches de Windows n'a pas pu être remplacée. Elle reste affichée.",
+                    "The Windows taskbar couldn't be replaced. It stays visible.",
+                    "No se pudo reemplazar la barra de tareas de Windows. Sigue visible."), null);
     }
 
     void CloseBar()
@@ -39,6 +60,15 @@ partial class App
             try { old.Close(); old.Dispose(); } catch { }
         }
         WindowsBar.Restore();
+    }
+
+    // Explorer a redémarré : on ne recache sa barre que si notre réservation a été acceptée de nouveau (BAR-09)
+    void OnExplorerRestarted()
+    {
+        if (bar == null) return;
+        if (bar.Registered) { WindowsBar.Reapply(); return; }
+        CloseBar();
+        RefuseTaskbar();
     }
 
     // Comme pour l'icône près de l'horloge : un panneau qui vient de se fermer sur ce même clic ne se rouvre pas
@@ -62,15 +92,24 @@ partial class App
     // Appelé par Poll environ une fois par seconde
     void KeepWindowsBarHidden()
     {
-        if (bar == null) return;
+        if (bar == null || sessionEnding) return;
         WindowsBar.Reapply();
         if (!bar.Visible) bar.Show();
     }
 
     void OnDisplaysChangedForBar()
     {
-        if (bar == null) return;
+        if (bar == null || sessionEnding) return;
         bar.Reposition();
         WindowsBar.Reapply();
+    }
+
+    // Fin de session (fil de SystemEvents) : on arrête de masquer avant de rendre, chaque étape isolée des autres
+    void OnSessionEnding()
+    {
+        sessionEnding = true;
+        try { Settings.Flush(); } catch { }
+        try { Native.RestoreDesktopIcons(); } catch { }
+        try { WindowsBar.Restore(); } catch { }
     }
 }

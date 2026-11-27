@@ -10,6 +10,9 @@ class BarForm : Form
 {
     public event Action StartClicked, MenuRequested, ExplorerRestarted;
 
+    // Vrai quand Windows a accepté la réservation : sans elle, la barre ne doit pas remplacer celle de Windows (BAR-09)
+    public bool Registered { get { return appbar; } }
+
     readonly uint abMsg = Native.RegisterWindowMessage("BureauCache.Barre");
     readonly uint taskbarCreated = Native.RegisterWindowMessage("TaskbarCreated");
     readonly Timer clock = new Timer();
@@ -62,10 +65,17 @@ class BarForm : Form
         clock.Start();
     }
 
+    // La réservation suit la vie du handle (BAR-10). Jamais en test : elle changerait la zone de travail réelle (BAR-12).
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        AppBarRegister();
+        if (!Sandbox.Active) AppBarRegister();
+    }
+
+    protected override void OnHandleDestroyed(EventArgs e)
+    {
+        AppBarRemove();
+        base.OnHandleDestroyed(e);
     }
 
     protected override void OnFormClosed(FormClosedEventArgs e)
@@ -120,7 +130,7 @@ class BarForm : Form
         {
             int code = m.WParam.ToInt32();
             if (code == Native.ABN_POSCHANGED) Reposition();
-            else if (code == Native.ABN_FULLSCREENAPP) TopMost = m.LParam == IntPtr.Zero;   // s'efface devant le plein écran
+            else if (code == Native.ABN_FULLSCREENAPP) OnFullscreen(m.LParam != IntPtr.Zero);
         }
         else if (m.Msg == (int)taskbarCreated)
         {
@@ -130,6 +140,14 @@ class BarForm : Form
             if (ExplorerRestarted != null) ExplorerRestarted();
         }
         base.WndProc(ref m);
+    }
+
+    // Une application passe en plein écran : la barre descend sous toutes les fenêtres ; elle remonte à la sortie (BAR-10)
+    void OnFullscreen(bool entering)
+    {
+        if (!entering) { TopMost = true; return; }
+        TopMost = false;
+        Native.SetWindowPos(Handle, Native.HWND_BOTTOM, 0, 0, 0, 0, Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
     }
 
     // ---- Dessin -------------------------------------------------------------------------------------------------

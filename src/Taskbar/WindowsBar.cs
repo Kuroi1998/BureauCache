@@ -4,12 +4,14 @@ using System.IO;
 using System.Text;
 
 // Explorer n'est jamais modifié : on passe sa barre en masquage automatique (réglage officiel, pour rendre la place
-// aux fenêtres) et on cache sa fenêtre. L'état d'origine est écrit AVANT tout changement dans « barre.etat » : tant
-// que ce fichier existe, la barre est à rendre. La sortie normale, la surveillance (plantage), « --restore » et le
-// démarrage suivant appellent Restore, qui ne fait rien sans ce fichier.
+// aux fenêtres) et on cache sa fenêtre. L'état d'origine est écrit AVANT tout changement dans « barre.etat » et gardé
+// en mémoire tant que la barre est cachée. La sortie normale, la surveillance (plantage), « --restore » et le
+// démarrage suivant appellent Restore. Revue QA-55 : la copie en mémoire prime sur le fichier, un fichier illisible
+// interdit un nouveau masquage, et le fichier n'est effacé qu'une fois la restauration constatée.
 static class WindowsBar
 {
     const string Header = "BureauCache barre 1";
+    static int original = -1;   // état d'origine, tant que cette instance cache la barre
     public static bool Hidden { get; private set; }
 
     public static string StatePath { get { return Path.Combine(Settings.Dir, "barre.etat"); } }
@@ -28,20 +30,30 @@ static class WindowsBar
         return v;
     }
 
-    // Faux si la barre n'a pas pu être cachée en toute sécurité (Explorer absent, état non enregistré)
+    // Faux si la barre n'a pas pu être cachée en toute sécurité : Explorer absent, état d'origine non enregistré, ou
+    // fichier d'un arrêt précédent illisible (on ne masque pas par-dessus un état inconnu ; Restore le soldera).
+    // Appelée de nouveau pendant le masquage, elle garde l'état d'origine déjà connu (BAR-05).
     public static bool Hide()
     {
         Sandbox.Guard("masquage de la barre des tâches de Windows");
         IntPtr bar = Native.WindowsTaskbar();
         if (bar == IntPtr.Zero) return false;
-        int original;
-        if (File.Exists(StatePath)) original = ReadState();   // plantage précédent : l'état d'origine est déjà là
-        else
+        if (!Hidden)
         {
-            original = Native.GetTaskbarState();
-            if (!WriteState(original)) return false;          // sans filet, on ne touche à rien
+            int start;
+            if (File.Exists(StatePath))
+            {
+                start = ReadState();                          // arrêt brutal précédent : l'état d'origine est là
+                if (start < 0) return false;
+            }
+            else
+            {
+                start = Native.GetTaskbarState();
+                if (!WriteState(start)) return false;         // sans filet, on ne touche à rien
+            }
+            original = start;
         }
-        if (original < 0) original = Native.ABS_ALWAYSONTOP;
+        else KeepJournal();
         Native.SetTaskbarState(original | Native.ABS_AUTOHIDE);
         Native.ShowWindow(bar, Native.SW_HIDE);
         Hidden = true;
@@ -54,31 +66,46 @@ static class WindowsBar
         if (!Hidden) return;
         IntPtr bar = Native.WindowsTaskbar();
         if (bar == IntPtr.Zero) return;
-        if ((Native.GetTaskbarState() & Native.ABS_AUTOHIDE) == 0) Native.SetTaskbarState(Native.GetTaskbarState() | Native.ABS_AUTOHIDE);
+        KeepJournal();
+        if ((Native.GetTaskbarState() & Native.ABS_AUTOHIDE) == 0) Native.SetTaskbarState(original | Native.ABS_AUTOHIDE);
         if (Native.IsWindowVisible(bar)) Native.ShowWindow(bar, Native.SW_HIDE);
     }
 
-    // Rend la barre de Windows dans son état d'origine. Appelable depuis la surveillance, sans réglages chargés.
-    public static void Restore()
+    // Fichier effacé pendant le masquage : il est réécrit depuis la copie en mémoire, pour la surveillance (BAR-01)
+    static void KeepJournal()
     {
-        if (Sandbox.Active) return;
+        if (original >= 0 && !File.Exists(StatePath)) WriteState(original);
+    }
+
+    // Rend la barre de Windows dans son état d'origine. Appelable depuis la surveillance, sans réglages chargés.
+    // Vrai si rien ne reste à rendre ; faux si Explorer est absent ou si la restauration n'est pas constatée : le
+    // fichier reste alors en place pour un nouvel essai (BAR-03). La fenêtre est toujours réaffichée : on ne laisse
+    // jamais la barre cachée, même si un autre outil l'avait cachée avant nous (BAR-04 écarté).
+    public static bool Restore()
+    {
+        if (Sandbox.Active) return true;
         try
         {
-            IntPtr bar = Native.WindowsTaskbar();
-            if (!File.Exists(StatePath))
+            bool journal = File.Exists(StatePath);
+            int target;
+            if (Hidden && original >= 0) target = original;   // la copie en mémoire prime sur le fichier
+            else if (journal)
             {
-                if (Hidden && bar != IntPtr.Zero) Native.ShowWindow(bar, Native.SW_SHOWNA);
-                Hidden = false;
-                return;
+                target = ReadState();
+                if (target < 0) target = Native.ABS_ALWAYSONTOP;   // fichier abîmé : barre toujours visible, réglage par défaut de Windows
             }
-            if (bar == IntPtr.Zero) return;   // Explorer absent : le fichier reste, on rendra la barre plus tard
-            int original = ReadState();
-            Native.SetTaskbarState(original < 0 ? Native.ABS_ALWAYSONTOP : original);
+            else return true;
+            IntPtr bar = Native.WindowsTaskbar();
+            if (bar == IntPtr.Zero) return false;
+            Native.SetTaskbarState(target);
             Native.ShowWindow(bar, Native.SW_SHOWNA);
-            File.Delete(StatePath);
+            if ((Native.GetTaskbarState() & Native.ABS_AUTOHIDE) != (target & Native.ABS_AUTOHIDE)) return false;
             Hidden = false;
+            original = -1;
+            if (journal) File.Delete(StatePath);
+            return true;
         }
-        catch { }
+        catch { return false; }
     }
 
     static int ReadState()

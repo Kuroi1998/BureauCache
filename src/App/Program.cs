@@ -71,13 +71,16 @@ static class Program
         Installer.StartFolderRemoval();
     }
 
+    // Vrai si le processus de surveillance tourne : la barre BureauCache en a besoin (D-013, BAR-07)
+    internal static bool WatchdogStarted;
+
     static void StartWatchdog()
     {
         try
         {
             ProcessStartInfo psi = new ProcessStartInfo(Application.ExecutablePath, "--watchdog " + Process.GetCurrentProcess().Id);
             psi.UseShellExecute = false;
-            Process.Start(psi);
+            using (Process p = Process.Start(psi)) WatchdogStarted = p != null && !p.HasExited;
         }
         catch { }
     }
@@ -88,7 +91,14 @@ static class Program
         if (!int.TryParse(pidText, out pid)) return;
         try { Process.GetProcessById(pid).WaitForExit(); } catch { }
         Thread.Sleep(1500);
-        if (!InstanceExists()) { Native.RestoreDesktopIcons(); WindowsBar.Restore(); }   // plantage : icônes et barre Windows reviennent
+        if (InstanceExists()) return;
+        Native.RestoreDesktopIcons();   // plantage : icônes et barre Windows reviennent
+        // Explorer absent ou restauration non constatée : nouvel essai pendant 2 minutes, sauf si une instance a repris
+        for (int i = 0; i < 60 && !WindowsBar.Restore(); i++)
+        {
+            Thread.Sleep(2000);
+            if (InstanceExists()) return;
+        }
     }
 
     static bool InstanceExists()
