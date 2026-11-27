@@ -28,6 +28,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-039 | Menu Démarrer : sections BureauCache / Windows / Session / Alimentation | Fait (3.11) ; essai réel à faire | Claude puis Toi | PR #28 | — |
 | T-040 | Paramètres rapides propres à la barre (volume, luminosité, multimédia, Wi-Fi et Bluetooth) | Fait (3.11) ; essais matériels à faire (luminosité sur deux écrans, appairage Bluetooth), D-017 à valider ensuite | Gemini, ChatGPT, Toi | PR #28 | D-017, QA-70 |
 | T-041 | Badges (« 1 » de Discord) et barres de progression des applications dans la barre BureauCache | Prototype en pause (D-016) : routage désactivé dans la 3.11, diagnostic avec Discord à faire ; compteur d'alertes Discord publié | Claude puis Toi | PR #28 | D-016 |
+| T-042 | Panneau Notifications et calendrier assorti à la barre (remplace Windows + N sur l'horloge et la cloche) | Conception faite ; recherche Gemini sur la lecture des notifications en cours | Gemini, Claude, Toi | `feat/T-042-notifications` | D-018 |
 | T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel fait sur la 3.9 installée | Claude puis Toi | PR #19 | D-007, QA-32, QA-33 |
 | T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |
 | T-018 | Verbes du shell sur un fil dédié, liste des écrans suivie (QA-28, QA-29) | Fait (3.8) ; essais manuels encore à faire | Claude | PR #16 | QA-28 |
@@ -149,6 +150,7 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-27 · Claude · Revue Codex (QA-70, CDX-40 à 50) : 9 constats retenus en tout ou en partie (outils système lancés par chemin complet, restauration des badges qui ne perd plus la valeur d’Explorer, luminosité de l’écran de la barre, appairage, opérations WinRT fermées, curseurs, mot de passe Wi-Fi, visite, clé WPA2 brute), 2 écartés. Suite : 639 réussis.
 - 2026-11-27 · Toi puis Claude · Publication 3.11 décidée : journal temporaire des badges retiré, routage `TaskbandHWND` désactivé (`TaskbandRoute.Enabled`) jusqu’au diagnostic ; le compteur d’alertes Discord reste actif.
 - 2026-11-27 · Toi · 3.11 publiée et signée (PR #28, tag v3.11, exe, .sha256 et .sig) : T-037 à T-040 faits.
+- 2026-11-27 · Toi puis Claude · T-042 : panneau Notifications et calendrier demandé. Conception (D-018) : calendrier en code .NET seul ; notifications et Ne pas déranger seulement par API publique, sinon renvoi vers Windows. Prompt Gemini fourni (`.ai/prompt-gemini-T042.md`).
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.

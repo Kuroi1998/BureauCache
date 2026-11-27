@@ -10,6 +10,17 @@ _Une entrée par décision, courte. On n'efface rien : une décision remplacée 
 **Conséquences :** ce que ça impose ensuite.
 -->
 
+## D-018 — Notifications et calendrier de la barre BureauCache (2026-11-27) · Statut : Proposée (recherche Gemini en cours)
+
+**Contexte :** l'horloge et la cloche de la barre BureauCache ouvrent encore le panneau de Windows (Windows + N) : style Windows, couleurs du thème Windows, ancrage prévu pour la barre d'Explorer. Le chef de projet veut un panneau assorti à la barre, comme les Paramètres rapides (D-017).
+**Décision proposée :** un panneau `NotificationsForm`, ancré à la barre comme `QuickSettingsForm` (même calcul de position, se ferme à la perte du focus, thème de BureauCache), avec deux cartes :
+- **Calendrier** (code .NET seul, sans risque) : date du jour, mois avec navigation, premier jour de la semaine et noms selon la langue de BureauCache, jour courant en couleur d'accent, clavier (flèches, Page précédente/suivante, Origine pour revenir à aujourd'hui), repliable comme chez Windows. L'horloge l'ouvre.
+- **Notifications** : la liste des notifications Windows, regroupées par application, avec « Effacer » par notification et « Effacer tout », si une application de bureau non empaquetée peut les lire (`UserNotificationListener`, à confirmer par Gemini). Sinon, la carte affiche un bouton « Ouvrir les notifications de Windows » (Windows + N), sans rien imiter. La cloche l'ouvre.
+- **Ne pas déranger et Concentration** : interrupteur seulement s'il existe une API publique et documentée ; sinon lien vers la page Paramètres de Windows correspondante.
+**Règles :** aucune modification d'Explorer (D-013), aucune API non documentée. Le contenu des notifications des autres applications est seulement affiché : jamais écrit sur disque, dans un journal ou envoyé ailleurs. Appels WinRT en arrière-plan, chargés à l'exécution comme pour D-017.
+**Alternatives écartées :** reproduire le panneau de Windows en interceptant ses notifications (injection, contraire à D-013) ; afficher seulement le calendrier et laisser la cloche ouvrir Windows (incohérent avec la barre).
+**Conséquences :** fichiers `src/Taskbar/NotificationsForm*.cs` et `src/Core/Native.Notifications.cs` ; `BarForm` ouvre le panneau au lieu d'envoyer Windows + N. La partie notifications attend la réponse de Gemini.
+
 ## D-017 — Paramètres rapides de la barre BureauCache (2026-11-27) · Statut : Proposée
 
 Le groupe réseau/son ouvre `QuickSettingsForm`, ancré à la barre. La cloche et l’horloge ouvrent les notifications et le calendrier Windows. Les lectures et écritures de volume et de luminosité s’exécutent en arrière-plan. La luminosité passe par WMI (`System.Management.dll`, déjà référencé par le fichier de réponse du compilateur .NET Framework) ou par DDC/CI sur un écran compatible. La carte multimédia charge les API Windows Runtime à l’exécution. Quand Windows refuse l’accès à la session multimédia, les commandes utilisent les touches multimédias Windows.
