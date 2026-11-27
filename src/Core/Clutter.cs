@@ -19,6 +19,7 @@ static class Clutter
         public int Count, Unused30, Unused90;
         public long Bytes;
         public bool Partial;   // un dossier trop grand ou illisible : taille minorée
+        public bool Unreadable;   // le bureau lui-même n'a pas pu être lu (QA42-04)
         public List<KeyValuePair<string, long>> Biggest = new List<KeyValuePair<string, long>>();
     }
 
@@ -27,7 +28,8 @@ static class Clutter
     {
         Report r = new Report();
         string[] entries;
-        try { entries = Directory.GetFileSystemEntries(desk); } catch { return r; }
+        try { entries = Directory.GetFileSystemEntries(desk); }
+        catch { r.Partial = r.Unreadable = true; return r; }
         DateTime limit30 = nowUtc.AddDays(-30), limit90 = nowUtc.AddDays(-90);
         List<KeyValuePair<string, long>> sizes = new List<KeyValuePair<string, long>>();
         foreach (string p in entries)

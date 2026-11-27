@@ -184,10 +184,29 @@ static class Archiver
             }
             catch { }
         }
+        List<string> previous = Settings.ArchiveLog;
         if (log.Count > 0) Settings.ArchiveLog = log;
         Settings.LastArchive = DateTime.Now.Ticks;
-        // Enregistrement immédiat si des éléments ont bougé : un arrêt brutal ne doit pas perdre le journal d'annulation
-        if (n == 0 || !Settings.Save()) Settings.SaveQuiet();
+        if (n == 0) { Settings.SaveQuiet(); return 0; }
+        // Enregistrement immédiat : un arrêt brutal ne doit pas perdre le journal d'annulation. S'il échoue
+        // (disque plein, fichier devenu trop grand), les éléments reviennent sur le bureau : aucun déplacement
+        // annoncé sans annulation durable (QA42-08).
+        if (Settings.Save()) return n;
+        List<string> stuck = new List<string>();
+        for (int i = log.Count - 1; i >= 0; i--)
+        {
+            string[] parts = log[i].Split('>');
+            try
+            {
+                if (Directory.Exists(parts[1])) Directory.Move(parts[1], parts[0]); else File.Move(parts[1], parts[0]);
+                Settings.RenameKey(parts[1], parts[0]);
+                n--;
+            }
+            catch { stuck.Add(log[i]); }
+        }
+        // Ce qui n'a pas pu revenir garde son entrée, en mémoire au moins
+        Settings.ArchiveLog = stuck.Count > 0 ? stuck : previous;
+        Settings.SaveQuiet();
         return n;
     }
 
@@ -232,9 +251,13 @@ static class Archiver
                 // Retour seulement vers le bureau, et seulement depuis un dossier où le rangement dépose (D-009)
                 if (parent == null || !Paths.SameFolder(Path.GetDirectoryName(src), desktop) ||
                     !ArchiveRules.IsAllowedDestination(parent, desktop)) continue;
-                if (!Directory.Exists(parent) || (File.GetAttributes(parent) & FileAttributes.ReparsePoint) != 0) continue;
-                // Autre élément à la place de celui qui a été rangé (renommé puis remplacé) : on n'y touche pas (QA39-02)
-                if (print != null && print != Fingerprint(dest)) continue;
+                // Dossier de destination absent (disque débranché, OneDrive pas encore synchronisé) : l'entrée est
+                // gardée pour un nouvel essai (QA42-07)
+                if (!Directory.Exists(parent)) { pending.Add(e); continue; }
+                if ((File.GetAttributes(parent) & FileAttributes.ReparsePoint) != 0) continue;
+                // Autre élément à la place de celui qui a été rangé (renommé puis remplacé) : on n'y touche pas.
+                // L'empreinte est l'identité NTFS du fichier ; une identité illisible compte comme un conflit (QA39-02, QA42-06).
+                if (print != null && (print.Length == 0 || print != Fingerprint(dest))) continue;
                 if (File.Exists(src) || Directory.Exists(src)) { pending.Add(e); continue; }
                 if (Directory.Exists(dest)) Directory.Move(dest, src);
                 else if (File.Exists(dest)) File.Move(dest, src);
@@ -249,19 +272,13 @@ static class Archiver
         return n;
     }
 
-    // Empreinte conservée par un déplacement sur le même volume : taille et date de modification pour un fichier,
-    // date de création pour un dossier. Vide si l'élément n'existe pas.
+    // Identité du fichier ou du dossier sur son volume (numéro de série du volume et index NTFS), relevée après le
+    // déplacement : deux éléments différents ne la partagent jamais, même avec la même taille et la même date (QA42-06).
+    // Vide si l'élément n'existe pas ou ne peut pas être ouvert.
     internal static string Fingerprint(string path)
     {
-        try
-        {
-            FileInfo f = new FileInfo(path);
-            if (f.Exists) return "f" + f.Length + "-" + f.LastWriteTimeUtc.Ticks;
-            DirectoryInfo d = new DirectoryInfo(path);
-            if (d.Exists) return "d" + d.CreationTimeUtc.Ticks;
-        }
-        catch { }
-        return "";
+        string id = Native.FileId(path);
+        return id == null ? "" : "i" + id;
     }
 
     static string Unique(string path)

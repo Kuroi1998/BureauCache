@@ -83,6 +83,7 @@ partial class PanelForm
                   ? L.T("\n\nLes petites fautes de frappe sont tolérées : essaie un autre mot ou un mot plus court.", "\n\nSmall typos are tolerated: try another or shorter word.", "\n\nSe admiten pequeñas erratas: prueba otra palabra o una más corta.") : "")
             : loading && !loadedOnce ? L.T("Chargement…", "Loading…", "Cargando…")
             : L.T("Ton bureau est vide.\n\nDépose des fichiers ici pour les ajouter au bureau.", "Your desktop is empty.\n\nDrop files here to add them to the desktop.", "Tu escritorio está vacío.\n\nSuelta archivos aquí para añadirlos al escritorio.");
+        if (!ContentSearch.Applies(q)) CancelContentSearch();
         List<Group> groups = q.Length > 0 ? SearchGroups(q) : BuildGroups();
         if (q.StartsWith("=") && groups.Count == 0)
             View.EmptyText = q.Length == 1 ? L.T("Saisis un calcul après le signe =.", "Enter a calculation after the = sign.", "Introduce un cálculo después del signo =.")

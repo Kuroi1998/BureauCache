@@ -20,8 +20,7 @@ partial class PanelForm
     {
         if (!Settings.SearchContent || !ContentSearch.Applies(q) || shown.Any(g => g.Key == "s:calc"))
         {
-            contentTimer.Stop();
-            contentAsked = null;
+            CancelContentSearch();
             return null;
         }
         if (!contentHooked)
@@ -30,7 +29,8 @@ partial class PanelForm
             contentTimer.Tick += (s, e) => StartContentSearch();
             Disposed += (s, e) => contentTimer.Dispose();
         }
-        if (q != contentAsked) { contentAsked = q; contentTimer.Stop(); contentTimer.Start(); }
+        // Nouveau texte : la recherche en cours ne pourra plus remplir le cache (ticket avancé tout de suite)
+        if (q != contentAsked) { contentAsked = q; contentTicket++; contentTimer.Stop(); contentTimer.Start(); }
         if (q != contentFor || contentItems.Count == 0) return null;
 
         HashSet<string> already = new HashSet<string>(shown.SelectMany(g => g.Items).Select(i => i.Key ?? ""), StringComparer.OrdinalIgnoreCase);
@@ -45,6 +45,15 @@ partial class PanelForm
             if (g2.Items.Count >= ContentShown) break;
         }
         return g2.Items.Count > 0 ? g2 : null;
+    }
+
+    // Appelé à chaque reconstruction dont le texte ne mène pas à une recherche dans le contenu (vide, = ? >) :
+    // le minuteur est arrêté et toute réponse en vol est écartée (QA42-02)
+    void CancelContentSearch()
+    {
+        contentTimer.Stop();
+        if (contentAsked != null) contentTicket++;
+        contentAsked = null;
     }
 
     void StartContentSearch()

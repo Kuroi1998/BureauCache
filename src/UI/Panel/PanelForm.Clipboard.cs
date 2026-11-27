@@ -20,6 +20,8 @@ partial class PanelForm
             res.Add(new DesktopItem
             {
                 Kind = ItemKind.Clip, Key = "clip:" + e.Id, Name = ClipboardHistory.Preview(text, 80), Args = e.Id.ToString(),
+                // Le texte complet sert à la recherche, l'aperçu court à l'affichage (QA42-05)
+                Keywords = string.Join(" ", text.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)),
                 Detail = text.Length + L.T(" caractère(s) · copié à ", " character(s) · copied at ", " carácter(es) · copiado a las ") + e.At.ToString("HH:mm"),
                 Icon = IconCache.Tile(Glyphs.Copy, Ui.GlyphFont, Settings.Accent, px),
                 Run = () => { try { Clipboard.SetText(text); } catch { } }

@@ -49,6 +49,7 @@ partial class SettingsForm
 
     string DescribeClutter(Clutter.Report r)
     {
+        if (r.Unreadable) return T("Le dossier du bureau ne peut pas être lu pour l'instant.", "The desktop folder can't be read right now.", "No se puede leer la carpeta del escritorio por ahora.");
         if (r.Count == 0) return T("Le bureau est vide.", "The desktop is empty.", "El escritorio está vacío.");
         string size = (r.Partial ? T("au moins ", "at least ", "al menos ") : "") + L.Size(r.Bytes);
         return r.Count + T(" élément(s), ", " item(s), ", " elemento(s), ") + size + ".\n" +

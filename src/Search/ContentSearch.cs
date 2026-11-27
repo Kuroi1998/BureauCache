@@ -58,9 +58,11 @@ static class ContentSearch
         List<string> scopes = (folders ?? Enumerable.Empty<string>()).Where(f => !string.IsNullOrEmpty(f)).Select(Scope).ToList();
         if (scopes.Count == 0) return null;
         string words = string.Join(" AND ", clean.Split(' ').Where(w => w.Length > 0).Select(w => "\"" + w + "*\"").ToArray());
+        // Texte des documents seulement (System.Search.Contents) : un mot présent uniquement dans une propriété
+        // (description d'un .exe, auteur) ne remonte pas dans « Dans le contenu » (QA42-01).
         // System.ItemUrl et non System.ItemPathDisplay : ce dernier est traduit (« C:\Utilisateurs\…\Bureau »)
         return "SELECT TOP " + Math.Max(1, Math.Min(max, 200)) + " System.ItemUrl FROM SystemIndex WHERE (" +
-               string.Join(" OR ", scopes.ToArray()) + ") AND CONTAINS(*, '" + words + "') ORDER BY System.Search.Rank DESC";
+               string.Join(" OR ", scopes.ToArray()) + ") AND CONTAINS(System.Search.Contents, '" + words + "') ORDER BY System.Search.Rank DESC";
     }
 
     // « file:C:/Users/a/Desktop/x.txt » → chemin Windows, ou null pour toute autre forme d'adresse
@@ -68,13 +70,16 @@ static class ContentSearch
     {
         if (string.IsNullOrEmpty(url) || !url.StartsWith("file:", StringComparison.OrdinalIgnoreCase)) return null;
         string p = Uri.UnescapeDataString(url.Substring(5).TrimStart('/')).Replace('/', '\\');
-        return p.Length > 2 && p[1] == ':' ? p : null;
+        if (p.Length <= 2 || p[1] != ':') return null;
+        // « .. » encodé dans l'adresse : on raisonne sur le chemin résolu (QA42-03)
+        try { return Path.GetFullPath(p); } catch { return null; }
     }
 
     // Fichier du bureau, ou d'un dossier du bureau à au plus MaxDepth niveaux : la documentation enfouie dans un
     // logiciel portable posé sur le bureau ne remonte pas
     public static bool NearDesktop(string path, IEnumerable<string> folders)
     {
+        try { path = Path.GetFullPath(path); } catch { return false; }
         foreach (string f in folders)
         {
             string root = f.TrimEnd('\\') + "\\";
@@ -115,7 +120,11 @@ static class ContentSearch
             rs = conn.Execute(sql);
             while (!(bool)rs.EOF && res.Count < max)
             {
-                string p = PathFromUrl(rs.Fields.Item(0).Value as string);
+                dynamic fields = rs.Fields, field = fields.Item(0);
+                string url = field.Value as string;
+                try { System.Runtime.InteropServices.Marshal.FinalReleaseComObject(field); } catch { }
+                try { System.Runtime.InteropServices.Marshal.FinalReleaseComObject(fields); } catch { }
+                string p = PathFromUrl(url);
                 if (p != null && NearDesktop(p, folders) && Visible(p)) res.Add(p);
                 rs.MoveNext();
             }

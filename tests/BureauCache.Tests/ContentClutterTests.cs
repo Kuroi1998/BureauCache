@@ -70,7 +70,7 @@ public class ContentClutterTests
         string sql = ContentSearch.BuildQuery("fact rapport", new[] { @"C:\Users\O'Brien\Desktop\", @"C:\Users\Public\Desktop" }, 20);
         StringAssert.Contains(sql, "SCOPE='file:C:/Users/O''Brien/Desktop'");
         StringAssert.Contains(sql, "SCOPE='file:C:/Users/Public/Desktop'");
-        StringAssert.Contains(sql, "CONTAINS(*, '\"fact*\" AND \"rapport*\"')");
+        StringAssert.Contains(sql, "CONTAINS(System.Search.Contents, '\"fact*\" AND \"rapport*\"')");
         StringAssert.StartsWith(sql, "SELECT TOP 20 System.ItemUrl FROM SystemIndex");
         Assert.IsNull(ContentSearch.BuildQuery("ab", new[] { @"C:\x" }, 20));
         Assert.IsNull(ContentSearch.BuildQuery("facture", new string[0], 20), "Sans bureau, pas de requête sur tout le disque.");
