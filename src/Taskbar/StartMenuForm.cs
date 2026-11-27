@@ -6,7 +6,7 @@ using System.Windows.Forms;
 
 // Recherche (envoyée au panneau), session, puis quatre sections : BureauCache (panneau, réglages, visite, quitter), Windows
 // (outils du système), session Windows (verrouiller, se déconnecter) et alimentation (veille, redémarrer, arrêter). Il se ferme dès qu'il perd le focus, ou avec Échap.
-class StartMenuForm : Form
+partial class StartMenuForm : Form
 {
     public event Action OpenPanel, OpenSettings, OpenTour, QuitRequested;
     public event Action<string> SearchRequested;
@@ -18,6 +18,8 @@ class StartMenuForm : Form
     TextBox search;
     Rectangle searchRect, headerRect;
     int menuWidth;
+    Rectangle? placedAnchor;
+    Rectangle placedArea;
 
     static int Pad { get { return Ui.S(20); } }
     static int Gap { get { return Ui.S(8); } }
@@ -55,88 +57,12 @@ class StartMenuForm : Form
         get { CreateParams cp = base.CreateParams; cp.ExStyle |= 0x80 /*WS_EX_TOOLWINDOW*/; return cp; }
     }
 
-    void Build()
-    {
-        string[] windows =
-        {
-            L.T("Paramètres Windows", "Windows Settings", "Configuración de Windows"),
-            L.T("Explorateur de fichiers", "File Explorer", "Explorador de archivos"),
-            L.T("Gestionnaire des tâches", "Task Manager", "Administrador de tareas"),
-            L.T("Documents", "Documents", "Documentos"),
-            L.T("Téléchargements", "Downloads", "Descargas"),
-            L.T("Panneau de configuration", "Control Panel", "Panel de control")
-        };
-        int third = ColumnWidth(windows, (MinimumWidth - 2 * Pad - 2 * Gap) / 3);
-        int inner = 3 * third + 2 * Gap, width = inner + 2 * Pad, y = Pad;
-        menuWidth = width;
-
-        // Recherche : le premier caractère tapé ouvre le panneau avec ce texte, comme dans le menu de Windows
-        searchRect = new Rectangle(Pad, y, inner, Ui.S(40));
-        search = new TextBox { BorderStyle = BorderStyle.None, Font = Ui.Font("Segoe UI", 10.5f), BackColor = Theme.Surface, ForeColor = Theme.Fg,
-                               MaxLength = 256, AccessibleName = L.T("Rechercher", "Search", "Buscar") };
-        search.Bounds = new Rectangle(searchRect.Left + Ui.S(42), searchRect.Top + (searchRect.Height - search.PreferredHeight) / 2,
-                                      searchRect.Width - Ui.S(54), search.PreferredHeight);
-        search.TextChanged += (s, e) =>
-        {
-            string text = search.Text;
-            if (text.Trim().Length == 0) return;
-            Finish(() => { if (SearchRequested != null) SearchRequested(text); });
-        };
-        Controls.Add(search);
-        y = searchRect.Bottom + Ui.S(14);
-
-        headerRect = new Rectangle(Pad, y, inner, Ui.S(56));
-        y = headerRect.Bottom + Ui.S(16);
-
-        // Sections étiquetées : ce qui appartient à BureauCache, et ce qui ouvre un outil de Windows (T-039)
-        int half = (inner - Gap) / 2, tileH = Ui.S(88), shortH = Math.Max(Ui.S(52), 2 * TileFont.Height + Ui.S(12));
-        y = SectionLabel(L.T("BUREAUCACHE", "BUREAUCACHE", "BUREAUCACHE"),
-            L.T("le panneau et ses réglages", "the panel and its settings", "el panel y su configuración"), y);
-        AddTile(Glyphs.Search, L.T("Applications et recherche", "Apps and search", "Aplicaciones y búsqueda"), new Rectangle(Pad, y, half, shortH), false,
-            () => Finish(() => { if (OpenPanel != null) OpenPanel(); }));
-        AddTile(Glyphs.Settings, L.T("Paramètres de BureauCache", "BureauCache settings", "Configuración de BureauCache"), new Rectangle(Pad + half + Gap, y, half, shortH), false,
-            () => Finish(() => { if (OpenSettings != null) OpenSettings(); }));
-        y += shortH + Gap;
-        AddTile(Glyphs.School, L.T("Visite guidée", "Guided tour", "Visita guiada"), new Rectangle(Pad, y, half, shortH), false,
-            () => Finish(() => { if (OpenTour != null) OpenTour(); }));
-        // Comme « Quitter » du menu de l'icône : icônes du bureau et barre Windows reviennent
-        AddTile(Glyphs.Dismiss, L.T("Quitter BureauCache", "Quit BureauCache", "Salir de BureauCache"), new Rectangle(Pad + half + Gap, y, half, shortH), false,
-            () => Finish(() => { if (QuitRequested != null) QuitRequested(); }));
-        y += shortH + Ui.S(16);
-
-        y = SectionLabel("WINDOWS", L.T("ouvre les outils de Windows", "opens Windows tools", "abre las herramientas de Windows"), y);
-        AddTile(Glyphs.Settings, windows[0], Cell(0, y, third, shortH), false, () => Launch("ms-settings:"));
-        AddTile(Glyphs.Folder, windows[1], Cell(1, y, third, shortH), false, () => Launch("explorer.exe"));
-        AddTile(Glyphs.TaskManager, windows[2], Cell(2, y, third, shortH), false, () => Launch("taskmgr.exe"));
-        y += shortH + Gap;
-        AddTile(Glyphs.Page, windows[3], Cell(0, y, third, shortH), false, () => Launch("shell:Personal"));
-        AddTile(Glyphs.Download, windows[4], Cell(1, y, third, shortH), false, () => Launch("shell:Downloads"));
-        AddTile(Glyphs.Box, windows[5], Cell(2, y, third, shortH), false, () => Launch("control.exe"));
-        y += shortH + Ui.S(16);
-
-        int rowH = Ui.S(48);
-        y = SectionLabel(L.T("SESSION WINDOWS", "WINDOWS SESSION", "SESIÓN DE WINDOWS"),
-            L.T("ton compte reste ouvert ou se ferme", "keeps your account open or signs it out", "mantiene tu cuenta abierta o la cierra"), y);
-        AddTile(Glyphs.Lock, L.T("Verrouiller", "Lock", "Bloquear"), new Rectangle(Pad, y, half, rowH), false, () => Run(SessionActions.Lock));
-        AddTile(Glyphs.User, L.T("Se déconnecter", "Sign out", "Cerrar sesión"), new Rectangle(Pad + half + Gap, y, half, rowH), false, () => Run(SessionActions.SignOut));
-        y += rowH + Ui.S(16);
-
-        bool updates = SessionActions.UpdatesPending;
-        y = SectionLabel(L.T("ALIMENTATION", "POWER", "ENERGÍA"), L.T("met en veille, redémarre ou éteint le PC", "sleeps, restarts or shuts down the PC", "suspende, reinicia o apaga el PC"), y);
-        AddTile(Glyphs.Sleep, L.T("Mettre en veille", "Sleep", "Suspender"), Cell(0, y, third, tileH), true, () => Run(SessionActions.Sleep));
-        AddTile(Glyphs.Restart, updates ? L.T("Mettre à jour et redémarrer", "Update and restart", "Actualizar y reiniciar") : L.T("Redémarrer", "Restart", "Reiniciar"),
-            Cell(1, y, third, tileH), true, () => Run(() => SessionActions.Restart()));
-        AddTile(Glyphs.Power, updates ? L.T("Mettre à jour et arrêter", "Update and shut down", "Actualizar y apagar") : L.T("Arrêter", "Shut down", "Apagar"),
-            Cell(2, y, third, tileH), true, () => Run(() => SessionActions.PowerOff()));
-        y += tileH + Pad;
-
-        ClientSize = new Size(width, y);
-    }
-
     static Rectangle Cell(int column, int y, int w, int h) { return new Rectangle(Pad + column * (w + Gap), y, w, h); }
 
     public void PlaceAbove(Rectangle anchor, Rectangle area)
     {
+        placedAnchor = anchor;
+        placedArea = area;
         Size content = ClientSize;
         int bottom = Math.Max(area.Top + 1, Math.Min(area.Bottom, anchor.Top - Ui.S(8)));
         int height = Math.Min(content.Height, bottom - area.Top);
@@ -206,6 +132,7 @@ class StartMenuForm : Form
         base.OnShown(e);
         Native.SetRoundCorners(Handle);
         // Texte d'invite dans la recherche (EM_SETCUEBANNER), visible même quand elle a le focus
+        if (search == null) return;   // recherche masquée (T-044)
         Native.SendMessage(search.Handle, 0x1501, new IntPtr(1), L.T("Rechercher des applications, des paramètres et des fichiers",
             "Search for apps, settings and files", "Buscar aplicaciones, configuración y archivos"));
         ActiveControl = search;
@@ -240,8 +167,12 @@ class StartMenuForm : Form
         Rectangle searchBounds = searchRect, headerBounds = headerRect;
         searchBounds.Offset(AutoScrollPosition);
         headerBounds.Offset(AutoScrollPosition);
-        Ui.Fill(g, Theme.Surface, searchBounds, searchBounds.Height / 2f);
-        Ui.Glyph(g, Glyphs.Search, 12f, Theme.FgDim, new Rectangle(searchBounds.Left + Ui.S(12), searchBounds.Top, Ui.S(24), searchBounds.Height));
+        if (!searchRect.IsEmpty)
+        {
+            Ui.Fill(g, Theme.Surface, searchBounds, searchBounds.Height / 2f);
+            Ui.Glyph(g, Glyphs.Search, 12f, Theme.FgDim, new Rectangle(searchBounds.Left + Ui.S(12), searchBounds.Top, Ui.S(24), searchBounds.Height));
+        }
+        if (headerRect.IsEmpty) return;   // compte masqué (T-044)
 
         // Session : photo (ou initiales), nom, et le PC sur lequel elle est ouverte
         int size = Ui.S(48);
@@ -277,6 +208,7 @@ class StartTile : FlatControl
     string glyph;
     readonly bool stacked;   // icône au-dessus du texte, sinon à gauche
     public bool GlyphOnly;   // bouton icône seule (flèches du calendrier), nommé par AccessibleName
+    public Image Picture;    // icône d'application à la place du glyphe (raccourcis personnels) ; appartient à l'appelant
     bool hover;
 
     protected override AccessibleRole FlatRole { get { return AccessibleRole.PushButton; } }
@@ -325,7 +257,12 @@ class StartTile : FlatControl
         }
         else
         {
-            Ui.Glyph(g, glyph, 14f, text, new Rectangle(Ui.S(10), 0, Ui.S(30), Height));
+            if (Picture != null)
+            {
+                int px = Ui.S(24);
+                g.DrawImage(Picture, new Rectangle(Ui.S(13), (Height - px) / 2, px, px));
+            }
+            else Ui.Glyph(g, glyph, 14f, text, new Rectangle(Ui.S(10), 0, Ui.S(30), Height));
             TextRenderer.DrawText(g, Text, Font, TextArea, text, TextFlags | TextFormatFlags.VerticalCenter);
         }
         DrawSettingsFocus(g);

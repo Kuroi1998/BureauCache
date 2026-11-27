@@ -90,6 +90,7 @@ partial class App
         startMenu.OpenSettings += ShowSettings;
         startMenu.OpenTour += ShowWelcome;
         startMenu.QuitRequested += QuitByUser;
+        startMenu.OpenStartSettings += () => { ShowSettings(); settingsForm.SelectPage(SettingsForm.TaskbarPage); };
         startMenu.SearchRequested += text =>
         {
             OpenManually(Screen.PrimaryScreen);

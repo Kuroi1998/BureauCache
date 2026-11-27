@@ -52,6 +52,9 @@ static partial class Settings
     // automatique ; fenêtres d'une même application regroupées ; clic du milieu qui ferme ; molette sur le volume
     public static int TaskbarStyle = 0;
     public static bool TaskbarLine = true, TaskbarAutoHide = false, TaskbarGroup = false, TaskbarMiddleClose = false, TaskbarWheel = true;
+    // Menu Démarrer à la carte (T-044) : parties affichées, tuiles masquées (par identifiant), raccourcis personnels
+    public static bool StartSearch = true, StartAccount = true, StartBureauCache = true, StartWindows = true, StartSession = true, StartPower = true;
+    public static List<string> StartHidden = new List<string>(), StartShortcuts = new List<string>();
     public static string WeatherPlace = "", WeatherShort = "";   // libellé complet et « Ville, Pays » (QA52-05)
     public static double WeatherLat = double.NaN, WeatherLon = double.NaN;
     public static Color Accent = Color.FromArgb(59, 130, 246);

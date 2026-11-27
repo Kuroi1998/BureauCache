@@ -356,6 +356,8 @@ static class SettingsBackup
         Settings.ArchiveLog = new List<string>();
         Settings.ArchiveRules = new List<ArchiveRule>();
         Settings.TaskbarPins = new List<string>();
+        Settings.StartHidden = new List<string>();
+        Settings.StartShortcuts = new List<string>();
         return Settings.Load(path);
     }
 

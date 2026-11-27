@@ -98,6 +98,14 @@ static partial class Settings
                     case "TaskbarGroup": TaskbarGroup = b; break;
                     case "TaskbarMiddleClose": TaskbarMiddleClose = b; break;
                     case "TaskbarWheel": TaskbarWheel = b; break;
+                    case "StartSearch": StartSearch = b; break;
+                    case "StartAccount": StartAccount = b; break;
+                    case "StartBureauCache": StartBureauCache = b; break;
+                    case "StartWindows": StartWindows = b; break;
+                    case "StartSession": StartSession = b; break;
+                    case "StartPower": StartPower = b; break;
+                    case "StartHidden": StartHidden = SplitList(v); break;
+                    case "StartShortcuts": StartShortcuts = SplitList(v); break;
                     case "NewBadge": NewBadge = b; break;
                     case "ArchiveOn": ArchiveOn = b; break;
                     case "HoverPreview": HoverPreview = b; break;
@@ -305,7 +313,9 @@ static partial class Settings
                 "SearchCommands=" + B(SearchCommands), "SearchContent=" + B(SearchContent), "ClipboardOn=" + B(ClipboardOn), "TaskbarOn=" + B(TaskbarOn), "TaskbarPins=" + string.Join("|", TaskbarPins), "TaskbarSize=" + TaskbarSize, "TaskbarCenter=" + B(TaskbarCenter), "TaskbarLabels=" + B(TaskbarLabels),
                 "TaskbarQuick=" + B(TaskbarQuick), "TaskbarBell=" + B(TaskbarBell), "TaskbarDate=" + B(TaskbarDate), "TaskbarSeconds=" + B(TaskbarSeconds),
                 "TaskbarStyle=" + TaskbarStyle, "TaskbarLine=" + B(TaskbarLine), "TaskbarAutoHide=" + B(TaskbarAutoHide), "TaskbarGroup=" + B(TaskbarGroup),
-                "TaskbarMiddleClose=" + B(TaskbarMiddleClose), "TaskbarWheel=" + B(TaskbarWheel), "NewBadge=" + B(NewBadge), "ArchiveOn=" + B(ArchiveOn),
+                "TaskbarMiddleClose=" + B(TaskbarMiddleClose), "TaskbarWheel=" + B(TaskbarWheel),
+                "StartSearch=" + B(StartSearch), "StartAccount=" + B(StartAccount), "StartBureauCache=" + B(StartBureauCache), "StartWindows=" + B(StartWindows),
+                "StartSession=" + B(StartSession), "StartPower=" + B(StartPower), "StartHidden=" + string.Join("|", StartHidden), "StartShortcuts=" + string.Join("|", StartShortcuts), "NewBadge=" + B(NewBadge), "ArchiveOn=" + B(ArchiveOn),
                 "HoverPreview=" + B(HoverPreview), "Widgets=" + B(Widgets), "AutoUpdate=" + B(AutoUpdate),
                 "Pinned=" + B(Pinned), "QuietStart=" + B(QuietStart), "TrayHintShown=" + B(TrayHintShown), "LastVersion=" + LastVersion, "ArchiveLog=" + string.Join("|", ArchiveLog),
                 "ThemeMode=" + ThemeMode, "Language=" + Language, "Delay=" + Delay, "PanelWidth=" + PanelWidth,

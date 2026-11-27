@@ -9,7 +9,7 @@ partial class SettingsForm
     void BuildTaskbar()
     {
         NewPage(T("Barre des tâches", "Taskbar", "Barra de tareas"),
-            T("Disposition, éléments, apparence et comportement de la barre BureauCache.", "Layout, items, look and behavior of the BureauCache taskbar.", "Diseño, elementos, apariencia y comportamiento de la barra de BureauCache."));
+            T("La barre BureauCache et son menu Démarrer, à ton goût.", "The BureauCache taskbar and its Start menu, your way.", "La barra de BureauCache y su menú Inicio, a tu gusto."));
         Section(T("DISPOSITION", "LAYOUT", "DISEÑO"));
         sBarSize = NewSeg(v => Settings.TaskbarSize = v, T("Petite", "Small", "Pequeña"), T("Normale", "Normal", "Normal"), T("Grande", "Large", "Grande"));
         Row(T("Taille", "Size", "Tamaño"), T("Hauteur de la barre et taille des icônes.", "Bar height and icon size.", "Altura de la barra y tamaño de los iconos."), sBarSize, null);
@@ -49,6 +49,8 @@ partial class SettingsForm
         tBarWheel = NewToggle(v => Settings.TaskbarWheel = v);
         Row(T("Molette sur le son", "Scroll on sound", "Rueda sobre el sonido"), T("Monte ou baisse le volume sans ouvrir de panneau.", "Turns the volume up or down without opening a panel.", "Sube o baja el volumen sin abrir ningún panel."), tBarWheel, null);
 
+        BuildStartMenuSection();
+
         Note(T("Ces réglages s'appliquent quand la barre BureauCache remplace celle de Windows (page Général).",
                "These settings apply when the BureauCache taskbar replaces the Windows one (General page).",
                "Estos ajustes se aplican cuando la barra de BureauCache sustituye a la de Windows (página General)."));
@@ -69,5 +71,6 @@ partial class SettingsForm
         tBarGroup.Checked = Settings.TaskbarGroup;
         sBarMiddle.Selected = Settings.TaskbarMiddleClose ? 1 : 0;
         tBarWheel.Checked = Settings.TaskbarWheel;
+        LoadStartMenuValues();
     }
 }
