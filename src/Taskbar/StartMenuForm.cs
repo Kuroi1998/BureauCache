@@ -248,6 +248,7 @@ class StartTile : FlatControl
 {
     string glyph;
     readonly bool stacked;   // icône au-dessus du texte, sinon à gauche
+    public bool GlyphOnly;   // bouton icône seule (flèches du calendrier), nommé par AccessibleName
     bool hover;
 
     protected override AccessibleRole FlatRole { get { return AccessibleRole.PushButton; } }
@@ -288,7 +289,8 @@ class StartTile : FlatControl
         bool highlight = Enabled && (hover || Focused);
         Color text = Enabled ? Theme.SelText(highlight, Theme.Fg) : Theme.FgDim;
         Ui.Fill(g, highlight ? Theme.Hover : Theme.Surface, r, Ui.S(Ui.RadiusControl));
-        if (stacked)
+        if (GlyphOnly) Ui.Glyph(g, glyph, 11f, text, ClientRectangle);
+        else if (stacked)
         {
             Ui.Glyph(g, glyph, 17f, text, GlyphArea);
             TextRenderer.DrawText(g, Text, Font, TextArea, text, TextFlags | TextFormatFlags.HorizontalCenter);

@@ -1,5 +1,9 @@
 ﻿# Nouveautés
 
+## Non publié
+
+- L'horloge et la cloche de la barre BureauCache ouvrent un panneau assorti au thème de l'application : calendrier du mois (navigation au clavier et à la souris, repliable), accès aux notifications et à leurs paramètres Windows.
+
 ## 3.11 — Paramètres rapides et menu Démarrer
 
 - Les Paramètres rapides affichent les réseaux Wi-Fi et les appareils Bluetooth dans deux vues dédiées. Le panneau donne davantage de place aux libellés.

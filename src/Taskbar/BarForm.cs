@@ -55,7 +55,7 @@ partial class BarForm : Form
 
     public void ApplyTheme()
     {
-        if (quickSettings != null && quickSettings.BackColor != Theme.Bg) CloseQuickSettings();
+        if ((quickSettings != null && quickSettings.BackColor != Theme.Bg) || (notifications != null && notifications.BackColor != Theme.Bg)) ClosePanels();
         BackColor = Theme.Bg;
         Invalidate();
     }
@@ -78,7 +78,7 @@ partial class BarForm : Form
 
     protected override void OnHandleDestroyed(EventArgs e)
     {
-        CloseQuickSettings();
+        ClosePanels();
         StopWindows();
         AppBarRemove();
         base.OnHandleDestroyed(e);
@@ -144,7 +144,7 @@ partial class BarForm : Form
     {
         // Windows peut notifier la position alors que la barre n'a pas bougé.
         if (Bounds == bounds) return;
-        CloseQuickSettings();
+        ClosePanels();
         Bounds = bounds;
     }
 
@@ -188,7 +188,7 @@ partial class BarForm : Form
     void OnFullscreen(bool entering)
     {
         if (!entering) { TopMost = true; return; }
-        CloseQuickSettings();
+        ClosePanels();
         HidePreview();
         TopMost = false;
         Native.SetWindowPos(Handle, Native.HWND_BOTTOM, 0, 0, 0, 0, Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
@@ -223,7 +223,7 @@ partial class BarForm : Form
         Layout2();
         using (Pen line = new Pen(Theme.Line)) g.DrawLine(line, 0, 0, ClientSize.Width, 0);
         for (int i = 0; i < zones.Length; i++)
-            if (i == hot || (i == 1 && quickSettings != null)) Ui.Fill(g, Theme.HoverOverlay, zones[i], Ui.S(4));
+            if (i == hot || (i == 1 && quickSettings != null) || (i == notificationsZone && notifications != null)) Ui.Fill(g, Theme.HoverOverlay, zones[i], Ui.S(4));
 
         int logo = Ui.S(34);
         Rectangle z = zones[0];
@@ -255,7 +255,7 @@ partial class BarForm : Form
         base.OnMouseMove(e);
         if (DragMove(e.Location)) return;
         int z = ZoneAt(e.Location);
-        if (z != hot) { hot = z; Invalidate(); ShowWindowTip(quickSettings == null ? z : -1); }
+        if (z != hot) { hot = z; Invalidate(); ShowWindowTip(PanelOpen ? -1 : z); }
     }
 
     protected override void OnMouseLeave(EventArgs e)
@@ -276,11 +276,12 @@ partial class BarForm : Form
             if (DragEnd() || changed || !sameZone) return;
         }
         if (z != 1 || e.Button != MouseButtons.Left) CloseQuickSettings();
+        if ((z != 2 && z != 3) || e.Button != MouseButtons.Left) CloseNotifications();
         if (WindowMouseUp(z, e.Button)) return;
         if (e.Button == MouseButtons.Right) { if (MenuRequested != null) MenuRequested(); return; }
         if (e.Button != MouseButtons.Left) return;
         if (z == 1) { ToggleQuickSettings(); return; }
         if (z == 0 && StartClicked != null) StartClicked();
-        else if (!Sandbox.Active && (z == 2 || z == 3)) Native.PressWinKey(0x4E);   // Windows + N : notifications et calendrier
+        else if (z == 2 || z == 3) ToggleNotifications(z);   // à la place de Windows + N (T-042)
     }
 }
