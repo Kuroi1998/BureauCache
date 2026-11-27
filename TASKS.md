@@ -19,8 +19,8 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-030 | Expérience issue de l'audit (Premiers pas au clavier, lecteurs d'écran, contraste, erreurs réseau) | Fait (3.10.1) ; essais réels faits sur le binaire et la 3.10.1 installée | Claude | PR #24 | QA-45, QA-48, QA-53 |
 | T-031 | Refonte visuelle « Windows 11 » en quatre étapes | Fait (3.10.1) ; essais réels faits sur le binaire et la 3.10.1 installée | Claude puis Toi | PR #24 | D-012, QA-49 à QA-53 |
 | T-032 | Barre BureauCache, étape 1 : masquer et restaurer la barre Windows, barre AppBar, bouton Démarrer (ouvre le panneau), horloge | En cours : code, tests et revue ChatGPT faits (QA-54, QA-55) ; essai réel à faire | Claude puis Toi | `feat/T-032-barre-des-taches` | D-013, QA-54, QA-55 |
-| T-033 | Barre, étape 2 : fenêtres ouvertes (activer, réduire, fermer, clignotement, bureaux virtuels) | À faire | Claude puis Toi | — | D-013 |
-| T-034 | Barre, étape 3 : compte et alimentation dans le pied du panneau | À faire | Claude puis Toi | — | D-013 |
+| T-033 | Barre, étape 2 : fenêtres ouvertes (activer, réduire, fermer, clignotement, bureaux virtuels) | En cours : code et tests faits (QA-56) ; revue ChatGPT et essai réel à faire | Claude puis Toi | `feat/T-033-fenetres-demarrer` | D-013, QA-56 |
+| T-034 | Barre, étape 3 : menu Démarrer avec compte et alimentation | En cours : code et tests faits (QA-56) ; revue ChatGPT et essai réel à faire | Claude puis Toi | `feat/T-033-fenetres-demarrer` | D-013, QA-56 |
 | T-035 | Barre, étape 4 : bouton « ^ » avec les vraies icônes de notification (prototype, recherche Gemini, puis version finale) | À faire | Gemini, Claude, Toi | — | D-013 |
 | T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel fait sur la 3.9 installée | Claude puis Toi | PR #19 | D-007, QA-32, QA-33 |
 | T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |
@@ -112,6 +112,8 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-27 · Toi · D-013 validée ; T-032 lancée.
 - 2026-11-27 · Claude · T-032 : `WindowsBar` (fichier `barre.etat` écrit avant tout changement, restauration à la sortie, en fin de session, par la surveillance et par `--restore`), `BarForm` (AppBar, Démarrer, Paramètres rapides, horloge), option avec confirmation, menu « Rétablir la barre des tâches de Windows », import protégé (QA-54). Compilé ; suite : 489 réussis. Essai réel à faire.
 - 2026-11-27 · ChatGPT puis Claude · Revue de T-032 : 12 constats, 5 échecs reproduits ; 9 retenus, 2 en partie, 1 écarté (BAR-04) ; copie de l'état en mémoire, restauration constatée, surveillance obligatoire, réservation vérifiée (QA-55). Suite : 497 réussis.
+- 2026-11-27 · Toi · Essai de T-032 : la barre s'affiche (Démarrer, Paramètres rapides, horloge). Demande : fenêtres ouvertes dans la barre et un menu Démarrer propre avec compte et alimentation (D-013 révisée).
+- 2026-11-27 · Claude · T-033 et T-034 : `WindowList` (événements hors contexte, filtre testé, clignotement), boutons des fenêtres avec icône, trait actif, « +N », menu Fermer ; `StartMenuForm` (photo et nom, raccourcis, Verrouiller, Se déconnecter, Veille, Redémarrer, Arrêter avec mises à jour en attente et démarrage rapide) (QA-56). Compilé ; suite : 506 réussis.
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.

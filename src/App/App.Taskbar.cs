@@ -1,5 +1,6 @@
 // BureauCache — App : barre des tâches BureauCache à la place de celle de Windows (D-013)
 using System;
+using System.Drawing;
 using System.Windows.Forms;
 
 partial class App
@@ -53,6 +54,7 @@ partial class App
 
     void CloseBar()
     {
+        if (startMenu != null && !startMenu.IsDisposed) try { startMenu.Close(); } catch { }
         if (bar != null)
         {
             BarForm old = bar;
@@ -71,16 +73,24 @@ partial class App
         RefuseTaskbar();
     }
 
-    // Comme pour l'icône près de l'horloge : un panneau qui vient de se fermer sur ce même clic ne se rouvre pas
+    StartMenuForm startMenu;
+
+    // Bouton Démarrer : ouvre ou ferme le menu. Un menu qui vient de se fermer sur ce même clic (perte du focus) ne
+    // se rouvre pas, comme pour l'icône près de l'horloge.
     void StartFromBar()
     {
-        bool wasOpen = panel.IsOpen || (DateTime.Now - panel.LastHidden).TotalMilliseconds < 200;
-        if (wasOpen && !Settings.Pinned) panel.HidePanel();
-        else
-        {
-            OpenManually(Screen.PrimaryScreen);
-            Native.SetForegroundWindow(panel.Handle);
-        }
+        if (startMenu != null && !startMenu.IsDisposed) { startMenu.Close(); return; }
+        if ((DateTime.Now - StartMenuForm.LastClosed).TotalMilliseconds < 250) return;
+        if (bar == null) return;
+        startMenu = new StartMenuForm();
+        startMenu.OpenPanel += () => { OpenManually(Screen.PrimaryScreen); Native.SetForegroundWindow(panel.Handle); };
+        startMenu.FormClosed += (s, e) => { startMenu = null; };
+        Rectangle start = bar.StartButtonBounds;
+        Rectangle wa = Screen.PrimaryScreen.WorkingArea;
+        startMenu.Location = new Point(Math.Max(wa.Left, start.Left), start.Top - Ui.S(8) - startMenu.Height);
+        startMenu.Show();
+        startMenu.Activate();
+        Native.SetForegroundWindow(startMenu.Handle);
     }
 
     void RestoreWindowsBarByUser()

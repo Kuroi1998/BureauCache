@@ -1,4 +1,4 @@
-// BureauCache — BarForm : barre des tâches BureauCache en bas de l'écran principal (D-013, étape 1)
+// BureauCache — BarForm : barre des tâches BureauCache en bas de l'écran principal (D-013 ; fenêtres : BarForm.Windows.cs)
 using System;
 using System.Drawing;
 using System.Runtime.InteropServices;
@@ -6,7 +6,7 @@ using System.Windows.Forms;
 
 // Fenêtre AppBar : Windows réserve sa hauteur, les fenêtres agrandies s'arrêtent au-dessus. Elle ne prend jamais
 // le focus (WS_EX_NOACTIVATE) et n'apparaît ni dans Alt+Tab ni dans la liste des fenêtres (WS_EX_TOOLWINDOW).
-class BarForm : Form
+partial class BarForm : Form
 {
     public event Action StartClicked, MenuRequested, ExplorerRestarted;
 
@@ -17,7 +17,7 @@ class BarForm : Form
     readonly uint taskbarCreated = Native.RegisterWindowMessage("TaskbarCreated");
     readonly Timer clock = new Timer();
     bool appbar;
-    int hot = -1;   // zone survolée : 0 Démarrer, 1 Paramètres rapides, 2 horloge
+    int hot = -1;   // zone survolée : 0 Démarrer, 1 Paramètres rapides, 2 horloge, Overflow, WindowZone + indice
     Rectangle[] zones = new Rectangle[3];
 
     public static int BarHeight { get { return Ui.S(48); } }
@@ -69,11 +69,12 @@ class BarForm : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        if (!Sandbox.Active) AppBarRegister();
+        if (!Sandbox.Active) { AppBarRegister(); StartWindows(); }
     }
 
     protected override void OnHandleDestroyed(EventArgs e)
     {
+        StopWindows();
         AppBarRemove();
         base.OnHandleDestroyed(e);
     }
@@ -132,6 +133,7 @@ class BarForm : Form
             if (code == Native.ABN_POSCHANGED) Reposition();
             else if (code == Native.ABN_FULLSCREENAPP) OnFullscreen(m.LParam != IntPtr.Zero);
         }
+        else if (m.Msg == (int)shellHook) OnShellHook(m.WParam, m.LParam);
         else if (m.Msg == (int)taskbarCreated)
         {
             // Explorer a redémarré : il a oublié notre réservation, et sa barre réapparaît
@@ -160,6 +162,7 @@ class BarForm : Form
         int clockW = Math.Max(TextRenderer.MeasureText(time, ClockFont).Width, TextRenderer.MeasureText(date, ClockFont).Width) + Ui.S(20);
         zones[2] = new Rectangle(ClientSize.Width - Ui.S(8) - clockW, pad, clockW, btn);
         zones[1] = new Rectangle(zones[2].Left - Ui.S(4) - Ui.S(72), pad, Ui.S(72), btn);
+        LayoutWindows(zones[0].Right + Ui.S(6), zones[1].Left - Ui.S(12), pad, btn);
     }
 
     static Font ClockFont { get { return Ui.Font("Segoe UI", 9f); } }
@@ -182,6 +185,7 @@ class BarForm : Form
         int logo = Ui.S(26);
         Rectangle z = zones[0];
         Ui.DrawLogo(g, new Rectangle(z.Left + (z.Width - logo) / 2, z.Top + (z.Height - logo) / 2, logo, logo), Theme.Accent);
+        PaintWindows(g);
 
         z = zones[1];
         int third = z.Width / 3;
@@ -200,26 +204,27 @@ class BarForm : Form
     int ZoneAt(Point p)
     {
         for (int i = 0; i < zones.Length; i++) if (zones[i].Contains(p)) return i;
-        return -1;
+        return WindowZoneAt(p);
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
         int z = ZoneAt(e.Location);
-        if (z != hot) { hot = z; Invalidate(); }
+        if (z != hot) { hot = z; Invalidate(); ShowWindowTip(z); }
     }
 
     protected override void OnMouseLeave(EventArgs e)
     {
         base.OnMouseLeave(e);
-        if (hot != -1) { hot = -1; Invalidate(); }
+        if (hot != -1) { hot = -1; Invalidate(); ShowWindowTip(-1); }
     }
 
     protected override void OnMouseUp(MouseEventArgs e)
     {
         base.OnMouseUp(e);
         int z = ZoneAt(e.Location);
+        if (WindowMouseUp(z, e.Button)) return;
         if (e.Button == MouseButtons.Right) { if (MenuRequested != null) MenuRequested(); return; }
         if (e.Button != MouseButtons.Left) return;
         if (z == 0 && StartClicked != null) StartClicked();
