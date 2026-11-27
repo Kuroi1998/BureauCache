@@ -10,6 +10,9 @@ using System.Text;
 static class TaskbandRoute
 {
     public const string PropName = "TaskbandHWND";
+    // Prototype non concluant (badge de Discord absent à l'essai) : routage désactivé dans les versions publiées tant
+    // que le diagnostic n'est pas fait. Restore reste appelé partout et nettoie le reste d'une version d'essai (3.11).
+    public static readonly bool Enabled = false;
     const string Header = "BureauCache badges 1";
     static IntPtr installedOn;   // fenêtre d'Explorer modifiée par cette instance
 

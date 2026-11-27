@@ -25,7 +25,7 @@ partial class BarForm
 
     void StartBadges()
     {
-        if (Sandbox.Active || !TaskbandRoute.Install(Handle)) return;
+        if (Sandbox.Active || !TaskbandRoute.Enabled || !TaskbandRoute.Install(Handle)) return;
 
         // Les fenêtres déjà ouvertes ont pu envoyer leur badge à Explorer avant le remplacement de sa barre.
         uint created = Native.RegisterWindowMessage("TaskbarButtonCreated");
@@ -42,26 +42,8 @@ partial class BarForm
     }
 
     // Vrai si le message venait d'ITaskbarList3 et a été traité
-    // PROTOTYPE (T-041) : journal des messages WM_USER à WM_USER + 255 reçus par la barre, pour savoir ce que Windows
-    // envoie vraiment. Numéro du message et identifiants de fenêtres seulement. À retirer avant toute publication.
-    static int loggedMessages;
-
-    static void LogTaskbarMessage(Message m)
-    {
-        if (Sandbox.Active || loggedMessages >= 500 || m.Msg < 0x400 || m.Msg > 0x4FF) return;
-        loggedMessages++;
-        try
-        {
-            System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "BureauCache-badges.log"),
-                DateTime.Now.ToString("HH:mm:ss.fff") + "  WM_USER+" + (m.Msg - 0x400) + "  wParam=0x" + m.WParam.ToInt64().ToString("X") +
-                "  lParam=0x" + m.LParam.ToInt64().ToString("X") + "  route=" + TaskbandRoute.Installed + "\r\n");
-        }
-        catch { }
-    }
-
     bool HandleTaskbarList(ref Message m)
     {
-        LogTaskbarMessage(m);
         if (m.Msg != MsgProgressValue && m.Msg != MsgProgressState && m.Msg != MsgOverlayIcon && m.Msg != MsgOverlayText) return false;
         if (!TaskbandRoute.Installed) return false;
         IntPtr hwnd = m.WParam;
