@@ -98,12 +98,22 @@ static class ClipboardHistory
     // Lit le presse-papiers (fil d'interface, STA) et garde le texte s'il est permis
     public static bool Capture()
     {
+        bool busy;
+        return Capture(out busy);
+    }
+
+    // busy : le presse-papiers était verrouillé par une autre application, un nouvel essai a un sens (GEM-06)
+    public static bool Capture(out bool busy)
+    {
+        busy = false;
+        Sandbox.Guard("lecture du presse-papiers");   // SEC-08
         try
         {
             IDataObject data = Clipboard.GetDataObject();
             if (IsPrivate(data) || !data.GetDataPresent(DataFormats.UnicodeText)) return false;
             return Add(data.GetData(DataFormats.UnicodeText) as string);
         }
+        catch (System.Runtime.InteropServices.ExternalException) { busy = true; return false; }
         catch { return false; }
     }
 }
@@ -113,6 +123,7 @@ class ClipboardWatcher : NativeWindow
 {
     const int WM_CLIPBOARDUPDATE = 0x031D;
     bool listening;
+    Timer retry;
 
     public void Enable(bool on)
     {
@@ -127,6 +138,7 @@ class ClipboardWatcher : NativeWindow
         {
             if (Handle != IntPtr.Zero) Native.RemoveClipboardFormatListener(Handle);
             listening = false;
+            if (retry != null) retry.Stop();   // pas de relecture après la désactivation (QA52-09)
             ClipboardHistory.Clear();
         }
     }
@@ -134,12 +146,29 @@ class ClipboardWatcher : NativeWindow
     public void Close()
     {
         Enable(false);
+        if (retry != null) { retry.Dispose(); retry = null; }
         if (Handle != IntPtr.Zero) DestroyHandle();
+    }
+
+    // Presse-papiers verrouillé par l'application qui vient de copier : un seul nouvel essai, 150 ms plus tard
+    void Read(bool firstTry)
+    {
+        if (firstTry && retry != null) retry.Stop();   // une nouvelle copie remplace la relecture en attente (QA52-09)
+        bool busy;
+        try { ClipboardHistory.Capture(out busy); } catch { return; }
+        if (!busy || !firstTry) return;
+        if (retry == null)
+        {
+            retry = new Timer { Interval = 150 };
+            retry.Tick += (s, e) => { retry.Stop(); if (listening && Settings.ClipboardOn) Read(false); };
+        }
+        retry.Stop();
+        retry.Start();
     }
 
     protected override void WndProc(ref Message m)
     {
-        if (m.Msg == WM_CLIPBOARDUPDATE && listening && Settings.ClipboardOn) ClipboardHistory.Capture();
+        if (m.Msg == WM_CLIPBOARDUPDATE && listening && Settings.ClipboardOn) Read(true);
         base.WndProc(ref m);
     }
 }

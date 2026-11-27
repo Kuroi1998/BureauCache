@@ -27,8 +27,8 @@ BureauCache cache les icônes du bureau Windows et les réaffiche dans un pannea
 | `src/Search` | Recherche tolérante aux fautes, calculatrice, recherche dans le contenu par l'index Windows | `Search`, `Calc` (+ `Calc.Parser`), `ContentSearch` | Data, Core (`L.Culture`, `Paths`) |
 | `src/Shell` | Icônes, miniatures et cache, verbes et raccourcis du shell ; fil STA dédié aux verbes de « Plus d'options » | `Icons`, `IconCache`, `ShellUtil`, `ShellWorker` | Core |
 | `src/UI` | Thème et dessin, glyphes, dialogues, visite guidée | `Theme`, `Ui`, `Menus`, `Glyphs`, `ThemedDialog`, `MessageDialog`, `BackupDialog`, `RuleDialog`, `WelcomeForm` | Core |
-| `src/UI/Controls` | Contrôles dessinés à la main | `Toggle`, `Segmented`, `Slider`, `Swatches`, `HotkeyBox`, `FlatButton`, `SideNav`… | UI |
-| `src/UI/Panel` | Panneau principal | `PanelForm` (partial : `.cs`, `.Window`, `.Data`, `.Actions`, `.Input`, `.Hints`, `.Weather`, `.Content`, `.Clipboard`), `ItemsView` (partial : `.cs`, `.Input`), `PreviewForm`, `ToastControl` | Data, Search, Shell, UI |
+| `src/UI/Controls` | Contrôles dessinés à la main, avec leur objet accessible (`Accessibility.cs`, GEM-07) | `Toggle`, `Segmented`, `Slider`, `Swatches`, `HotkeyBox`, `FlatButton`, `SideNav`… | UI |
+| `src/UI/Panel` | Panneau principal | `PanelForm` (partial : `.cs`, `.Window`, `.Data`, `.Actions`, `.Input`, `.Hints`, `.Weather`, `.Content`, `.Clipboard`), `ItemsView` (partial : `.cs`, `.Input`, `.Tiles`), `PreviewForm`, `ToastControl` | Data, Search, Shell, UI |
 | `src/UI/Settings` | Fenêtre de paramètres et disposition des six rubriques | `SettingsForm` (partial : `.cs`, `.Pages`, `.Values`, `.Advanced`, `.Layout`, `.Weather`, `.Rules`, `.Clutter`), `SettingsNavigation`, `SettingsActions` | Core, UI |
 | `src/Properties` | Métadonnées et **seul emplacement du numéro de version** | `AppInfo.Version` | — |
 
@@ -36,7 +36,7 @@ BureauCache cache les icônes du bureau Windows et les réaffiche dans un pannea
 
 - Une classe par responsabilité. Les grandes fenêtres sont découpées en `partial class` avec un fichier `Classe.Aspect.cs` par aspect.
 - Aucun fichier ne dépasse **500 lignes**. Au-delà d'environ 400 lignes, on prévoit un découpage.
-- Les réglages sont copiés une fois par jour avant leur première réécriture, dans `sauvegardes\` (7 jours, `SettingsBackup`, D-007). Restaurer ou importer met d'abord l'état actuel de côté. Les tests isolent le dossier des réglages et le bureau (`Settings.DirOverride`, `Paths.DesktopOverride`), et `Sandbox` bloque tout effet de bord réel pendant les tests (QA-34).
+- Les réglages sont copiés une fois par jour avant leur première réécriture, dans `sauvegardes\` (7 jours, `SettingsBackup`, D-007). Restaurer ou importer met d'abord l'état actuel de côté. Un import (`SettingsBackup.ImportFrom`) garde les choix sensibles de ce PC : dépôt et vérification des mises à jour, presse-papiers, rangement automatique, journal d'annulation (T-029). Les tests isolent le dossier des réglages et le bureau (`Settings.DirOverride`, `Paths.DesktopOverride`), et `Sandbox` bloque tout effet de bord réel pendant les tests (QA-34).
 - Les tâches de fond passent par `Background` (`src/Core/Helpers.cs`). Le retour sur le fil UI se fait par `BeginInvoke`, et l'UI n'est jamais touchée depuis un autre fil.
 - Les opérations sur fichiers passent par `FileOps`. Les noms sont validés (noms réservés Windows refusés).
 - Les réglages se modifient par `Settings`. L'écriture est groupée par minuteur et atomique.

@@ -110,7 +110,7 @@ partial class PanelForm
         if (Settings.ShowRecents)
         {
             Group rec = new Group { Key = "recent", Title = L.T("Récents", "Recent", "Recientes"), Glyph = Glyphs.Recent };
-            rec.Items = All.Where(i => Settings.Usage.ContainsKey(i.Key) && Settings.Usage[i.Key][0] > 0 && Settings.Usage[i.Key][1] > Settings.RecentsSince && !favKeys.Contains(i.Key))
+            rec.Items = All.Where(i => !i.IsSystem && Settings.Usage.ContainsKey(i.Key) && Settings.Usage[i.Key][0] > 0 && Settings.Usage[i.Key][1] > Settings.RecentsSince && !favKeys.Contains(i.Key))
                            .OrderByDescending(i => Settings.Usage[i.Key][1]).Take(5).ToList();
             if (rec.Items.Count > 0) res.Add(rec);
         }

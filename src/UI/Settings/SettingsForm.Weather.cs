@@ -47,7 +47,7 @@ partial class SettingsForm
         {
             List<WeatherPlace> found = null;
             string error = null;
-            try { found = Weather.Search(q); } catch (Exception ex) { error = ex.Message; }
+            try { found = Weather.Search(q); } catch (Exception ex) { error = Http.FriendlyError(ex); }
             Post(() => ShowPlaces(my, found ?? new List<WeatherPlace>(), error));
         });
     }

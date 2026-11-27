@@ -97,7 +97,7 @@ class WeatherPlaceDialog : ThemedDialog
         {
             List<WeatherPlace> found = null;
             string error = null;
-            try { found = Weather.Search(q); } catch (Exception ex) { error = ex.Message; }
+            try { found = Weather.Search(q); } catch (Exception ex) { error = Http.FriendlyError(ex); }
             Done(() =>
             {
                 if (found != null) ShowResults(found);
@@ -143,6 +143,7 @@ class WeatherPlaceDialog : ThemedDialog
     public static void Apply(WeatherPlace p)
     {
         Settings.WeatherPlace = p.Label;
+        Settings.WeatherShort = p.Short;
         Settings.WeatherLat = Math.Round(p.Lat, 4);
         Settings.WeatherLon = Math.Round(p.Lon, 4);
         Settings.WeatherOn = true;

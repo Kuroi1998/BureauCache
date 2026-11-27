@@ -150,6 +150,7 @@ class Group
     public Color? GlyphColor;
     public List<DesktopItem> Items = new List<DesktopItem>();
     public bool IsSearch { get { return Key.StartsWith("s:"); } }
+    public bool AsList;   // toujours en liste, même en vue grille : les textes du presse-papiers (D-012)
 }
 
 class VRow

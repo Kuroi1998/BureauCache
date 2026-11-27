@@ -8,7 +8,7 @@ using System.Windows.Forms;
 // =====================================================================
 //  Contrôles dessinés à la main
 // =====================================================================
-abstract class FlatControl : Control
+abstract partial class FlatControl : Control
 {
     protected bool SettingsKeyboard { get; private set; }
 
@@ -22,6 +22,7 @@ abstract class FlatControl : Control
     protected override bool IsInputKey(Keys keyData)
     {
         if (SettingsKeyboard && (keyData == Keys.Left || keyData == Keys.Right || keyData == Keys.Home || keyData == Keys.End)) return true;
+        if (SettingsKeyboard && keyData == Keys.Enter && this is Toggle) return true;
         return base.IsInputKey(keyData);
     }
 
@@ -30,7 +31,7 @@ abstract class FlatControl : Control
 
     protected void DrawSettingsFocus(Graphics g)
     {
-        if (SettingsKeyboard && Focused) ControlPaint.DrawFocusRectangle(g, Rectangle.Inflate(ClientRectangle, -1, -1),
+        if (SettingsKeyboard && Focused && ShowFocusCues) ControlPaint.DrawFocusRectangle(g, Rectangle.Inflate(ClientRectangle, -1, -1),
             SettingsHighContrast ? SystemColors.WindowText : Theme.Fg, BackColor);
     }
 
@@ -73,6 +74,10 @@ class Toggle : FlatControl
         };
     }
 
+    protected override AccessibleRole FlatRole { get { return AccessibleRole.CheckButton; } }
+    protected override AccessibleStates FlatState { get { return on ? AccessibleStates.Checked : AccessibleStates.None; } }
+    protected override string FlatDefaultAction { get { return on ? L.T("Désactiver", "Turn off", "Desactivar") : L.T("Activer", "Turn on", "Activar"); } }
+
     public bool Checked
     {
         get { return on; }
@@ -80,6 +85,7 @@ class Toggle : FlatControl
         {
             bool animate = on != value && Visible && IsHandleCreated && Settings.Animations;
             on = value;
+            AnnounceAccessibleChange();
             if (animate) anim.Start();
             else { anim.Stop(); pos = on ? 1 : 0; Invalidate(); }
         }
@@ -94,7 +100,8 @@ class Toggle : FlatControl
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        if (e.KeyCode == Keys.Space) { e.SuppressKeyPress = true; OnClick(EventArgs.Empty); }
+        // Espace, et Entrée en navigation au clavier (Premiers pas, Paramètres) : une seule bascule (QA52-02)
+        if (e.KeyCode == Keys.Space || (SettingsKeyboard && e.KeyCode == Keys.Enter)) { e.SuppressKeyPress = true; e.Handled = true; OnClick(EventArgs.Empty); }
         // Gauche : désactivé, Droite : activé (les flèches étaient capturées sans effet, Q30-02)
         else if (SettingsKeyboard && (e.KeyCode == Keys.Left || e.KeyCode == Keys.Right))
         {
@@ -139,10 +146,19 @@ class Segmented : FlatControl
         Size = new Size((w + Ui.S(22)) * opts.Length + Ui.S(6), Ui.S(32));
     }
 
+    protected override AccessibleRole FlatRole { get { return AccessibleRole.ComboBox; } }
+    protected override string FlatValue { get { return sel >= 0 && sel < opts.Length ? opts[sel] : null; } }
+    protected override string FlatDefaultAction { get { return L.T("Choix suivant", "Next choice", "Opción siguiente"); } }
+    protected override void FlatDoDefault()
+    {
+        sel = (sel + 1) % opts.Length; Invalidate(); AnnounceAccessibleChange();
+        if (Changed != null) Changed(this, EventArgs.Empty);
+    }
+
     public int Selected
     {
         get { return sel; }
-        set { sel = Math.Max(0, Math.Min(opts.Length - 1, value)); Invalidate(); }
+        set { sel = Math.Max(0, Math.Min(opts.Length - 1, value)); Invalidate(); AnnounceAccessibleChange(); }
     }
 
     float SegW { get { return (Width - Ui.S(6)) / (float)opts.Length; } }
@@ -155,7 +171,7 @@ class Segmented : FlatControl
         if (e.Button == MouseButtons.Left)
         {
             int i = IndexAt(e.X);
-            if (i != sel) { sel = i; Invalidate(); if (Changed != null) Changed(this, EventArgs.Empty); }
+            if (i != sel) { sel = i; Invalidate(); AnnounceAccessibleChange(); if (Changed != null) Changed(this, EventArgs.Empty); }
         }
         base.OnMouseDown(e);
     }
@@ -205,10 +221,13 @@ class Slider : FlatControl
         Size = new Size(Ui.S(170), Ui.S(26));
     }
 
+    protected override AccessibleRole FlatRole { get { return AccessibleRole.Slider; } }
+    protected override string FlatValue { get { return val.ToString(); } }
+
     public int Value
     {
         get { return val; }
-        set { val = Math.Max(Min, Math.Min(Max, value)); Invalidate(); }
+        set { val = Math.Max(Min, Math.Min(Max, value)); Invalidate(); AnnounceAccessibleChange(); }
     }
 
     float Pad { get { return Math.Min(Ui.S(9), Math.Max(0, (Width - 1) / 2f)); } }
@@ -219,7 +238,7 @@ class Slider : FlatControl
         t = Math.Max(0, Math.Min(1, t));
         int v = Min + (int)Math.Round(t * (Max - Min) / Step) * Step;
         v = Math.Max(Min, Math.Min(Max, v));
-        if (v != val) { val = v; Invalidate(); if (Changed != null) Changed(this, EventArgs.Empty); }
+        if (v != val) { val = v; Invalidate(); AnnounceAccessibleChange(); if (Changed != null) Changed(this, EventArgs.Empty); }
     }
 
     protected override void OnMouseDown(MouseEventArgs e)

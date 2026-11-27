@@ -16,19 +16,32 @@ static class Theme
 {
     static Color D(int r, int g, int b, int lr, int lg, int lb)
     { return Settings.Dark ? Color.FromArgb(r, g, b) : Color.FromArgb(lr, lg, lb); }
-    public static Color Bg { get { return D(24, 24, 28, 243, 243, 247); } }
-    public static Color Side { get { return D(31, 31, 37, 233, 233, 239); } }
-    public static Color Card { get { return D(36, 36, 42, 255, 255, 255); } }
-    public static Color Surface { get { return D(46, 46, 54, 232, 232, 238); } }
-    public static Color Hover { get { return D(54, 54, 63, 222, 222, 230); } }
-    public static Color Line { get { return D(50, 50, 58, 228, 228, 235); } }
-    public static Color Track { get { return D(72, 72, 84, 200, 200, 210); } }
-    public static Color Fg { get { return D(236, 236, 241, 24, 24, 28); } }
-    public static Color FgDim { get { return D(150, 150, 162, 105, 105, 115); } }
+
+    // Mode Contraste élevé de Windows : les couleurs du thème choisi par l'utilisateur remplacent celles de
+    // BureauCache, dans le panneau comme dans les fenêtres (GEM-10). Forçable par les tests.
+    internal static bool? HighContrastOverride;
+    public static bool HighContrast { get { return HighContrastOverride ?? SystemInformation.HighContrast; } }
+    static Color H(Color system, Color normal) { return HighContrast ? system : normal; }
+
+    public static Color Bg { get { return H(SystemColors.Window, D(24, 24, 28, 243, 243, 247)); } }
+    public static Color Side { get { return H(SystemColors.Window, D(31, 31, 37, 233, 233, 239)); } }
+    public static Color Card { get { return H(SystemColors.Window, D(36, 36, 42, 255, 255, 255)); } }
+    public static Color Surface { get { return H(SystemColors.Control, D(46, 46, 54, 232, 232, 238)); } }
+    public static Color Hover { get { return H(SystemColors.Highlight, D(54, 54, 63, 222, 222, 230)); } }
+    public static Color Line { get { return H(SystemColors.WindowText, D(50, 50, 58, 228, 228, 235)); } }
+    public static Color Track { get { return H(SystemColors.WindowText, D(72, 72, 84, 200, 200, 210)); } }
+    public static Color Fg { get { return H(SystemColors.WindowText, D(236, 236, 241, 24, 24, 28)); } }
+    // Thème clair : (92, 92, 102) donne 5,4:1 sur Surface, au-dessus du seuil AA de 4,5:1 (GEM-10 : 4,45:1 avant)
+    public static Color FgDim { get { return H(SystemColors.GrayText, D(150, 150, 162, 92, 92, 102)); } }
     public static Color Danger { get { return Color.FromArgb(239, 68, 68); } }
-    public static Color Accent { get { return Settings.Accent; } }
+    // Bordure lumineuse de 1 px des cartes et tuiles : blanc à 9 % (sombre), noir à 8 % (clair) ; plus marquée au survol (D-012)
+    public static Color Edge { get { return HighContrast ? SystemColors.WindowText : Settings.Dark ? Color.FromArgb(24, 255, 255, 255) : Color.FromArgb(20, 0, 0, 0); } }
+    public static Color EdgeHot { get { return HighContrast ? SystemColors.Highlight : Settings.Dark ? Color.FromArgb(46, 255, 255, 255) : Color.FromArgb(40, 0, 0, 0); } }
+    public static Color Accent { get { return H(SystemColors.Highlight, Settings.Accent); } }
     public static Color HoverOverlay { get { return Settings.Dark ? Color.FromArgb(26, 255, 255, 255) : Color.FromArgb(16, 0, 0, 0); } }
-    public static Color SelOverlay { get { return Settings.Dark ? Color.FromArgb(44, 255, 255, 255) : Color.FromArgb(28, 0, 0, 0); } }
+    // Contraste élevé : la sélection prend la paire Highlight / HighlightText choisie par l'utilisateur (QA52-07)
+    public static Color SelOverlay { get { return HighContrast ? SystemColors.Highlight : Settings.Dark ? Color.FromArgb(44, 255, 255, 255) : Color.FromArgb(28, 0, 0, 0); } }
+    public static Color SelText(bool selected, Color normal) { return selected && HighContrast ? SystemColors.HighlightText : normal; }
 
     public static Color Mix(Color a, Color b, float t)
     {
@@ -40,7 +53,19 @@ static class Ui
 {
     public static float Scale = 1f;
     public static int S(int v) { return (int)Math.Round(v * Scale); }
-    public const string GlyphFont = "Segoe MDL2 Assets";
+
+    // Rayons communs (D-012) : cartes et tuiles 10 px, contrôles 8 px, avant mise à l'échelle
+    public const int RadiusCard = 10, RadiusControl = 8;
+    // Police des icônes (D-012) : Segoe Fluent Icons (Windows 11) si elle est installée, sinon Segoe MDL2 Assets
+    // (Windows 10). Les deux partagent les mêmes points de code pour les icônes utilisées ici.
+    public static readonly string GlyphFont = PickGlyphFont(new System.Drawing.Text.InstalledFontCollection().Families.Select(f => f.Name));
+
+    internal static string PickGlyphFont(IEnumerable<string> installed)
+    {
+        foreach (string name in installed)
+            if (string.Equals(name, "Segoe Fluent Icons", StringComparison.OrdinalIgnoreCase)) return "Segoe Fluent Icons";
+        return "Segoe MDL2 Assets";
+    }
 
     public static GraphicsPath Round(RectangleF r, float rad)
     {
@@ -61,6 +86,31 @@ static class Ui
         g.SmoothingMode = SmoothingMode.AntiAlias;
         using (GraphicsPath p = Round(r, rad))
         using (SolidBrush b = new SolidBrush(c)) g.FillPath(b, p);
+        g.SmoothingMode = old;
+    }
+
+    // Barre de titre aux couleurs de BureauCache (D-012) : mode sombre et, sous Windows 11, couleur de la légende
+    // égale au fond de la fenêtre. En contraste élevé, Windows garde ses couleurs.
+    public static void ThemeTitleBar(IntPtr hwnd)
+    {
+        bool contrast = Theme.HighContrast;
+        Native.SetDarkTitleBar(hwnd, Settings.Dark && !contrast);
+        Native.SetCaptionColors(hwnd, Theme.Bg, Theme.Fg, contrast);
+    }
+
+    // Carte : fond arrondi et bordure fine de 1 px, plus marquée au survol ou au focus (D-012)
+    public static void Card(Graphics g, Color fill, RectangleF r, float rad, bool hot)
+    {
+        Fill(g, fill, r, rad);
+        Edge(g, hot ? Theme.EdgeHot : Theme.Edge, r, rad);
+    }
+
+    public static void Edge(Graphics g, Color c, RectangleF r, float rad)
+    {
+        SmoothingMode old = g.SmoothingMode;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        using (GraphicsPath p = Round(new RectangleF(r.X + 0.5f, r.Y + 0.5f, r.Width - 1, r.Height - 1), rad))
+        using (Pen pen = new Pen(c)) g.DrawPath(pen, p);
         g.SmoothingMode = old;
     }
 

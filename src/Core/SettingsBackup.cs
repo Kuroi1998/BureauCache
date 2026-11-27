@@ -182,6 +182,53 @@ static class SettingsBackup
     // rien changer, si le fichier est illisible ou si une étape échoue.
     public static bool RestoreFrom(string path)
     {
+        return RestoreFrom(path, null);
+    }
+
+    // Import d'un fichier venu d'ailleurs : comme une restauration, mais les choix qui touchent à la sécurité ou aux
+    // fichiers restent ceux de ce PC (AUD-01, AUD-02, SEC-04). kept reçoit le nom de ceux que le fichier voulait changer.
+    public static bool ImportFrom(string path, List<string> kept)
+    {
+        return RestoreFrom(path, kept ?? new List<string>());
+    }
+
+    // Réglages sensibles d'un import : dépôt et mises à jour automatiques (un dépôt tiers n'exige pas de signature),
+    // presse-papiers, rangement automatique et journal d'annulation (il désigne des fichiers à déplacer)
+    sealed class LocalChoices
+    {
+        string repo, archiveName; bool autoUpdate, clipboard, archive; int archiveDays; List<string> log; List<ArchiveRule> rules;
+
+        public static LocalChoices Capture()
+        {
+            return new LocalChoices { repo = Settings.UpdateRepo, autoUpdate = Settings.AutoUpdate, clipboard = Settings.ClipboardOn,
+                                      archive = Settings.ArchiveOn, log = Settings.ArchiveLog.ToList(), rules = Settings.ArchiveRules.ToList(),
+                                      archiveName = Settings.ArchiveName, archiveDays = Settings.ArchiveDays };
+        }
+
+        static string Sig(List<ArchiveRule> r) { return string.Join("|", r.Select(x => x.Serialize()).ToArray()); }
+
+        public void Reapply(List<string> kept)
+        {
+            if (!string.Equals((Settings.UpdateRepo ?? "").Trim(), (repo ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
+                kept.Add(L.T("le dépôt des mises à jour", "the update repository", "el repositorio de actualizaciones"));
+            if (Settings.AutoUpdate != autoUpdate) kept.Add(L.T("la vérification automatique des mises à jour", "automatic update checks", "la comprobación automática de actualizaciones"));
+            if (Settings.ClipboardOn != clipboard) kept.Add(L.T("l'historique du presse-papiers", "the clipboard history", "el historial del portapapeles"));
+            if (Settings.ArchiveOn != archive) kept.Add(L.T("le rangement automatique", "automatic tidy-up", "la organización automática"));
+            if (Settings.ArchiveLog.Count > 0) kept.Add(L.T("le journal d'annulation du rangement", "the tidy-up undo log", "el registro para deshacer la organización"));
+            // Rangement automatique actif sur ce PC : ses règles, son dossier et son ancienneté restent les siens, sinon
+            // l'import changerait quels fichiers partent et où (QA52-01). Rangement inactif : les règles importées
+            // ne s'exécutent qu'avec « Ranger maintenant », qui liste les fichiers et demande confirmation.
+            bool keepPolicy = archive;
+            if (keepPolicy && (Sig(Settings.ArchiveRules) != Sig(rules) || Settings.ArchiveName != archiveName || Settings.ArchiveDays != archiveDays))
+                kept.Add(L.T("les règles et le dossier du rangement automatique", "the automatic tidy-up rules and folder", "las reglas y la carpeta de la organización automática"));
+            Settings.UpdateRepo = repo; Settings.AutoUpdate = autoUpdate; Settings.ClipboardOn = clipboard;
+            Settings.ArchiveOn = archive; Settings.ArchiveLog = log;
+            if (keepPolicy) { Settings.ArchiveRules = rules; Settings.ArchiveName = archiveName; Settings.ArchiveDays = archiveDays; }
+        }
+    }
+
+    static bool RestoreFrom(string path, List<string> kept)
+    {
         lock (gate)
         {
             if (!IsValid(path)) return false;
@@ -198,7 +245,10 @@ static class SettingsBackup
                 File.WriteAllLines(undo, Settings.Serialize(), new UTF8Encoding(false));
                 if (!IsValid(undo)) return false;
 
-                if (!LoadReplacing(source) || !Settings.Save())
+                LocalChoices local = kept != null ? LocalChoices.Capture() : null;
+                bool loaded = LoadReplacing(source);
+                if (loaded && local != null) local.Reapply(kept);
+                if (!loaded || !Settings.Save())
                 {
                     LoadReplacing(undo);               // le disque n'a pas changé : la mémoire seulement
                     return false;

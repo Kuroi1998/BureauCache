@@ -74,10 +74,13 @@ class GlyphTileControl : FlatControl
     }
 }
 
-class FlatButton : FlatControl
+partial class FlatButton : FlatControl
 {
-    public bool Primary, Danger;
+    public bool Primary, Danger, Ghost;   // Ghost : bouton discret, teinté de rouge au survol (Quitter)
     bool hover;
+
+    protected override AccessibleRole FlatRole { get { return AccessibleRole.PushButton; } }
+    protected override string FlatDefaultAction { get { return L.T("Appuyer", "Press", "Pulsar"); } }
 
     public FlatButton(string text, bool primary, int width = 0)
     {
@@ -112,23 +115,56 @@ class FlatButton : FlatControl
     {
         Graphics g = Prep(e);
         RectangleF r = new RectangleF(0, 0, Width - 1, Height - 1);
-        Color fill = Primary ? Theme.Accent : Danger ? Theme.Danger : Theme.Surface;
-        Color bg = Primary || Danger ? (hover ? Theme.Mix(fill, Color.Black, 0.12f) : fill) : (hover ? Theme.Hover : Theme.Surface);
-        if (!Enabled) bg = Theme.Surface;
-        Color text = !Enabled ? Theme.FgDim : Primary || Danger ? Color.White : Theme.Fg;
-        if (SettingsKeyboard && Enabled && (Primary || Danger)) text = SettingsPalette.OnFill(bg);
+        Color bg, text, edge;
+        Style(out bg, out text, out edge);
         if (SettingsHighContrast)
         {
             bg = Primary && Enabled ? SystemColors.Highlight : SystemColors.Control;
             text = !Enabled ? SystemColors.GrayText : Primary ? SystemColors.HighlightText : SystemColors.ControlText;
+            edge = text;
         }
-        Ui.Fill(g, bg, r, Ui.S(8));
-        if (SettingsHighContrast)
-            using (var path = Ui.Round(r, Ui.S(8)))
-            using (Pen pen = new Pen(text)) g.DrawPath(pen, path);
+        if (bg.A > 0) Ui.Fill(g, bg, r, Ui.S(Ui.RadiusControl));
+        if (edge.A > 0) Ui.Edge(g, edge, new RectangleF(0, 0, Width, Height), Ui.S(Ui.RadiusControl));
         TextRenderer.DrawText(g, Text, Font, ClientRectangle, text,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
         DrawSettingsFocus(g);
+    }
+}
+
+partial class FlatButton
+{
+    // Texte rouge lisible sur un fond rouge translucide, dans chaque thème
+    static Color DangerText { get { return Settings.Dark ? Color.FromArgb(252, 165, 165) : Color.FromArgb(185, 28, 28); } }
+
+    // Styles de la refonte (D-012) : principal (accent plein), danger sobre (rouge translucide, bordure rouge fine),
+    // discret (transparent, rouge au survol) et secondaire (gris translucide, bordure fine lumineuse)
+    internal void Style(out Color bg, out Color text, out Color edge)
+    {
+        if (!Enabled) { bg = Theme.Surface; text = Theme.FgDim; edge = Theme.Edge; return; }
+        if (Primary)
+        {
+            bg = hover ? Theme.Mix(Theme.Accent, Color.Black, 0.12f) : Theme.Accent;
+            text = SettingsPalette.OnFill(bg);   // accent clair : texte sombre (GEM-10)
+            edge = Color.Empty;
+        }
+        else if (Danger)
+        {
+            bg = Color.FromArgb(hover ? 72 : 40, Theme.Danger);
+            text = DangerText;
+            edge = Color.FromArgb(hover ? 160 : 96, Theme.Danger);
+        }
+        else if (Ghost)
+        {
+            bg = hover ? Color.FromArgb(36, Theme.Danger) : Color.Empty;
+            text = hover ? DangerText : Theme.FgDim;
+            edge = Color.Empty;
+        }
+        else
+        {
+            bg = hover ? Theme.Hover : Theme.Surface;
+            text = Theme.Fg;
+            edge = hover ? Theme.EdgeHot : Theme.Edge;
+        }
     }
 }
 
@@ -183,9 +219,10 @@ class Card : Panel
         bool contrast = SystemInformation.HighContrast;
         Color line = contrast ? SystemColors.WindowText : Theme.Line;
         g.Clear(contrast ? SystemColors.Window : Theme.Bg);
-        Ui.Fill(g, contrast ? SystemColors.Window : Theme.Card, new RectangleF(0, 0, Width - 1, Height - 1), Ui.S(10));
-        using (var outline = Ui.Round(new RectangleF(0, 0, Width - 1, Height - 1), Ui.S(10)))
-        using (Pen stroke = new Pen(line)) g.DrawPath(stroke, outline);
+        // Carte des Paramètres : même rayon et même bordure fine que les cartes du panneau (D-012)
+        RectangleF box = new RectangleF(0, 0, Width, Height);
+        Ui.Fill(g, contrast ? SystemColors.Window : Theme.Card, box, Ui.S(Ui.RadiusCard));
+        Ui.Edge(g, contrast ? SystemColors.WindowText : Theme.Edge, box, Ui.S(Ui.RadiusCard));
         using (Pen p = new Pen(line))
             foreach (int y in Separators) g.DrawLine(p, Ui.S(16), y, Width - Ui.S(16), y);
     }

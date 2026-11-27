@@ -70,7 +70,7 @@ partial class PanelForm : Form
         AutoScaleMode = AutoScaleMode.None;
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
 
-        search = new TextBox { BorderStyle = BorderStyle.None, Font = Ui.Font("Segoe UI", 10.5f) };
+        search = new TextBox { BorderStyle = BorderStyle.None, Font = Ui.Font("Segoe UI", 10.5f), MaxLength = 256 };   // SEC-03
         search.TextChanged += (s, e) =>
         {
             bool chips = ChipsVisible;
@@ -78,6 +78,8 @@ partial class PanelForm : Form
             Rebuild(false); if (search.Text.Trim().Length > 0) View.SelectFirst(); Invalidate(rcSearch);
         };
         search.KeyDown += SearchKeyDown;
+        search.GotFocus += (s, e) => Invalidate(rcSearch);
+        search.LostFocus += (s, e) => Invalidate(rcSearch);
         search.HandleCreated += (s, e) => SetCue();
 
         View = new ItemsView(this);
@@ -231,7 +233,9 @@ partial class PanelForm : Form
         Ui.Glyph(g, Settings.GridView ? Glyphs.List : Glyphs.Grid, 11f, hoverBtn == 0 ? Theme.Accent : Theme.FgDim, rcViewBtn);
         Ui.Glyph(g, Glyphs.Settings, 11f, hoverBtn == 1 ? Theme.Accent : Theme.FgDim, rcGear);
 
-        Ui.Fill(g, Theme.Surface, rcSearch, S(8));
+        // Champ de recherche : bordure fine, qui prend l'accent au focus (D-012)
+        Ui.Fill(g, Theme.Surface, rcSearch, S(Ui.RadiusControl));
+        Ui.Edge(g, search.Focused ? Color.FromArgb(170, Theme.Accent) : Theme.Edge, rcSearch, S(Ui.RadiusControl));
         Ui.Glyph(g, Glyphs.Search, 10f, Theme.FgDim, new Rectangle(rcSearch.X + S(6), rcSearch.Y, S(28), rcSearch.Height));
         DrawChips(g);
 
@@ -252,7 +256,11 @@ partial class PanelForm : Form
     void DrawWidgets(Graphics g)
     {
         Rectangle[] rs = { rcClock, rcDisk, rcBin };
-        for (int i = 0; i < 3; i++) Ui.Fill(g, hoverBtn == i + 2 && i > 0 ? Theme.SelOverlay : Theme.HoverOverlay, rs[i], S(8));
+        for (int i = 0; i < 3; i++)
+        {
+            bool hot = hoverBtn == i + 2 && i > 0;
+            Ui.Card(g, hot ? Theme.SelOverlay : Theme.HoverOverlay, rs[i], S(Ui.RadiusCard), hot);
+        }
         DateTime now = DateTime.Now;
         TextRenderer.DrawText(g, now.ToString("HH:mm", L.Culture), fClock, new Rectangle(rcClock.X, rcClock.Y + S(3), rcClock.Width, S(24)), Theme.Fg,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
@@ -260,9 +268,10 @@ partial class PanelForm : Form
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
 
         Ui.Glyph(g, Glyphs.Drive, 9f, Theme.FgDim, new Rectangle(rcDisk.X + S(6), rcDisk.Y + S(4), S(18), S(20)));
-        TextRenderer.DrawText(g, diskTotal > 0 ? L.Size(diskFree) : "—", fSmall, new Rectangle(rcDisk.X + S(24), rcDisk.Y + S(4), rcDisk.Width - S(28), S(20)), Theme.Fg,
+        // « 130 Go libres » sur une seule ligne, au-dessus d'une barre fine aux bouts arrondis (D-012)
+        TextRenderer.DrawText(g, diskTotal > 0 ? L.Size(diskFree) + " " + L.T("libres", "free", "libres") : "—", fSmall, new Rectangle(rcDisk.X + S(24), rcDisk.Y + S(4), rcDisk.Width - S(28), S(20)), Theme.Fg,
             TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
-        Rectangle bar = new Rectangle(rcDisk.X + S(8), rcDisk.Y + S(28), rcDisk.Width - S(16), S(5));
+        Rectangle bar = new Rectangle(rcDisk.X + S(10), rcDisk.Y + S(32), rcDisk.Width - S(20), S(4));
         Ui.Fill(g, Theme.Track, bar, S(2));
         if (diskTotal > 0)
         {
@@ -270,8 +279,6 @@ partial class PanelForm : Form
             Color c = used > 0.9f ? Theme.Danger : Theme.Accent;
             Ui.Fill(g, c, new RectangleF(bar.X, bar.Y, Math.Max(S(4), bar.Width * used), bar.Height), S(2));
         }
-        TextRenderer.DrawText(g, L.T("libres", "free", "libre"), fSmall, new Rectangle(rcDisk.X, rcDisk.Y + S(32), rcDisk.Width, S(14)), Theme.FgDim,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPrefix);
 
         Ui.Glyph(g, Glyphs.Delete, 9f, Theme.FgDim, new Rectangle(rcBin.X + S(6), rcBin.Y + S(4), S(18), S(20)));
         string bt = binCount == 0 ? L.T("vide", "empty", "vacía") : binCount.ToString();

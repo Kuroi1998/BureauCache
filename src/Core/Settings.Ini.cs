@@ -91,7 +91,8 @@ static partial class Settings
                     case "ArchiveName": if (FileOps.IsValidName(v)) ArchiveName = v; break;
                     case "UpdateRepo": UpdateRepo = v; break;
                     case "WeatherOn": WeatherOn = b; break;
-                    case "WeatherPlace": WeatherPlace = v.Length > 200 ? v.Substring(0, 200) : v; break;
+                    case "WeatherPlace": WeatherPlace = v.Length > 200 ? v.Substring(0, 200) : v; WeatherShort = ""; break;   // la forme courte suit, si le fichier l'a
+                    case "WeatherShort": WeatherShort = v.Length > 200 ? v.Substring(0, 200) : v; break;
                     case "WeatherLat": WeatherLat = Coord(v, 90); break;
                     case "WeatherLon": WeatherLon = Coord(v, 180); break;
                     case "Accent": Accent = ParseColor(v, Accent); break;
@@ -269,7 +270,7 @@ static partial class Settings
                 "WebEngine=" + WebEngine, "NewDays=" + NewDays, "ArchiveDays=" + ArchiveDays,
                 "LastUpdateCheck=" + LastUpdateCheck, "LastArchive=" + LastArchive, "RecentsSince=" + RecentsSince,
                 "ArchiveName=" + ArchiveName, "UpdateRepo=" + UpdateRepo,
-                "WeatherOn=" + B(WeatherOn), "WeatherPlace=" + WeatherPlace,
+                "WeatherOn=" + B(WeatherOn), "WeatherPlace=" + WeatherPlace, "WeatherShort=" + WeatherShort,
                 "WeatherLat=" + (double.IsNaN(WeatherLat) ? "" : WeatherLat.ToString("R", CultureInfo.InvariantCulture)),
                 "WeatherLon=" + (double.IsNaN(WeatherLon) ? "" : WeatherLon.ToString("R", CultureInfo.InvariantCulture)),
                 "Accent=" + Hex(Accent),

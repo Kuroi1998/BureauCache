@@ -128,14 +128,16 @@ partial class SettingsForm
                 return;
             }
             // Pas de confirmation : l'import est réversible par « Restaurer une sauvegarde… » (Gemini A1, A6)
-            if (!SettingsBackup.RestoreFrom(d.FileName))
+            List<string> kept = new List<string>();
+            if (!SettingsBackup.ImportFrom(d.FileName, kept))
             {
                 Dialogs.Warn(this, T("Les réglages n'ont pas pu être importés.", "The settings couldn't be imported.", "No se pudo importar la configuración."));
                 return;
             }
             L.Refresh();
             Settings.Notify();
-            if (!IsDisposed) Done(lImport, T("Réglages importés. Les précédents sont dans « Restaurer une sauvegarde… ».", "Settings imported. The previous ones are in \"Restore a backup…\".", "Configuración importada. La anterior está en «Restaurar una copia de seguridad…»."));
+            if (!IsDisposed) Done(lImport, T("Réglages importés. Les précédents sont dans « Restaurer une sauvegarde… ».", "Settings imported. The previous ones are in \"Restore a backup…\".", "Configuración importada. La anterior está en «Restaurar una copia de seguridad…».") +
+                (kept.Count == 0 ? "" : " " + T("Gardés tels qu'ils étaient sur ce PC : ", "Kept as they were on this PC: ", "Se conservan como estaban en este equipo: ") + string.Join(", ", kept.ToArray()) + "."));
         }
     }
 

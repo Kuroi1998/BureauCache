@@ -35,6 +35,12 @@ class WeatherPlace
     public string Name, Admin1, Country;
     public double Lat, Lon;
 
+    // « Ville, Pays » pour le panneau, construit à partir des champs : une virgule dans le nom ne gêne pas (QA52-05)
+    public string Short
+    {
+        get { return string.IsNullOrEmpty(Country) ? (Name ?? "") : (Name ?? "") + ", " + Country; }
+    }
+
     // « Baudour, Wallonie, Belgique » ; la région est omise si elle répète le nom
     public string Label
     {
@@ -132,7 +138,7 @@ static class Weather
     {
         if (!ValidCoord(lat, 90)) throw new ArgumentOutOfRangeException("lat");
         if (!ValidCoord(lon, 180)) throw new ArgumentOutOfRangeException("lon");
-        return "https://api.open-meteo.com/v1/forecast?latitude=" + lat.ToString("0.####", Inv) + "&longitude=" + lon.ToString("0.####", Inv) +
+        return "https://api.open-meteo.com/v1/forecast?latitude=" + lat.ToString("0.##", Inv) + "&longitude=" + lon.ToString("0.##", Inv) +
             "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day" +
             "&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=3" +
             (fahrenheit ? "&temperature_unit=fahrenheit&wind_speed_unit=mph" : "");
@@ -177,8 +183,9 @@ static class Weather
         WeatherPlace p = null;
         try
         {
-            string url = "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=" + lat.ToString("0.###", Inv) +
-                "&longitude=" + lon.ToString("0.###", Inv) + "&localityLanguage=" + Lang;
+            // Environ 1 km : assez pour une ville et une prévision, sans révéler l'adresse (AUD-03)
+            string url = "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=" + lat.ToString("0.##", Inv) +
+                "&longitude=" + lon.ToString("0.##", Inv) + "&localityLanguage=" + Lang;
             p = ParseReverse(Http.FetchText(url, Hosts, MaxResponse), lat, lon);
         }
         catch { }
@@ -187,6 +194,17 @@ static class Weather
 
     // ---------- Lecture des réponses JSON (analyseur strict Json, revue QA-23) ----------
     // Texte destiné à l'affichage : caractères de contrôle (\t, \n, \b, \f…) remplacés par des espaces
+    // Lieu enregistré par une version précédente, sans forme courte : premier et dernier morceaux du libellé
+    // (« Saint-Ghislain, wallonne, Région, Belgique » → « Saint-Ghislain, Belgique »). Les lieux choisis depuis la
+    // 3.10.1 ont leur forme courte enregistrée (WeatherShort), construite à partir des champs (QA52-05).
+    public static string ShortPlace(string label)
+    {
+        if (string.IsNullOrEmpty(label)) return label ?? "";
+        string[] parts = label.Split(',');
+        if (parts.Length <= 2) return label.Trim();
+        return parts[0].Trim() + ", " + parts[parts.Length - 1].Trim();
+    }
+
     internal static string Display(string s)
     {
         if (s == null) return null;

@@ -133,7 +133,7 @@ partial class ItemsView : Control
                 y += HeaderH;
                 if (!g.IsSearch && Settings.Collapsed.Contains(g.Key)) { y += S(2); continue; }
             }
-            if (Grid)
+            if (Grid && !g.AsList)
             {
                 int avail = w - S(8);
                 int cols = Math.Max(1, avail / MinCellW);
@@ -233,6 +233,95 @@ partial class ItemsView : Control
     // ---------- Dessin ----------
     protected override void OnPaintBackground(PaintEventArgs e) { owner.PaintBg(e.Graphics, e.ClipRectangle, Location); }
 
+    // Lecteurs d'écran (GEM-07) : la liste annonce l'élément sélectionné (nom et détail) à chaque changement
+    string announced;
+
+    protected override AccessibleObject CreateAccessibilityInstance() { return new ListAccessible(this); }
+
+    protected override void OnInvalidated(InvalidateEventArgs e)
+    {
+        base.OnInvalidated(e);
+        if (!IsHandleCreated) return;
+        // Identité et libellé, pas l'indice : une recherche peut remplacer l'élément 0 par un autre (QA52-08)
+        DesktopItem it = Selected;
+        string id = it == null ? "" : it.Key + "|" + SelectionText;
+        if (id == announced) return;
+        announced = id;
+        int child = AccessibleIndex(sel);
+        AccessibilityNotifyClients(AccessibleEvents.Focus, child);
+        AccessibilityNotifyClients(AccessibleEvents.Selection, child);
+        AccessibilityNotifyClients(AccessibleEvents.ValueChange, -1);
+    }
+
+    // Lignes d'éléments (sans les en-têtes de groupe), dans l'ordre affiché
+    List<int> AccessibleRows()
+    {
+        List<int> res = new List<int>();
+        for (int i = 0; i < rows.Count; i++) if (!rows[i].IsHeader) res.Add(i);
+        return res;
+    }
+
+    int AccessibleIndex(int row) { return row < 0 ? -1 : AccessibleRows().IndexOf(row); }
+
+    sealed class ItemAccessible : AccessibleObject
+    {
+        readonly ListAccessible list;
+        readonly ItemsView v;
+        readonly int row;
+        public ItemAccessible(ListAccessible list, ItemsView v, int row) { this.list = list; this.v = v; this.row = row; }
+        DesktopItem Item { get { return row < v.rows.Count ? v.rows[row].Item : null; } }
+        public override AccessibleObject Parent { get { return list; } }
+        public override AccessibleRole Role { get { return AccessibleRole.ListItem; } }
+        public override string Name { get { DesktopItem it = Item; return it == null ? "" : it.Name; } set { } }
+        public override string Description { get { DesktopItem it = Item; return it == null ? null : it.Detail; } }
+        public override AccessibleStates State
+        {
+            get
+            {
+                AccessibleStates s = AccessibleStates.Selectable | AccessibleStates.Focusable;
+                if (row == v.sel) s |= AccessibleStates.Selected | AccessibleStates.Focused;
+                return s;
+            }
+        }
+        public override Rectangle Bounds
+        {
+            get
+            {
+                if (row >= v.rows.Count || !v.IsHandleCreated) return Rectangle.Empty;
+                Rectangle r = v.rows[row].R;
+                r.Offset(0, -(int)v.scroll);
+                return v.RectangleToScreen(r);
+            }
+        }
+    }
+
+    internal string SelectionText
+    {
+        get
+        {
+            DesktopItem it = Selected;
+            if (it == null) return null;
+            return string.IsNullOrEmpty(it.Detail) ? it.Name : it.Name + ", " + it.Detail;
+        }
+    }
+
+    sealed class ListAccessible : ControlAccessibleObject
+    {
+        readonly ItemsView v;
+        public ListAccessible(ItemsView owner) : base(owner) { v = owner; }
+        public override AccessibleRole Role { get { return AccessibleRole.List; } }
+        public override string Name { get { return L.T("Éléments du bureau", "Desktop items", "Elementos del escritorio"); } set { } }
+        public override string Value { get { return v.SelectionText ?? (string.IsNullOrEmpty(v.EmptyText) ? "" : v.EmptyText); } set { } }
+        public override int GetChildCount() { return v.AccessibleRows().Count; }
+        public override AccessibleObject GetChild(int index)
+        {
+            List<int> r = v.AccessibleRows();
+            return index >= 0 && index < r.Count ? new ItemAccessible(this, v, r[index]) : null;
+        }
+        public override AccessibleObject GetSelected() { return v.sel >= 0 && v.sel < v.rows.Count && !v.rows[v.sel].IsHeader ? new ItemAccessible(this, v, v.sel) : null; }
+        public override AccessibleObject GetFocused() { return GetSelected(); }
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         Graphics g = e.Graphics;
@@ -245,11 +334,12 @@ partial class ItemsView : Control
             VRow row = rows[i];
             Rectangle r = Screenify(row.R);
             if (row.IsHeader) DrawHeader(g, row, r, i == hover);
-            else if (Grid) DrawCell(g, row.Item, r, i == sel, i == hover, dragging && row == dragRow);
+            else if (Grid && !row.G.AsList) DrawCell(g, row.Item, r, i == sel, i == hover, dragging && row == dragRow);
+            else if (row.Item.Kind == ItemKind.Clip) DrawClipItem(g, row.Item, r, i == sel, i == hover);
             else DrawListItem(g, row.Item, r, i == sel, i == hover, dragging && row == dragRow);
             if (ShowNumbers && !row.IsHeader && row.G.Key == "fav" && row.IndexInGroup < 9)
             {
-                Point ip = Grid ? new Point(r.X + (r.Width - S(48)) / 2, r.Y + S(10)) : new Point(r.X + S(12), r.Y + (r.Height - S(32)) / 2);
+                Point ip = Grid && !row.G.AsList ? new Point(r.X + (r.Width - S(48)) / 2, r.Y + S(10)) : new Point(r.X + S(12), r.Y + (r.Height - S(32)) / 2);
                 Rectangle badge = new Rectangle(ip.X - S(6), ip.Y - S(6), S(20), S(20));
                 Ui.Fill(g, Theme.Accent, badge, S(10));
                 using (Pen p = new Pen(Theme.Bg, S(2))) g.DrawEllipse(p, badge);
@@ -375,8 +465,8 @@ partial class ItemsView : Control
     void DrawListItem(Graphics g, DesktopItem it, Rectangle r, bool selected, bool hot, bool ghost)
     {
         Rectangle bg = new Rectangle(r.X, r.Y + S(1), r.Width, r.Height - S(2));
-        if (selected) Ui.Fill(g, Theme.SelOverlay, bg, S(8));
-        else if (hot && !dragging) Ui.Fill(g, Theme.HoverOverlay, bg, S(8));
+        if (selected) Ui.Card(g, Theme.SelOverlay, bg, S(Ui.RadiusControl), true);
+        else if (hot && !dragging) Ui.Card(g, Theme.HoverOverlay, bg, S(Ui.RadiusControl), false);
         if (selected) Ui.Fill(g, Theme.Accent, new RectangleF(bg.X, bg.Y + S(11), S(3), bg.Height - S(22)), S(2));
         int isz = S(32);
         int ix = r.X + S(12), iy = r.Y + (r.Height - isz) / 2;
@@ -392,13 +482,13 @@ partial class ItemsView : Control
             TextRenderer.DrawText(g, nb, fBadge, pill, Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
             right = pill.Left - S(6);
         }
-        Color fg = ghost ? Theme.FgDim : Theme.Fg;
+        Color fg = Theme.SelText(selected, ghost ? Theme.FgDim : Theme.Fg);
         bool detail = ForceList && !string.IsNullOrEmpty(it.Detail);
         if (detail)
         {
             TextRenderer.DrawText(g, it.Name, fItem, new Rectangle(tx, r.Y + S(3), right - tx, r.Height / 2), fg,
                 TextFormatFlags.Bottom | TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-            TextRenderer.DrawText(g, it.Detail, fDetail, new Rectangle(tx, r.Y + r.Height / 2 + S(1), right - tx, r.Height / 2 - S(4)), Theme.FgDim,
+            TextRenderer.DrawText(g, it.Detail, fDetail, new Rectangle(tx, r.Y + r.Height / 2 + S(1), right - tx, r.Height / 2 - S(4)), Theme.SelText(selected, Theme.FgDim),
                 TextFormatFlags.Top | TextFormatFlags.Left | TextFormatFlags.PathEllipsis | TextFormatFlags.NoPrefix);
         }
         else
@@ -409,8 +499,9 @@ partial class ItemsView : Control
     void DrawCell(Graphics g, DesktopItem it, Rectangle r, bool selected, bool hot, bool ghost)
     {
         Rectangle bg = new Rectangle(r.X + S(3), r.Y + S(3), r.Width - S(6), r.Height - S(6));
-        if (selected) Ui.Fill(g, Theme.SelOverlay, bg, S(10));
-        else if (hot && !dragging) Ui.Fill(g, Theme.HoverOverlay, bg, S(10));
+        // Survol et sélection : fond éclairci et bordure fine lumineuse (D-012)
+        if (selected) Ui.Card(g, Theme.SelOverlay, bg, S(Ui.RadiusCard), true);
+        else if (hot && !dragging) Ui.Card(g, Theme.HoverOverlay, bg, S(Ui.RadiusCard), false);
         int isz = S(48);
         Rectangle ir = new Rectangle(r.X + (r.Width - isz) / 2, r.Y + S(10), isz, isz);
         DrawIconOrPlaceholder(g, it.Icon, ir, ghost);
@@ -422,8 +513,6 @@ partial class ItemsView : Control
             using (Pen p = new Pen(Theme.Bg, S(2))) g.DrawEllipse(p, dot);
         }
         Rectangle tr = new Rectangle(r.X + S(6), ir.Bottom + S(4), r.Width - S(12), r.Bottom - ir.Bottom - S(8));
-        TextRenderer.DrawText(g, it.Name, fGrid, tr, ghost ? Theme.FgDim : Theme.Fg,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis |
-            TextFormatFlags.TextBoxControl | TextFormatFlags.NoPrefix);
+        DrawTileName(g, it.Name, tr, Theme.SelText(selected, ghost ? Theme.FgDim : Theme.Fg));
     }
 }

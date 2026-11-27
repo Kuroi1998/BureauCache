@@ -72,7 +72,7 @@ class ThemedDialog : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        Native.SetDarkTitleBar(Handle, Settings.Dark);
+        Ui.ThemeTitleBar(Handle);
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)

@@ -37,8 +37,8 @@ class WelcomeForm : Form
           "Your desktop icons live in a panel that slides in when your mouse touches the edge of the screen. Pick the edge you prefer:", "Los iconos del escritorio están en un panel que se abre al tocar el borde con el ratón. Elige el borde que prefieras:"),
         T("Ouvre le panneau depuis n'importe où, même sans la souris. Clique dans le champ pour choisir une autre combinaison.",
           "Open the panel from anywhere, even without the mouse. Click the box to pick another combination.", "Abre el panel desde cualquier lugar, incluso sin ratón. Haz clic en el campo para elegir otra combinación."),
-        T("Tape simplement ce que tu cherches : bureau, applications, fichiers récents, paramètres Windows…",
-          "Just type what you're looking for: desktop, apps, recent files, Windows settings…", "Escribe lo que buscas: escritorio, aplicaciones, archivos recientes, configuración de Windows…"),
+        T("Tape simplement ce que tu cherches : bureau, applications, fichiers récents, paramètres Windows… F1 affiche l'aide et tous les raccourcis.",
+          "Just type what you're looking for: desktop, apps, recent files, Windows settings… F1 shows help and every shortcut.", "Escribe lo que buscas: escritorio, aplicaciones, archivos recientes, configuración de Windows… F1 muestra la ayuda y todos los atajos."),
         T("Glisse un élément pour le classer ou le mettre en favori. Clic droit pour toutes les options.",
           "Drag an item to sort it or make it a favorite. Right-click for every option.", "Arrastra un elemento para ordenarlo o añadirlo a favoritos. Haz clic derecho para ver las opciones.") }; } }
 
@@ -69,15 +69,19 @@ class WelcomeForm : Form
         Toggle hide = new Toggle { Location = new Point(S(40), cy + S(52)), Checked = Settings.HideIcons };
         hide.Changed += (s, e) => { Settings.HideIcons = hide.Checked; Settings.Notify(); };
         Label hideL = new Label { Text = T("Cacher les icônes du bureau", "Hide desktop icons", "Ocultar los iconos del escritorio"), AutoSize = true, Font = fSmall, Location = new Point(S(94), cy + S(54)) };
+        side.AccessibleName = T("Bord de l'écran", "Screen edge", "Borde de la pantalla");
+        hide.AccessibleName = hideL.Text;
         AddTo(0, side, hide, hideL);
 
         hk = new HotkeyBox { Location = new Point(S(40), cy), Mods = Settings.HotMods, Key = Settings.HotKey };
         hk.Changed += (s, e) => { Settings.HotMods = hk.Mods; Settings.HotKey = hk.Key; Settings.HotkeyOn = true; Settings.Notify(); Invalidate(); };
+        hk.AccessibleName = T("Raccourci clavier", "Keyboard shortcut", "Atajo de teclado");
         AddTo(1, hk);
 
         Toggle start = new Toggle { Location = new Point(S(40), cy + S(66)), Checked = Startup.Enabled };
         start.Changed += (s, e) => { try { Startup.Set(start.Checked, Installer.IsInstalled ? Installer.Exe : null); } catch { } };
         Label startL = new Label { Text = T("Lancer BureauCache au démarrage de Windows", "Start BureauCache with Windows", "Iniciar BureauCache con Windows"), AutoSize = true, Font = fSmall, Location = new Point(S(94), cy + S(68)) };
+        start.AccessibleName = startL.Text;
         AddTo(3, start, startL);
 
         bNext = new FlatButton(T("Suivant", "Next", "Siguiente"), true, S(150)) { Location = new Point(W - S(40) - S(150), H - S(62)) };
@@ -91,7 +95,11 @@ class WelcomeForm : Form
         {
             c.BackColor = Theme.Bg;
             if (c is Label) c.ForeColor = Theme.Fg;
+            // Tabulation, cadre de focus, Espace et Entrée sur chaque contrôle, comme dans les Paramètres (GEM-08)
+            FlatControl flat = c as FlatControl;
+            if (flat != null) flat.EnableSettingsKeyboard();
         }
+        bNext.TabIndex = 0; bPrev.TabIndex = 1; bSkip.TabIndex = 2;
         SetPage(0);
     }
 
@@ -106,6 +114,7 @@ class WelcomeForm : Form
         for (int i = 0; i < 4; i++) foreach (Control c in pageControls[i]) c.Visible = i == page;
         bPrev.Visible = page > 0;
         bNext.Text = page == 3 ? T("C'est parti !", "Let's go!", "¡Empezar!") : T("Suivant", "Next", "Siguiente");
+        if (ActiveControl == null || !ActiveControl.Visible) bNext.Focus();
         Invalidate();
     }
 
@@ -115,13 +124,18 @@ class WelcomeForm : Form
         if (onFinish != null) onFinish();
     }
 
-    protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Native.SetDarkTitleBar(Handle, Settings.Dark); }
+    protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Ui.ThemeTitleBar(Handle); }
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
         if (HotkeyBox.Capturing) { base.OnKeyDown(e); return; }
-        if (e.KeyCode == Keys.Right || e.KeyCode == Keys.Enter) { if (page == 3) Finish(); else SetPage(page + 1); e.Handled = true; }
-        else if (e.KeyCode == Keys.Left) { SetPage(page - 1); e.Handled = true; }
+        // Le contrôle qui a le focus traite d'abord ses touches : Entrée et Espace sur un bouton ou un interrupteur,
+        // les flèches sur un choix segmenté. Sinon Entrée et → avancent, ← recule (GEM-08).
+        Control focus = ActiveControl;
+        bool ownsEnter = focus is FlatControl && !(focus is Segmented);
+        bool ownsArrows = focus is Segmented;
+        if ((e.KeyCode == Keys.Right && !ownsArrows) || (e.KeyCode == Keys.Enter && !ownsEnter)) { if (page == 3) Finish(); else SetPage(page + 1); e.Handled = true; }
+        else if (e.KeyCode == Keys.Left && !ownsArrows) { SetPage(page - 1); e.Handled = true; }
         else if (e.KeyCode == Keys.Escape) Close();
         base.OnKeyDown(e);
     }
