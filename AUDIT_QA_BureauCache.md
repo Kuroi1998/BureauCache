@@ -338,3 +338,15 @@ Suite : 582 réussis, 6 ignorés. Restent à essayer en vrai : changement d'éch
 | CDX-29 · Chaque version d'un fichier modifié gardait son image en mémoire | Basse | L'ancienne version sort du cache et n'est libérée qu'après la publication des nouvelles listes | Test |
 
 Les défauts CDX-20, 23, 25, 28 et 29 sont établis par la lecture du code : leurs tests utilisent des fonctions nouvelles et ne peuvent pas tourner sur l'ancien binaire. Suite : 603 réussis, 6 ignorés. Restent à essayer en vrai : supprimer puis restaurer depuis la Corbeille, annuler un rangement vers OneDrive.
+
+## QA-69 · Relecture et optimisation du code ajouté depuis la 3.10.2 (Claude)
+
+La revue de Codex n'a pas pu tourner (quota ChatGPT épuisé jusqu'à 15 h 34). Relecture par Claude du menu Démarrer, de la visite guidée, des Paramètres rapides (écrits par ChatGPT) et des badges.
+
+| Constat | Correction | Vérification |
+|---|---|---|
+| **Plantage possible** : la description d'un badge, fournie par une autre application en mémoire partagée, était lue jusqu'au premier caractère nul ; un bloc mal formé faisait lire hors de la mémoire, erreur que .NET ne rattrape pas | Lecture bornée à la région projetée (`VirtualQuery`) et à 512 caractères | 2 tests (texte sans caractère nul, texte de 2 000 caractères) |
+| **Performance** : chaque événement de fenêtre (infobulle, menu, contrôle, titre qui change chaque seconde chez un lecteur de musique ou un navigateur) relançait l'énumération de toutes les fenêtres du système | Seuls les événements d'une fenêtre listée ou qui peut l'être relancent l'énumération ; un titre qui change est mis à jour sur place ; actualisation de sûreté toutes les 5 s | 3 tests sur doubles (compteur d'énumérations) |
+| **Performance** : panneau des Paramètres rapides ouvert, le volume était relu 4 fois par seconde (objets COM recréés) et la luminosité plus d'une fois par seconde par WMI | Relecture de veille : 1 s pour le son, 3 s pour la luminosité ; un réglage au curseur part toujours tout de suite | Relu |
+
+**Relu sans défaut** : objets COM, handles Wi-Fi et mémoire des Paramètres rapides libérés dans des `finally` ; appels WinRT et WMI en arrière-plan ; profil Wi-Fi construit par un générateur XML (échappement) et mot de passe contrôlé ; fermeture du panneau pendant une recherche Wi-Fi ou Bluetooth correctement annulée ; restauration de `TaskbandHWND` après redémarrage d'Explorer. **Reste à faire avant publication** : retirer le journal temporaire des badges (`LogTaskbarMessage`). Suite : 633 réussis, 6 ignorés.

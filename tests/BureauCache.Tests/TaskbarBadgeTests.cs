@@ -85,6 +85,38 @@ public class TaskbarBadgeTests
         }
     }
 
+    // QA-69 : une description sans caractère nul ne fait jamais lire hors de la mémoire
+    [TestMethod]
+    public void BadgeDescriptionReadingIsBounded()
+    {
+        IntPtr buffer = Marshal.AllocHGlobal(64);
+        try
+        {
+            for (int i = 0; i < 32; i++) Marshal.WriteInt16(buffer, i * 2, 'A');   // 32 caractères, aucun nul
+            Assert.AreEqual(new string('A', 10), Native.ReadBoundedUnicode(buffer, 10));
+            Assert.AreEqual(new string('A', 32), Native.ReadBoundedUnicode(buffer, 32));
+            Marshal.WriteInt16(buffer, 6, 0);
+            Assert.AreEqual("AAA", Native.ReadBoundedUnicode(buffer, 32), "S'arrête au premier caractère nul.");
+            Assert.IsNull(Native.ReadBoundedUnicode(IntPtr.Zero, 10));
+        }
+        finally { Marshal.FreeHGlobal(buffer); }
+    }
+
+    [TestMethod]
+    public void LongBadgeDescriptionIsTruncated()
+    {
+        string description = new string('x', 2000);
+        byte[] data = Encoding.Unicode.GetBytes(description + "\0");
+        using (var process = System.Diagnostics.Process.GetCurrentProcess())
+        {
+            uint pid = (uint)process.Id;
+            IntPtr handle = SHAllocShared(data, (uint)data.Length, pid);
+            Assert.AreNotEqual(IntPtr.Zero, handle);
+            try { Assert.AreEqual(Native.MaxSharedChars, Native.SharedText(handle, pid).Length); }
+            finally { SHFreeShared(handle, pid); }
+        }
+    }
+
     [TestMethod]
     public void HiddenWindowKeepsItsBadgeUntilItCloses()
     {

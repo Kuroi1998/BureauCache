@@ -114,7 +114,10 @@ partial class QuickSettingsForm
             if (!pending && level.Slider.IsDragging) return;
             LevelResult result = level.Work.Result;
             level.Work = null;
-            level.NextRead = elapsed.ElapsedMilliseconds + (level.Audio ? 250 : 800);
+            // Relecture de veille (changement fait ailleurs, touches de volume) : 1 s pour le son, 3 s pour la
+            // luminosité, lue par WMI, qui fait travailler un service de Windows à chaque lecture (QA-69). Un réglage
+            // fait au curseur part toujours tout de suite (pending).
+            level.NextRead = elapsed.ElapsedMilliseconds + (level.Audio ? 1000 : 3000);
             if (!pending) DisplayLevel(level, result);
         }
         if (pending || elapsed.ElapsedMilliseconds >= level.NextRead)

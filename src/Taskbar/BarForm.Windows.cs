@@ -51,7 +51,7 @@ partial class BarForm
 
     public void RetryWindowTracking()
     {
-        if (windows != null && windows.NeedsRefresh) windows.Refresh();
+        if (windows != null) windows.Tick();
     }
 
     void OnShellHook(IntPtr wParam, IntPtr lParam)

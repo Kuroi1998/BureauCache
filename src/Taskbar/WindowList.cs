@@ -81,7 +81,39 @@ sealed class WindowList : IDisposable
             flashing.Remove(hwnd);
             ClearDiscordAlerts(hwnd);
         }
-        Schedule();
+        if (NeedsFullRefresh(ev, hwnd)) Schedule();
+    }
+
+    // Chaque infobulle, menu ou contrôle qui apparaît, et chaque titre qui change (lecteur de musique, navigateur),
+    // relançait l'énumération de toutes les fenêtres du système. Seuls comptent maintenant les événements d'une
+    // fenêtre déjà listée ou qui pourrait l'être ; un titre qui change sur une fenêtre listée est mis à jour sur
+    // place (QA-69). Une actualisation complète de sûreté a lieu toutes les 5 s (Tick).
+    bool NeedsFullRefresh(uint ev, IntPtr hwnd)
+    {
+        bool known = tracked.ContainsKey(hwnd);
+        if (ev == Native.EVENT_SYSTEM_FOREGROUND) return true;
+        if (ev == Native.EVENT_OBJECT_DESTROY || ev == Native.EVENT_OBJECT_HIDE || ev == Native.EVENT_OBJECT_CLOAKED) return known;
+        if (ev == Native.EVENT_OBJECT_NAMECHANGE && known)
+        {
+            TaskWindow w = tracked[hwnd];
+            string title = Native.WindowTitle(hwnd);
+            if (title == w.Title) return false;
+            w.Title = title;
+            if (Items.Contains(w) && Changed != null) Changed();
+            return false;
+        }
+        // Création, affichage, retour d'un autre bureau, titre d'une fenêtre encore inconnue : seulement si elle
+        // a sa place dans la barre (quelques appels pour une fenêtre au lieu de toutes les fenêtres)
+        return known || IsTaskWindow(hwnd);
+    }
+
+    int ticks;
+
+    // Appelé chaque seconde par la barre : nouvel essai si un crochet ou l'énumération a échoué, et actualisation
+    // complète toutes les 5 s, pour un changement qu'aucun événement n'aurait signalé (style d'une fenêtre)
+    public void Tick()
+    {
+        if (NeedsRefresh || ++ticks % 5 == 0) Refresh();
     }
 
     void Schedule() { if (!debounce.Enabled) debounce.Start(); }
