@@ -13,14 +13,14 @@ class SettingsActions
 partial class SettingsForm : Form
 {
     readonly SettingsActions act;
-    readonly Font fPage = Ui.Font("Segoe UI Semibold", 17f);
+    readonly Font fPage = Ui.Font("Segoe UI Semibold", 23f);
     readonly Font fSection = Ui.Font("Segoe UI Semibold", 8.75f);
     readonly Font fRow = Ui.Font("Segoe UI Semibold", 10f);
     readonly Font fDesc = Ui.Font("Segoe UI", 9f);
     readonly HashSet<Label> dim = new HashSet<Label>();
     readonly List<Panel> pages = new List<Panel>();
     readonly List<SettingsPage> pageLayouts = new List<SettingsPage>();
-    readonly Dictionary<Card, List<SettingsRow>> cardRows = new Dictionary<Card, List<SettingsRow>>();
+    readonly Dictionary<Card, SettingsSection> cardSections = new Dictionary<Card, SettingsSection>();
     readonly SettingsNavigation nav;
     readonly Label pageTitle, pageSummary;
     readonly Panel header;
@@ -56,6 +56,8 @@ partial class SettingsForm : Form
     public SettingsForm(SettingsActions act)
     {
         this.act = act;
+        sliderRefresh.Tick += (s, e) => PublishSliderChange();
+        desktopAnalysisTimer.Tick += (s, e) => StartDesktopAnalysis();
         NavW = S(204);
         Text = "BureauCache – " + T("Paramètres", "Settings", "Configuración");
         FormBorderStyle = FormBorderStyle.Sizable;
@@ -99,7 +101,10 @@ partial class SettingsForm : Form
         BuildTaskbar();   // avant Avancé : la page Organisation garde l'indice 4
         BuildAdvanced();
 
+        BuildSettingsTabs();
+        BuildSettingsSearch();
         LoadValues();
+        UpdateWindowsStatus();
         layoutReady = true;
         ShowPage(0);
         Restyle();
@@ -113,6 +118,8 @@ partial class SettingsForm : Form
         if (disposing)
         {
             Settings.Changed -= OnSettingsChanged;
+            sliderRefresh.Dispose();
+            desktopAnalysisTimer.Dispose();
             DisposePlaceMenu();
             ownedIcon = settingsIcon;
             settingsIcon = null;
@@ -125,9 +132,11 @@ partial class SettingsForm : Form
     void NewPage(string title, string summary)
     {
         page = new BufferedPanel { AutoScroll = true, Visible = false, TabIndex = 1 };
+        Panel body = page;
+        body.HandleCreated += (s, e) => Native.SetDarkScrollbars(body.Handle, Settings.Dark && !SystemInformation.HighContrast);
         pageLayouts.Add(new SettingsPage { Title = title, Summary = summary });
         pages.Add(page);
-        Controls.Add(page);
+        buildingTab = 0;
     }
 
     void Section(string title)
@@ -137,22 +146,28 @@ partial class SettingsForm : Form
         page.Controls.Add(label);
         cur = new Card { TabIndex = page.Controls.Count };
         page.Controls.Add(cur);
-        var section = new SettingsSection { Title = label, Card = cur };
+        SettingsPage model = pageLayouts[pageLayouts.Count - 1];
+        var section = new SettingsSection { Title = label, Card = cur, Tab = buildingTab,
+            Path = buildingTab == 0 ? model.Title : model.Title + " › " + model.Tabs[buildingTab - 1] };
+        section.SearchArea = Search.Norm(section.Path + " " + title);
+        section.Card.Paint += (s, e) => PaintRevealedRow(e.Graphics, section);
         pageLayouts[pageLayouts.Count - 1].Sections.Add(section);
-        cardRows.Add(cur, section.Rows);
+        cardSections.Add(cur, section);
     }
 
-    Label Row(string title, string desc, Control ctl, Label value, Control lead = null, Control secondary = null)
+    Label Row(string title, string desc, Control ctl, Label value, Control lead = null, Control secondary = null, string keywords = null)
     {
         var row = new SettingsRow { Title = new Label { Text = title, Font = fRow, AutoSize = true, UseMnemonic = false },
-            Action = ctl, ActionWidth = ctl == null ? 0 : ctl.Width, Secondary = secondary, Value = value, Lead = lead };
+            Action = ctl, ActionWidth = ctl == null ? 0 : ctl.Width, Secondary = secondary, Value = value, Lead = lead,
+            SearchTitle = Search.Norm(title), Keywords = Search.Norm((desc == "-" ? "" : desc) + " " + keywords) };
         if (desc != null)
         {
             row.Description = Description(desc);
-            Panel ownerPage = (Panel)cur.Parent;
+            SettingsSection owner = cardSections[cur];
             row.Description.TextChanged += (s, e) =>
             {
-                if (!loading && layoutReady && pages[nav.Selected] == ownerPage) ArrangePages();
+                owner.LayoutDirty = true;
+                if (!loading && layoutReady && owner.Card.Visible && !Searching) ArrangePages();
             };
         }
         if (ctl != null)
@@ -163,6 +178,8 @@ partial class SettingsForm : Form
         }
         if (secondary != null) secondary.AccessibleName = secondary.Text + " · " + title;
         if (ctl is FlatButton && lead != null) ctl.AccessibleName = ctl.Text + " · " + title;
+        InputBox secondaryInput = secondary as InputBox;
+        if (secondaryInput != null) secondaryInput.Box.AccessibleName = title;
         AddRow(row, row.Title, row.Description, lead, secondary, ctl, value);
         return row.Description;
     }
@@ -190,7 +207,10 @@ partial class SettingsForm : Form
             if (flat != null && control != row.Lead) flat.EnableSettingsKeyboard();
             cur.Controls.Add(control);
         }
-        cardRows[cur].Add(row);
+        SettingsSection section = cardSections[cur];
+        section.Rows.Add(row);
+        section.LayoutDirty = true;
+        if (row.Title != null) searchCatalogDirty = true;
     }
 
     Label ValueLabel()

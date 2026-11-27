@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -74,6 +75,25 @@ namespace BureauCache.Tests
             // Budget complet : c'est la détection du lien qui doit arrêter le parcours, pas le plafond
             Assert.AreEqual(Archiver.Activity.Unknown,
                 Archiver.ActivityOf(root, DateTime.Now.AddDays(1), Archiver.MaxScan));
+        }
+
+        [TestMethod]
+        public void AnnulationConserveLeJournalQuandUnParentEstUneJonction()
+        {
+            string desktop = Directory.CreateDirectory(Path.Combine(root, "bureau")).FullName;
+            string outside = Directory.CreateDirectory(Path.Combine(root, "exterieur", "SousDossier")).FullName;
+            string file = Path.Combine(outside, "document.txt");
+            WriteOldFile(file);
+            CreateJunction(Path.Combine(desktop, "Archives"), Path.GetDirectoryName(outside));
+            string original = Path.Combine(desktop, "document.txt");
+            string archived = Path.Combine(junction, "SousDossier", "document.txt");
+            string entry = original + ">" + archived;
+            var journal = new List<string> { entry };
+
+            Assert.AreEqual(0, Archiver.RestoreArchived(desktop, journal));
+            Assert.IsTrue(File.Exists(file));
+            Assert.IsFalse(File.Exists(original));
+            CollectionAssert.AreEqual(new[] { entry }, journal);
         }
 
         [TestMethod]

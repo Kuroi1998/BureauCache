@@ -31,10 +31,18 @@ static class StartShortcuts
 
     internal static string Format(char kind, string name, string target)
     {
-        string clean = new string((name ?? string.Empty).Where(c => c != '>' && c != '|' && !char.IsControl(c)).ToArray()).Trim();
-        if (clean.Length > 40) clean = clean.Substring(0, 40).Trim();
-        if (clean.Length == 0) clean = NameFor(kind, target);
+        string clean = CleanName(name);
+        if (clean.Length == 0) clean = CleanName(NameFor(kind, target));
+        if (clean.Length == 0) clean = CleanName(target);
         return kind + ">" + clean + ">" + target;
+    }
+
+    static string CleanName(string name)
+    {
+        string clean = new string((name ?? string.Empty).Where(c => c != '>' && c != '|' && !char.IsControl(c)).ToArray()).Trim();
+        if (clean.Length <= 40) return clean;
+        int length = char.IsSurrogatePair(clean, 39) ? 39 : 40;
+        return clean.Substring(0, length).TrimEnd();
     }
 
     internal static bool Valid(char kind, string target)

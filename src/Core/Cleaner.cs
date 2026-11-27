@@ -94,18 +94,19 @@ static class Cleaner
 
     static string Dir(string path) { return Path.GetFullPath(path).TrimEnd('\\') + "\\"; }
 
-    // Vrai si un dossier entre la racine autorisée et path (path compris) est une jonction, un lien ou un point de
-    // montage : la cible serait en réalité ailleurs (revue QA-23)
+    // Un lien situé au-dessus d'une racine autorisée redirige aussi la cible.
     internal static bool CrossesLink(string path, string[] roots)
     {
         try
         {
             string full = Dir(path);
-            string root = roots.Select(r => Dir(r)).Where(r => full.StartsWith(r, StringComparison.OrdinalIgnoreCase))
-                               .OrderByDescending(r => r.Length).FirstOrDefault();
-            if (root == null) return true;
-            for (DirectoryInfo d = new DirectoryInfo(full); d != null && d.FullName.TrimEnd('\\').Length >= root.TrimEnd('\\').Length; d = d.Parent)
-                if (d.Exists && Linked(d.Attributes)) return true;
+            if (!roots.Any(r => full.StartsWith(Dir(r), StringComparison.OrdinalIgnoreCase))) return true;
+            for (DirectoryInfo d = new DirectoryInfo(full); d != null; d = d.Parent)
+            {
+                try { if (Linked(File.GetAttributes(d.FullName))) return true; }
+                catch (FileNotFoundException) { }
+                catch (DirectoryNotFoundException) { }
+            }
             return false;
         }
         catch { return true; }
@@ -228,7 +229,7 @@ static class Cleaner
     // cible, ni au-dessus d'elle), jamais dans une zone interdite, même sous une cible autorisée (revue QA-23)
     internal static IEnumerable<FileInfo> Files(CleanTarget t, string[] roots, string[] forbidden, DateTime nowUtc)
     {
-        if (!IsAllowed(t.Dir, roots, forbidden) || CrossesLink(t.Dir, roots)) yield break;
+        if (!IsAllowed(t.Dir, roots, forbidden)) yield break;
         DirectoryInfo root = new DirectoryInfo(t.Dir);
         if (!root.Exists) yield break;
         Stack<DirectoryInfo> pending = new Stack<DirectoryInfo>();
@@ -236,6 +237,7 @@ static class Cleaner
         while (pending.Count > 0)
         {
             DirectoryInfo dir = pending.Pop();
+            if (CrossesLink(dir.FullName, roots)) continue;
             FileSystemInfo[] entries;
             try { entries = dir.GetFileSystemInfos(); }
             catch { continue; }
@@ -362,10 +364,10 @@ static class Cleaner
             foreach (CleanTarget t in c.Targets)
             {
                 if (IsRunning(t.Processes, new List<string>())) continue;   // revérifié juste avant chaque cible
-                Dictionary<string, bool> dirOk = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                Sandbox.GuardPath(t.Dir, "dossier de nettoyage");
                 foreach (FileInfo f in Files(t, roots, forbidden, now).ToList())
                 {
-                    long freed = Delete(f, t, roots, forbidden, dirOk);
+                    long freed = Delete(f, t, roots, forbidden);
                     if (freed < 0) { r.Skipped++; continue; }
                     r.Freed += freed;
                     r.Deleted++;
@@ -379,17 +381,14 @@ static class Cleaner
     // Suppression d'un fichier après une dernière vérification : il a pu changer depuis l'inventaire. Une ouverture
     // EXCLUSIVE préalable échoue si un programme l'a encore ouvert, même en partageant la suppression (revue QA-23).
     // Renvoie la taille libérée, ou -1 si le fichier est laissé en place.
-    static long Delete(FileInfo f, CleanTarget t, string[] roots, string[] forbidden, Dictionary<string, bool> dirOk)
+    static long Delete(FileInfo f, CleanTarget t, string[] roots, string[] forbidden)
     {
         Sandbox.GuardPath(f.FullName, "suppression de cache");
         try
         {
+            if (!IsAllowed(f.DirectoryName, roots, forbidden) || CrossesLink(f.DirectoryName, roots)) return -1;
             f.Refresh();
             if (!f.Exists || !Eligible(f, t, DateTime.UtcNow)) return -1;
-            bool ok;
-            if (!dirOk.TryGetValue(f.DirectoryName, out ok))
-                dirOk[f.DirectoryName] = ok = IsAllowed(f.DirectoryName, roots, forbidden) && !CrossesLink(f.DirectoryName, roots);
-            if (!ok) return -1;
             long length = f.Length;
             using (new FileStream(f.FullName, FileMode.Open, FileAccess.Read, FileShare.None)) { }
             f.Delete();
@@ -408,6 +407,7 @@ static class Cleaner
         while (pending.Count > 0)
         {
             DirectoryInfo d = pending.Pop();
+            if (CrossesLink(d.FullName, roots)) continue;
             DirectoryInfo[] subs;
             try { subs = d.GetDirectories(); } catch { continue; }
             foreach (DirectoryInfo s in subs)
@@ -419,7 +419,9 @@ static class Cleaner
         }
         for (int i = all.Count - 1; i >= 0; i--)
         {
-            try { if (!all[i].EnumerateFileSystemInfos().Any()) all[i].Delete(false); } catch { }
+            DirectoryInfo dir = all[i];
+            Sandbox.GuardPath(dir.FullName, "suppression de dossier vide");
+            try { if (!CrossesLink(dir.FullName, roots) && !dir.EnumerateFileSystemInfos().Any()) dir.Delete(false); } catch { }
         }
     }
 }

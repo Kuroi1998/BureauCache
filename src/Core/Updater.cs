@@ -46,7 +46,13 @@ static class Updater
         }
     }
 
-    public static bool RepoValid { get { return Regex.IsMatch(RepoName, @"^[\w.-]+/[\w.-]+$"); } }
+    public static bool RepoValid { get { return ValidRepository(RepoName); } }
+
+    internal static bool ValidRepository(string name)
+    {
+        return name != null && Regex.IsMatch(name, @"\A[A-Za-z0-9_-]+/[A-Za-z0-9_.-]+\z") &&
+            !name.EndsWith("/.", StringComparison.Ordinal) && !name.EndsWith("/..", StringComparison.Ordinal);
+    }
 
     const long MaxDownload = 50L * 1024 * 1024;
     static readonly string[] AllowedHosts = { "api.github.com", "github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com" };
@@ -128,17 +134,23 @@ static class Updater
     // Seules les adresses HTTPS de GitHub sont acceptées pour les téléchargements
     static void RequireTrustedUrl(string url)
     {
+        if (!TrustedUrl(url))
+            throw new IOException(L.T("Adresse de téléchargement refusée.", "Download address refused.", "Dirección de descarga rechazada."));
+    }
+
+    internal static bool TrustedUrl(string url)
+    {
         Uri u;
-        if (!Uri.TryCreate(url, UriKind.Absolute, out u) || u.Scheme != Uri.UriSchemeHttps ||
-            !AllowedHosts.Contains(u.Host.ToLowerInvariant()))
-            throw new Exception(L.T("Adresse de téléchargement refusée : ", "Download address refused: ", "Dirección de descarga rechazada: ") + url);
+        return !string.IsNullOrEmpty(url) && !url.Any(char.IsControl) &&
+            Uri.TryCreate(url, UriKind.Absolute, out u) && u.Scheme == Uri.UriSchemeHttps &&
+            u.IsDefaultPort && u.UserInfo.Length == 0 && AllowedHosts.Contains(u.Host, StringComparer.OrdinalIgnoreCase);
     }
 
     // Vrai si une version plus récente avec un BureauCache.exe est disponible
     public static Release Check()
     {
         var result = new Release { Repository = RepoName };
-        if (!Regex.IsMatch(result.Repository, @"^[\w.-]+/[\w.-]+$"))
+        if (!ValidRepository(result.Repository))
         {
             result.Error = L.T("Dépôt invalide.", "Invalid repository.", "Repositorio no válido.");
             return result;
@@ -146,22 +158,7 @@ static class Updater
         try
         {
             string json = FetchText("https://api.github.com/repos/" + result.Repository + "/releases/latest", 2 * 1024 * 1024);
-            Match t = Regex.Match(json, "\"tag_name\"\\s*:\\s*\"([^\"]+)\"");
-            Match a = Regex.Match(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+/BureauCache\\.exe)\"");
-            Match h = Regex.Match(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+/BureauCache\\.exe\\.sha256)\"");
-            Match s = Regex.Match(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+/BureauCache\\.exe\\.sig)\"");
-            Match b = Regex.Match(json, "\"body\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
-            if (!t.Success) throw new IOException(L.T("Aucune version publiée.", "No release published.", "No hay ninguna versión publicada."));
-            result.Version = t.Groups[1].Value.TrimStart('v', 'V');
-            result.Url = a.Success ? a.Groups[1].Value : null;
-            result.ShaUrl = h.Success ? h.Groups[1].Value : null;
-            result.SigUrl = s.Success ? s.Groups[1].Value : null;
-            result.Notes = b.Success ? Unescape(b.Groups[1].Value) : null;
-            bool signed = result.SigUrl != null || !IsOfficial(result.Repository);
-            bool newer = IsNewer(result.Version, Installer.Version);
-            result.Available = newer && result.Url != null && result.ShaUrl != null && signed;
-            // Version plus récente publiée sans ses fichiers d'installation : ne pas annoncer « à jour » (R-06)
-            result.Incomplete = newer && !result.Available;
+            result = ParseRelease(json, result.Repository);
         }
         catch (Exception ex) { result.Error = Http.FriendlyError(ex); }
         return result;
@@ -186,25 +183,40 @@ static class Updater
         return true;
     }
 
-    static string Unescape(string s)
+    internal static bool AutomaticCheckDue(long lastCheck, DateTime now)
     {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < s.Length; i++)
+        return lastCheck <= 0 || lastCheck > now.Ticks || now.Ticks - lastCheck >= TimeSpan.TicksPerDay;
+    }
+
+    internal static Release ParseRelease(string json, string repository)
+    {
+        object root = Json.Parse(json);
+        string tag = Json.Str(root, "tag_name");
+        if (string.IsNullOrEmpty(tag)) throw new IOException(L.T("Aucune version publiée.", "No release published.", "No hay ninguna versión publicada."));
+        Release result = new Release { Repository = repository, Version = tag.TrimStart('v', 'V'), Notes = Json.Str(root, "body") };
+        Version published, installed;
+        if (!TryReleaseVersion(result.Version, out published) || !TryReleaseVersion(Installer.Version, out installed))
+            throw new IOException(L.T("Numéro de version invalide.", "Invalid version number.", "Número de versión no válido."));
+        var assets = Json.List(root, "assets");
+        if (assets != null)
         {
-            if (s[i] != '\\' || i + 1 >= s.Length) { sb.Append(s[i]); continue; }
-            char c = s[++i];
-            switch (c)
+            foreach (object asset in assets)
             {
-                case 'n': sb.Append('\n'); break;
-                case 'r': break;
-                case 't': sb.Append('\t'); break;
-                case 'u':
-                    if (i + 4 < s.Length) { sb.Append((char)Convert.ToInt32(s.Substring(i + 1, 4), 16)); i += 4; }
-                    break;
-                default: sb.Append(c); break;
+                string url = Json.Str(asset, "browser_download_url");
+                if (!TrustedUrl(url)) continue;
+                switch (Json.Str(asset, "name"))
+                {
+                    case "BureauCache.exe": result.Url = url; break;
+                    case "BureauCache.exe.sha256": result.ShaUrl = url; break;
+                    case "BureauCache.exe.sig": result.SigUrl = url; break;
+                }
             }
         }
-        return sb.ToString().Trim();
+        bool newer = published > installed;
+        result.Available = newer && result.Url != null && result.ShaUrl != null &&
+            (result.SigUrl != null || !IsOfficial(repository));
+        result.Incomplete = newer && !result.Available;
+        return result;
     }
 
     // Notes de version raccourcies pour une boîte de dialogue
@@ -215,12 +227,11 @@ static class Updater
         return n.Length > 700 ? n.Substring(0, 700) + "…" : n;
     }
 
-    static bool IsNewer(string a, string b)
+    static bool TryReleaseVersion(string text, out Version version)
     {
-        Version va, vb;
-        if (a.IndexOf('.') < 0) a += ".0";
-        if (b.IndexOf('.') < 0) b += ".0";
-        return Version.TryParse(a, out va) && Version.TryParse(b, out vb) && va > vb;
+        version = null;
+        if (!Regex.IsMatch(text, @"\A[0-9]+(?:\.[0-9]+){0,3}\z")) return false;
+        return Version.TryParse(text.IndexOf('.') < 0 ? text + ".0" : text, out version);
     }
 
     // Télécharge la nouvelle version et la met à la place de l'exe actuel (appliquée au redémarrage)
@@ -315,10 +326,9 @@ static class Updater
     internal static void ReplaceExecutable(string staged, string exe)
     {
         Sandbox.GuardPath(exe, "remplacement de l'exe");
-        // Pendant un essai, « .old » est la dernière version sûre : la version à l'essai, remplacée à son tour,
-        // part en « .replaced » (effacée au démarrage suivant) au lieu d'écraser « .old » (revue QA-21)
-        bool trialRunning = File.Exists(exe + ".trial") && File.Exists(exe + ".old");
-        string backup = trialRunning ? exe + ".replaced" : exe + ".old";
+        Sandbox.GuardPath(staged, "fichier de mise à jour");
+        // .old est la dernière version sûre dès le remplacement, avant même la création de .trial.
+        string backup = File.Exists(exe + ".old") ? exe + ".replaced" : exe + ".old";
         TryDelete(exe + ".replaced");
         try { File.Replace(staged, exe, backup); }
         catch
@@ -343,6 +353,7 @@ static class Updater
     internal static StartState BeginStart(string exe)
     {
         Sandbox.GuardPath(exe, "essai de mise à jour");
+        trialPath = trialHash = null;
         string old = exe + ".old", marker = exe + ".trial";
         TryDelete(exe + ".replaced");
         if (!File.Exists(old))
@@ -363,15 +374,17 @@ static class Updater
         return StartState.Trial;
     }
 
-    // Empreinte de l'exe qui a commencé l'essai : si une autre mise à jour l'a remplacé depuis (et que son
-    // marqueur « .trial » n'a pas pu être effacé), ce processus ne confirme pas l'essai de la suivante (Q24-03)
-    static long trialLength = -1;
-    static DateTime trialWrite;
+    // Le processus ne confirme que le fichier dont il a mémorisé le chemin et les octets au début de l'essai.
+    static string trialPath, trialHash;
 
     static void RememberTrialExe(string exe)
     {
-        try { FileInfo f = new FileInfo(exe); trialLength = f.Length; trialWrite = f.LastWriteTimeUtc; }
-        catch { trialLength = -1; }
+        try
+        {
+            trialHash = Sha256(exe);
+            trialPath = Path.GetFullPath(exe);
+        }
+        catch { trialPath = trialHash = null; }
     }
 
     // L'exe en cours d'exécution peut être renommé (pas supprimé) : la version fautive devient « .bad ».
@@ -399,12 +412,9 @@ static class Updater
     internal static void ConfirmStart(string exe)
     {
         Sandbox.GuardPath(exe, "confirmation de l'essai");
+        if (!string.Equals(Path.GetFullPath(exe), trialPath, StringComparison.OrdinalIgnoreCase)) return;
         if (!File.Exists(exe + ".trial")) return;
-        if (trialLength >= 0)
-        {
-            FileInfo f = new FileInfo(exe);
-            if (!f.Exists || f.Length != trialLength || f.LastWriteTimeUtc != trialWrite) return;
-        }
+        if (!string.Equals(Sha256(exe), trialHash, StringComparison.Ordinal)) return;
         TryDelete(exe + ".old");
         TryDelete(exe + ".trial");
     }

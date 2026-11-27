@@ -22,7 +22,7 @@ partial class PanelForm : Form
     readonly Font fSmall = Ui.Font("Segoe UI", 8.25f);
     public List<DesktopItem> All = new List<DesktopItem>(), Apps = new List<DesktopItem>(), Recent = new List<DesktopItem>();
     List<DesktopItem> winSettings = new List<DesktopItem>(), commands = new List<DesktopItem>();
-    int catalogPx, catalogLanguage, catalogAccent;
+    int catalogPx, catalogLanguage, catalogAccent, cueLanguage;
     bool catalogHidesIcons;
     public volatile bool Dirty = true;
     public bool Busy;
@@ -112,12 +112,12 @@ partial class PanelForm : Form
         widgetTimer.Tick += (s, e) => { if (++widgetTicks % 15 == 0) RefreshWidgetData(); Invalidate(rcClock); };
         blurTimer.Interval = 120;
         blurTimer.Tick += (s, e) => RefreshGlass();
-        RefreshCatalog();
         ApplyTheme();
     }
 
     void SetCue()
     {
+        cueLanguage = L.CurrentLanguage;
         Native.SendMessage(search.Handle, 0x1501, (IntPtr)1, L.T("Rechercher partout…   (F1 : aide)", "Search everything…   (F1: help)", "Buscar en todo…   (F1: ayuda)"));
     }
 
@@ -149,7 +149,6 @@ partial class PanelForm : Form
         if (refreshNames) winSettings = SystemCatalog.WindowsSettings(px);
         if (refreshNames || catalogAccent != accent || catalogHidesIcons != hidesIcons)
             commands = SystemCatalog.Commands(px, () => { if (SettingsRequested != null) SettingsRequested(this, EventArgs.Empty); });
-        if (catalogLanguage != language && search.IsHandleCreated) SetCue();
         catalogPx = px;
         catalogLanguage = language;
         catalogAccent = accent;

@@ -33,12 +33,12 @@ partial class BarForm
     // Relance la fabrication du verre si quelque chose a changé ; l'image arrive plus tard et la barre se redessine
     void RefreshGlass()
     {
-        if (Settings.TaskbarStyle != 1 || Sandbox.Active) { SetBarGlass(null, null); return; }
-        if (!IsHandleCreated) return;   // refait à la création de la fenêtre
+        if (Settings.TaskbarStyle != 1 || Sandbox.Active) { ClearBarGlass(); return; }
+        if (initialTrackingPending || !IsHandleCreated) return;
         Rectangle screen = Screen.PrimaryScreen.Bounds;
-        Rectangle area = new Rectangle(Left, screen.Bottom - BarHeight, Width, BarHeight);
+        Rectangle area = new Rectangle(Left, Bottom - BarHeight, Width, BarHeight);
         string path = Native.WallpaperPath();
-        if (path == null) { SetBarGlass(null, null); return; }
+        if (path == null) { ClearBarGlass(); return; }
         int style = Native.WallpaperStyle();
         Color tint = Color.FromArgb(Settings.Dark ? 178 : 190, Theme.Bg);
         long stamp = 0;
@@ -61,6 +61,13 @@ partial class BarForm
             }
             catch (InvalidOperationException) { if (made != null) made.Dispose(); }
         }, TaskScheduler.Default);
+    }
+
+    void ClearBarGlass()
+    {
+        if (glass == null && glassKey == null) return;
+        glassWork++;
+        SetBarGlass(null, null);
     }
 
     void SetBarGlass(Bitmap bitmap, string key)

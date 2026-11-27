@@ -9,7 +9,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace BureauCache.Tests
 {
     [TestClass]
-    public class SettingsUiTests
+    public partial class SettingsUiTests
     {
         private sealed class TestSlider : Slider
         {
@@ -31,6 +31,11 @@ namespace BureauCache.Tests
         {
             public TestSettingsForm(SettingsActions actions) : base(actions) { }
             public bool DialogKey(Keys key) { return ProcessDialogKey(key); }
+            public bool CommandKey(Keys key)
+            {
+                var message = Message.Create(Handle, 0x100, (System.IntPtr)(key & Keys.KeyCode), System.IntPtr.Zero);
+                return ProcessCmdKey(ref message, key);
+            }
         }
 
         [TestMethod]
@@ -86,7 +91,8 @@ namespace BureauCache.Tests
         [TestMethod]
         public void SettingsPages_StayWithinViewportAfterResizeAndNavigation()
         {
-            InWinForms(VerifyPages);
+            InWinForms(() => VerifyPages());
+            InWinForms(() => { using (LanguageScope.English()) VerifyPages(); });
             InWinForms(() => { using (LanguageScope.Spanish()) VerifyPages(); });
         }
 
@@ -344,6 +350,11 @@ namespace BureauCache.Tests
                 {
                     using (var panel = new PanelForm())
                     {
+                        Assert.AreEqual(0, ((List<DesktopItem>)windows.GetValue(panel)).Count);
+                        Assert.AreEqual(0, ((List<DesktopItem>)commands.GetValue(panel)).Count);
+                        var search = (TextBox)typeof(PanelForm).GetField("search", flags).GetValue(panel);
+                        search.Text = ">";
+                        Assert.IsTrue(((List<DesktopItem>)commands.GetValue(panel)).Count > 0);
                         var originalWindows = windows.GetValue(panel);
                         var originalCommands = commands.GetValue(panel);
                         panel.RefreshCatalog();
@@ -368,13 +379,13 @@ namespace BureauCache.Tests
             });
         }
 
-        private static void VerifyPages()
+        private static void VerifyPages(bool compactOnly = false)
         {
             using (var form = new SettingsForm(new SettingsActions()))
             {
                 form.Show();
                 var pages = (List<Panel>)typeof(SettingsForm).GetField("pages", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(form);
-                foreach (int width in new[] { Ui.S(980), form.MinimumSize.Width, Ui.S(820) })
+                foreach (int width in compactOnly ? new[] { form.MinimumSize.Width } : new[] { Ui.S(980), form.MinimumSize.Width, Ui.S(820) })
                 {
                     form.Width = width;
                     form.Height = form.MinimumSize.Height;
@@ -384,18 +395,33 @@ namespace BureauCache.Tests
                         Panel page = pages[index];
                         Assert.AreEqual(index, form.CurrentPage);
                         Assert.IsTrue(page.Visible);
-                        Assert.IsFalse(page.HorizontalScroll.Visible, "Page " + index);
-                        foreach (Control control in page.Controls)
+                        TabControl tabs = VisibleTabs(form);
+                        for (int tab = 0; tab < tabs.TabCount; tab++)
                         {
-                            var card = control as Card;
-                            if (card == null) continue;
-                            foreach (Control child in card.Controls)
+                            tabs.SelectedIndex = tab;
+                            if (compactOnly)
                             {
-                                Assert.IsTrue(card.ClientRectangle.Contains(child.Bounds), child.Text);
-                                foreach (Control other in card.Controls)
-                                    Assert.IsFalse(child != other && child.Bounds.IntersectsWith(other.Bounds), child.Text + " / " + other.Text);
+                                Rectangle tabBounds = tabs.GetTabRect(tab);
+                                Assert.IsTrue(tabs.ClientRectangle.Contains(tabBounds), tabs.TabPages[tab].Text);
+                                Assert.IsTrue(tabBounds.Width >= TextRenderer.MeasureText(tabs.TabPages[tab].Text, tabs.Font).Width, tabs.TabPages[tab].Text);
+                            }
+                            Assert.AreSame(tabs.TabPages[tab], page.Parent);
+                            Assert.IsFalse(page.HorizontalScroll.Visible, "Page " + index + ", tab " + tab);
+                            foreach (Control control in page.Controls)
+                            {
+                                var card = control as Card;
+                                if (card == null || !card.Visible) continue;
+                                foreach (Control child in card.Controls)
+                                {
+                                    var choices = child as Segmented;
+                                    if (compactOnly && choices != null) Assert.IsTrue(choices.ChoicesFit, choices.AccessibleName);
+                                    Assert.IsTrue(card.ClientRectangle.Contains(child.Bounds), child.Text);
+                                    foreach (Control other in card.Controls)
+                                        Assert.IsFalse(child != other && child.Bounds.IntersectsWith(other.Bounds), child.Text + " / " + other.Text);
+                                }
                             }
                         }
+                        tabs.SelectedIndex = 0;
                     }
                 }
             }

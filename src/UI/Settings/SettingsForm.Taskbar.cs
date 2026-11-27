@@ -10,6 +10,7 @@ partial class SettingsForm
     {
         NewPage(T("Barre des tâches", "Taskbar", "Barra de tareas"),
             T("La barre BureauCache et son menu Démarrer, à ton goût.", "The BureauCache taskbar and its Start menu, your way.", "La barra de BureauCache y su menú Inicio, a tu gusto."));
+        Subtab(T("Affichage", "Display", "Vista"));
         Section(T("DISPOSITION", "LAYOUT", "DISEÑO"));
         sBarSize = NewSeg(v => Settings.TaskbarSize = v, T("Petite", "Small", "Pequeña"), T("Normale", "Normal", "Normal"), T("Grande", "Large", "Grande"));
         Row(T("Taille", "Size", "Tamaño"), T("Hauteur de la barre et taille des icônes.", "Bar height and icon size.", "Altura de la barra y tamaño de los iconos."), sBarSize, null);
@@ -36,6 +37,7 @@ partial class SettingsForm
         tBarLine = NewToggle(v => Settings.TaskbarLine = v);
         Row(T("Ligne du haut", "Top line", "Línea superior"), T("Un trait fin sépare la barre des fenêtres.", "A thin line separates the bar from windows.", "Una línea fina separa la barra de las ventanas."), tBarLine, null);
 
+        Subtab(T("Interactions", "Interactions", "Interacción"));
         Section(T("COMPORTEMENT", "BEHAVIOR", "COMPORTAMIENTO"));
         tBarAutoHide = NewToggle(v => Settings.TaskbarAutoHide = v);
         Row(T("Masquer automatiquement", "Automatically hide", "Ocultar automáticamente"),
@@ -49,6 +51,7 @@ partial class SettingsForm
         tBarWheel = NewToggle(v => Settings.TaskbarWheel = v);
         Row(T("Molette sur le son", "Scroll on sound", "Rueda sobre el sonido"), T("Monte ou baisse le volume sans ouvrir de panneau.", "Turns the volume up or down without opening a panel.", "Sube o baja el volumen sin abrir ningún panel."), tBarWheel, null);
 
+        Subtab(T("Démarrer", "Start menu", "Menú Inicio"));
         BuildStartMenuSection();
 
         Note(T("Ces réglages s'appliquent quand la barre BureauCache remplace celle de Windows (page Général).",

@@ -139,6 +139,40 @@ public class SettingsBackupReviewTests
     }
 
     [TestMethod]
+    [DataRow("\n")]
+    [DataRow("\r\n")]
+    [DataRow("\0")]
+    public void SaveRejectsControlCharactersAndLeavesThePreviousProfileIntact(string separator)
+    {
+        SaveOriginal();
+        byte[] previous = File.ReadAllBytes(Settings.FilePath);
+        Settings.WeatherPlace = "Lieu" + separator + "ArchiveOn=1";
+        Assert.IsFalse(Settings.Save());
+        CollectionAssert.AreEqual(previous, File.ReadAllBytes(Settings.FilePath));
+    }
+
+    [TestMethod]
+    public void FailedRestoreKeepsAnUnreadableProfileProtectedUntilASuccessfulRestore()
+    {
+        SaveOriginal();
+        string source = Daily(DateTime.Today.AddDays(-1));
+        WriteIni(source, Restored);
+        Settings.ProfileUnreadable = true;
+
+        Assert.IsFalse(SettingsBackup.RestoreFrom(Path.Combine(directory, "absent.ini")));
+        Assert.IsTrue(Settings.ProfileUnreadable);
+        using (File.Open(Settings.FilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            Assert.IsFalse(SettingsBackup.RestoreFrom(source));
+        Assert.IsTrue(Settings.ProfileUnreadable);
+        Assert.IsFalse(Settings.Save());
+        StringAssert.Contains(File.ReadAllText(Settings.FilePath), Original);
+
+        Assert.IsTrue(SettingsBackup.RestoreFrom(source));
+        Assert.IsFalse(Settings.ProfileUnreadable);
+        StringAssert.Contains(File.ReadAllText(Settings.FilePath), Restored);
+    }
+
+    [TestMethod]
     [TestCategory("Review")]
     public void D007_05_UncommittedRestoreDoesNotReplaceTheExistingUndoCopy()
     {

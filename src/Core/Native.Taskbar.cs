@@ -18,6 +18,13 @@ static partial class Native
     // Barre principale d'Explorer (écran principal). Les barres des autres écrans sont « Shell_SecondaryTrayWnd ».
     public static IntPtr WindowsTaskbar() { return FindWindow("Shell_TrayWnd", null); }
 
+    public static bool WindowsTaskbarResponds()
+    {
+        IntPtr bar = WindowsTaskbar(), result;
+        return bar != IntPtr.Zero && SendMessageTimeout(bar, 0 /* WM_NULL */, IntPtr.Zero, IntPtr.Zero,
+            0x2 /* SMTO_ABORTIFHUNG */, 40, out result) != IntPtr.Zero;
+    }
+
     // État de la barre de Windows : masquage automatique (1) ou non. Le message s'adresse à la barre d'Explorer.
     public static int GetTaskbarState()
     {

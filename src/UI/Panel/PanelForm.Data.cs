@@ -62,7 +62,7 @@ partial class PanelForm
     {
         if (IconPx != loadedPx || loadedSystem != Settings.ShowSystem ||
             loadedApps != Settings.SearchApps || loadedRecents != Settings.SearchRecent) Dirty = true;
-        RefreshCatalog();
+        if (cueLanguage != L.CurrentLanguage && search.IsHandleCreated) SetCue();
         ApplyCaptureSettings();
         ApplyPanelGeometry();
         // Effet verre activé panneau ouvert, en flou statique : la photo du fond est prise tout de suite (R-31)
@@ -207,6 +207,7 @@ partial class PanelForm
         }
         if (q.StartsWith(">"))
         {
+            RefreshCatalog();
             string c = Search.Norm(q.Substring(1));
             Group g = new Group { Key = "s:cmd", Title = L.T("Commandes", "Commands", "Comandos"), Glyph = Glyphs.Terminal };
             g.Items = c.Length == 0 ? commands.ToList() : Rank(commands, c, 20).Select(k => k.Key).ToList();
@@ -231,6 +232,7 @@ partial class PanelForm
         string nq = Search.Norm(q);
         if (nq.Length > 0)
         {
+            if (Settings.SearchSettings || Settings.SearchCommands) RefreshCatalog();
             List<KeyValuePair<Group, int>> found = new List<KeyValuePair<Group, int>>();
             Action<string, string, string, IEnumerable<DesktopItem>, int> addGroup = (key, title, glyph, src, max) =>
             {

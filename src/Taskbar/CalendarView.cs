@@ -81,8 +81,8 @@ class CalendarView : Control
 
     DateTime Step(int count)
     {
-        try { return selected.AddDays(count); }
-        catch (ArgumentOutOfRangeException) { return selected; }
+        DateTime start = selected.Year == month.Year && selected.Month == month.Month ? selected : SameDay(0);
+        return start.AddDays(count);
     }
 
     // Même jour un mois plus tôt ou plus tard (31 janvier + 1 mois : 28 ou 29 février)
@@ -118,7 +118,8 @@ class CalendarView : Control
     int IndexAt(Point p)
     {
         if (p.Y < Header || p.X < 0 || p.X >= Width) return -1;
-        int row = (p.Y - Header) / Cell, col = Math.Min(6, p.X * 7 / Math.Max(1, Width));
+        // Inverse les limites arrondies de CellBounds, y compris si la largeur ne se divise pas par sept.
+        int row = (p.Y - Header) / Cell, col = ((p.X + 1) * 7 - 1) / Width;
         return row >= 0 && row < 6 ? row * 7 + col : -1;
     }
 

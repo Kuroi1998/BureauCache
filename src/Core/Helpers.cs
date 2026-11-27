@@ -91,6 +91,15 @@ static class FileOps
         File.Copy(src, dest, true);
     }
 
+    internal static void AppendBoundedLog(string path, string header, string lines)
+    {
+        Sandbox.GuardPath(path, "journal de démarrage");
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        var file = new FileInfo(path);
+        if (!file.Exists || file.Length == 0 || file.Length >= 64 * 1024) File.WriteAllText(path, header + lines);
+        else File.AppendAllText(path, lines);
+    }
+
     // Copie ou déplace vers dest avec les fenêtres de Windows (conflits de noms, progression)
     public static void CopyOrMove(string src, string dest, bool move)
     {

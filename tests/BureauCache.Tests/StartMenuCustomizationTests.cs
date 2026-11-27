@@ -74,6 +74,22 @@ public class StartMenuCustomizationTests
     }
 
     [TestMethod]
+    public void DefaultShortcutNameSurvivesSettingsRoundTrip()
+    {
+        string target = "https://" + new string('x', 63) + ".example.com/";
+        Assert.IsTrue(StartShortcuts.Add(StartShortcuts.Site, target, null));
+        Assert.IsTrue(Settings.Save());
+        Settings.StartShortcuts.Clear();
+        Assert.IsTrue(Settings.Load(Settings.FilePath));
+        var entry = StartShortcuts.All().Single();
+        Assert.AreEqual(new string('x', 40), entry.Name);
+        Assert.AreEqual(target, entry.Target);
+        string raw = StartShortcuts.Format(StartShortcuts.Site, new string('a', 39) + "\U0001F4C1", target);
+        Assert.IsTrue(StartShortcuts.Parse(raw, out entry));
+        Assert.AreEqual(new string('a', 39), entry.Name);
+    }
+
+    [TestMethod]
     public void SiteAddressIsCompleted()
     {
         Assert.AreEqual("https://exemple.fr", SiteShortcutDialog.Normalize(" exemple.fr "));

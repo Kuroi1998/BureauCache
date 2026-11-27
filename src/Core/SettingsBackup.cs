@@ -213,7 +213,7 @@ static class SettingsBackup
     sealed class LocalChoices
     {
         string repo, archiveName; bool autoUpdate, clipboard, archive, taskbar; List<string> pins; int archiveDays; List<string> log; List<ArchiveRule> rules;
-        List<string> favorites; Dictionary<string, long[]> usage;
+        List<string> favorites, shortcuts; Dictionary<string, long[]> usage;
 
         public static LocalChoices Capture()
         {
@@ -221,6 +221,7 @@ static class SettingsBackup
                                       archive = Settings.ArchiveOn, log = Settings.ArchiveLog.ToList(), rules = Settings.ArchiveRules.ToList(),
                                       archiveName = Settings.ArchiveName, archiveDays = Settings.ArchiveDays,
                                       favorites = Settings.Favorites.ToList(),
+                                      shortcuts = Settings.StartShortcuts.ToList(),
                                       usage = Settings.Usage.ToDictionary(e => e.Key, e => (long[])e.Value.Clone(), StringComparer.OrdinalIgnoreCase) };
         }
 
@@ -233,6 +234,7 @@ static class SettingsBackup
             if (Settings.AutoUpdate != autoUpdate) kept.Add(L.T("la vérification automatique des mises à jour", "automatic update checks", "la comprobación automática de actualizaciones"));
             if (Settings.ClipboardOn != clipboard) kept.Add(L.T("l'historique du presse-papiers", "the clipboard history", "el historial del portapapeles"));
             if (!Settings.TaskbarPins.SequenceEqual(pins)) kept.Add(L.T("les applications épinglées à la barre", "the apps pinned to the taskbar", "las aplicaciones ancladas a la barra"));
+            if (!Settings.StartShortcuts.SequenceEqual(shortcuts)) kept.Add(L.T("les raccourcis personnels du menu Démarrer", "the personal Start menu shortcuts", "los accesos directos personales del menú Inicio"));
             if (Settings.TaskbarOn != taskbar) kept.Add(L.T("la barre des tâches BureauCache", "the BureauCache taskbar", "la barra de tareas de BureauCache"));
             if (Settings.ArchiveOn != archive) kept.Add(L.T("le rangement automatique", "automatic tidy-up", "la organización automática"));
             if (Settings.ArchiveLog.Count > 0) kept.Add(L.T("le journal d'annulation du rangement", "the tidy-up undo log", "el registro para deshacer la organización"));
@@ -244,6 +246,7 @@ static class SettingsBackup
                 kept.Add(L.T("les règles et le dossier du rangement automatique", "the automatic tidy-up rules and folder", "las reglas y la carpeta de la organización automática"));
             Settings.UpdateRepo = repo; Settings.AutoUpdate = autoUpdate; Settings.ClipboardOn = clipboard; Settings.TaskbarOn = taskbar; Settings.TaskbarPins = pins;
             Settings.ArchiveOn = archive; Settings.ArchiveLog = log;
+            Settings.StartShortcuts = shortcuts;
             if (keepPolicy) { Settings.ArchiveRules = rules; Settings.ArchiveName = archiveName; Settings.ArchiveDays = archiveDays; }
             // Rangement actif : les favoris et les dates d'usage de ce PC protègent des fichiers du rangement. Un import
             // les remplaçait, et des fichiers protégés pouvaient partir au passage suivant (CDX-25) : on fusionne.
@@ -277,9 +280,8 @@ static class SettingsBackup
     {
         lock (gate)
         {
-            // Choix explicite de l'utilisateur : les réglages restaurés peuvent remplacer un fichier resté illisible
-            Settings.ProfileUnreadable = false;
             if (!IsValid(path)) return false;
+            bool profileWasUnreadable = Settings.ProfileUnreadable, restored = false;
             string source = null, undo = null;
             try
             {
@@ -298,15 +300,13 @@ static class SettingsBackup
                 double weatherLat = Settings.WeatherLat, weatherLon = Settings.WeatherLon;
                 bool loaded = LoadReplacing(source);
                 if (loaded && local != null) local.Reapply(kept);
+                // Autorisation d'écrire pour cet essai uniquement. Un échec rétablit le verrou du profil.
+                if (loaded) Settings.ProfileUnreadable = false;
                 if (!loaded || !Settings.Save())
                 {
                     LoadReplacing(undo);               // le disque n'a pas changé : la mémoire seulement
                     return false;
                 }
-                // Autre lieu ou météo coupée : la prévision en cache (et une réponse en route) est celle de l'ancien
-                // lieu ; sans cela, la tuile pouvait afficher la météo de Bruxelles sous le nom de Madrid (CDX-28)
-                if (Settings.WeatherOn != weatherOn || !SameCoordinate(Settings.WeatherLat, weatherLat) || !SameCoordinate(Settings.WeatherLon, weatherLon))
-                    Weather.Reset();
                 try { KeepUndo(undo); }
                 catch
                 {
@@ -316,11 +316,16 @@ static class SettingsBackup
                         try { File.Copy(undo, Path.Combine(Folder, "settings-avant-restauration-secours.ini"), true); } catch { }
                     return false;
                 }
+                // Une autre prévision est nécessaire si la restauration a changé le lieu ou désactivé la météo.
+                if (Settings.WeatherOn != weatherOn || !SameCoordinate(Settings.WeatherLat, weatherLat) || !SameCoordinate(Settings.WeatherLon, weatherLon))
+                    Weather.Reset();
+                restored = true;
                 return true;
             }
             catch { return false; }
             finally
             {
+                if (!restored) Settings.ProfileUnreadable = profileWasUnreadable;
                 if (source != null) try { File.Delete(source); } catch { }
                 if (undo != null) try { File.Delete(undo); } catch { }
             }

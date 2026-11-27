@@ -207,6 +207,22 @@ namespace BureauCache.Tests
 
         // Revue QA-23 : %TEMP% n'est plus une racine ; il n'est nettoyé que s'il est dans AppData\Local
         [TestMethod]
+        public void JonctionAuDessusDeLaRacineAutoriseeBloqueLeNettoyage()
+        {
+            string precious = Write(Path.Combine(outside, @"Profil\Cache\document.docx"));
+            string redirected = Path.Combine(allowed, "Parent");
+            Junction(redirected, outside);
+            string declaredRoot = Path.Combine(redirected, "Profil");
+            var target = new CleanTarget { Dir = Path.Combine(declaredRoot, "Cache") };
+            string[] declaredRoots = { declaredRoot };
+
+            Assert.IsTrue(Cleaner.IsAllowed(target.Dir, declaredRoots, forbidden));
+            Assert.IsTrue(Cleaner.CrossesLink(target.Dir, declaredRoots));
+            Assert.AreEqual(0, Cleaner.Clean(new[] { Category(target) }, declaredRoots, forbidden).Deleted);
+            Assert.IsTrue(File.Exists(precious));
+        }
+
+        [TestMethod]
         public void Temp_n_est_pas_une_racine_autonome()
         {
             string temp = Path.GetFullPath(Path.GetTempPath()).TrimEnd('\\') + "\\";

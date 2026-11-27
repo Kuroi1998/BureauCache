@@ -33,6 +33,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-044 | Menu Démarrer à la carte : sections, tuiles et raccourcis personnels | Fait ; essai réel et revue ChatGPT à faire | Claude puis Toi | `feat/T-042-notifications` | D-019 |
 | T-045 | Thèmes prêts, accent qui suit Windows, taille de l'interface | Fait ; essai réel et revue ChatGPT à faire | Claude puis Toi | `feat/T-042-notifications` | D-019 |
 | T-046 | Profils : rétablir la personnalisation d'origine (export et import existent déjà) | À faire | Claude puis Toi | — | D-019 |
+| T-047 | Revue des modifications laissées par GPT : démarrage de la barre, Paramètres en sous-onglets et recherche (Ctrl+F), durcissements (mises à jour, nettoyage, rangement, réglages) | Compilé ; suite : 741 réussis ; essai réel et revue ChatGPT à faire | Claude puis Toi | `feat/T-042-notifications` | D-019 |
 | T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel fait sur la 3.9 installée | Claude puis Toi | PR #19 | D-007, QA-32, QA-33 |
 | T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |
 | T-018 | Verbes du shell sur un fil dédié, liste des écrans suivie (QA-28, QA-29) | Fait (3.8) ; essais manuels encore à faire | Claude | PR #16 | QA-28 |
@@ -204,3 +205,4 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 **Journal :**
 - AAAA-MM-JJ · Porteur · ce qui a été fait / vérifié
 -->
+- 2026-11-28 · Claude · Revue des modifications laissées par GPT (63 fichiers modifiés, 6 nouveaux, suivies ici en T-047) : barre (attente d'Explorer, premier dessin, icônes), Paramètres (sous-onglets, recherche, changement de langue), mises à jour (lecture JSON, adresses, reprise de l'essai), nettoyage et rangement (jonctions), restauration des réglages (profil illisible), calculatrice, recherche de contenu. Rien de bloquant trouvé. Notés sans correction : SystemCatalog fixe l'argument de l'éditeur de variables (fonctionnel, fragile), uildingTab inutilisé dans SettingsForm.Tabs.cs. Compilé (build.cmd), suite : 741 réussis, 6 ignorés (déjà présents avant). Essai réel et revue ChatGPT à faire.

@@ -9,12 +9,20 @@ partial class SettingsForm
     {
         public string Title, Summary;
         public readonly List<SettingsSection> Sections = new List<SettingsSection>();
+        public readonly List<string> Tabs = new List<string>();
+        public SettingsTabControl View;
+        public int SelectedTab;
+        public Point[] Scroll;
+        public int LaidOutTab = -1, LaidOutWidth;
     }
 
     sealed class SettingsSection
     {
         public Label Title;
         public Card Card;
+        public int Tab;
+        public string Path, SearchArea;
+        public bool LayoutDirty = true;
         public readonly List<SettingsRow> Rows = new List<SettingsRow>();
     }
 
@@ -23,12 +31,14 @@ partial class SettingsForm
         public Label Title, Description, Value;
         public Control Lead, Action, Secondary;
         public int ActionWidth;
+        public string Keywords, SearchTitle;
     }
 
     void ArrangePages()
     {
         if (arranging || !layoutReady || IsDisposed || Disposing) return;
         arranging = true;
+        SettingsPage current = pageLayouts[nav.Selected];
         Panel body = pages[nav.Selected];
         try
         {
@@ -36,33 +46,63 @@ partial class SettingsForm
             int pad = width < S(570) ? S(18) : S(34);
             int content = Math.Min(S(860), Math.Max(1, width - pad * 2 - SystemInformation.VerticalScrollBarWidth));
             int left = (width - SystemInformation.VerticalScrollBarWidth - content) / 2;
-            int headerHeight = S(104);
+            int titleHeight = Math.Max(S(43), MeasureHeader(pageTitle, content));
+            int summaryHeight = Searching ? 0 : Math.Max(S(25), MeasureHeader(pageSummary, content));
+            int headerHeight = S(77) + titleHeight + summaryHeight;
             nav.Bounds = new Rectangle(0, 0, NavW, ClientSize.Height);
             header.Bounds = new Rectangle(NavW, 0, width, headerHeight);
-            pageTitle.Bounds = new Rectangle(left, S(20), content, S(38));
-            pageSummary.Bounds = new Rectangle(left, S(62), content, S(24));
+            settingsSearch.Bounds = new Rectangle(left, S(16), content, S(40));
+            pageTitle.Bounds = new Rectangle(left, S(66), content, titleHeight);
+            pageSummary.Bounds = new Rectangle(left, S(68) + titleHeight, content, summaryHeight);
+            if (Searching)
+            {
+                searchResults.Bounds = new Rectangle(NavW + left, headerHeight, content, Math.Max(1, ClientSize.Height - headerHeight - S(12)));
+                noSearchResults.Bounds = searchResults.Bounds;
+                return;
+            }
+            current.View.Bounds = new Rectangle(NavW + left - S(4), headerHeight, width - left + S(4), Math.Max(1, ClientSize.Height - headerHeight));
+            bool changed = current.LaidOutTab != current.SelectedTab || current.LaidOutWidth != content;
+            if (!changed)
+                foreach (SettingsSection section in current.Sections)
+                    if (section.LayoutDirty && (current.SelectedTab == 0 || section.Tab == current.SelectedTab)) { changed = true; break; }
+            if (!changed) return;
             Point scroll = body.AutoScrollPosition;
             body.SuspendLayout();
             try
             {
                 body.AutoScrollPosition = Point.Empty;
-                body.Bounds = new Rectangle(NavW, headerHeight, width, Math.Max(1, ClientSize.Height - headerHeight));
-                int y = S(14);
-                foreach (SettingsSection section in pageLayouts[nav.Selected].Sections)
+                int y = S(8);
+                int inset = S(2);
+                foreach (SettingsSection section in current.Sections)
                 {
-                    section.Title.Location = new Point(left + S(3), y);
-                    y += section.Title.Height + S(9);
-                    section.Card.Location = new Point(left, y);
-                    section.Card.Width = content;
-                    LayoutRows(section);
-                    y += section.Card.Height + S(24);
+                    bool shown = current.SelectedTab == 0 || section.Tab == current.SelectedTab;
+                    section.Title.Visible = section.Card.Visible = shown;
+                    if (!shown) continue;
+                    section.Title.Location = new Point(inset + S(3), y);
+                    y += section.Title.Height + S(7);
+                    section.Card.Location = new Point(inset, y);
+                    if (section.LayoutDirty || section.Card.Width != content)
+                    {
+                        section.Card.Width = content;
+                        LayoutRows(section);
+                        section.LayoutDirty = false;
+                    }
+                    y += section.Card.Height + S(19);
                 }
                 body.AutoScrollMinSize = new Size(0, y);
+                current.LaidOutTab = current.SelectedTab;
+                current.LaidOutWidth = content;
             }
             finally { body.ResumeLayout(true); }
             body.AutoScrollPosition = new Point(-scroll.X, -scroll.Y);
         }
         finally { arranging = false; }
+    }
+
+    static int MeasureHeader(Label label, int width)
+    {
+        return TextRenderer.MeasureText(label.Text, label.Font, new Size(width, 0),
+            TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix).Height;
     }
 
     void LayoutRows(SettingsSection section)
@@ -77,7 +117,12 @@ partial class SettingsForm
             int textX = row.Lead == null ? pad : pad + row.Lead.Width + gap;
             int extra = (row.Value == null ? 0 : row.Value.Width + gap) +
                         (row.Secondary == null ? 0 : row.Secondary.Width + gap);
-            if (row.Action != null) row.Action.Width = Math.Max(1, Math.Min(row.ActionWidth, right - pad - extra));
+            if (row.Action != null)
+            {
+                row.Action.Width = Math.Max(1, Math.Min(row.ActionWidth, right - pad - extra));
+                Segmented segmented = row.Action as Segmented;
+                if (segmented != null) segmented.FitSettingsWidth();
+            }
             int actionWidth = row.Action == null ? 0 : row.Action.Width + extra;
             bool stacked = actionWidth > 0 && right - textX - actionWidth - gap < S(220);
             int textWidth = Math.Max(1, right - textX - (actionWidth == 0 || stacked ? 0 : actionWidth + gap));

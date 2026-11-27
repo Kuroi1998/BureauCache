@@ -1,7 +1,6 @@
 // BureauCache — BarForm : masquage automatique et molette sur le volume (T-043, D-019)
 using System;
 using System.Drawing;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 // Masquage automatique : Windows ne réserve qu'un mince liseré en bas de l'écran ; la barre s'y replie et revient
@@ -36,14 +35,14 @@ partial class BarForm
     {
         if (!Settings.TaskbarAutoHide || !Visible) return;
         Point mouse = Cursor.Position;
-        Rectangle screen = Screen.PrimaryScreen.Bounds;
-        Rectangle band = new Rectangle(Left, screen.Bottom - BarHeight, Width, BarHeight);
         if (collapsedBar)
         {
-            if (mouse.Y >= screen.Bottom - Edge - 1 && mouse.X >= Left && mouse.X < Right) SetCollapsed(false);
+            Rectangle activation = Bounds;
+            activation.Inflate(0, 1);
+            if (activation.Contains(mouse)) SetCollapsed(false);
             return;
         }
-        bool keep = band.Contains(mouse) || PanelOpen || (preview != null && preview.Visible) || dragging || OwnWindowInFront();
+        bool keep = Bounds.Contains(mouse) || PanelOpen || (preview != null && preview.Visible) || dragging || OwnWindowInFront();
         outside = keep ? 0 : outside + 1;
         if (outside >= 5) SetCollapsed(true);   // environ 0,6 s hors de la barre
     }
@@ -72,27 +71,11 @@ partial class BarForm
     }
 
     // Molette sur réseau et son : volume de 2 en 2, sans ouvrir de panneau
-    int pendingVolume;
-    Task volumeWork;
-
     protected override void OnMouseWheel(MouseEventArgs e)
     {
         base.OnMouseWheel(e);
-        if (!Settings.TaskbarWheel || Sandbox.Active || zones[1].IsEmpty || !zones[1].Contains(e.Location)) return;
-        System.Threading.Interlocked.Add(ref pendingVolume, e.Delta > 0 ? 2 : -2);
-        if (volumeWork != null && !volumeWork.IsCompleted) return;
-        volumeWork = Task.Factory.StartNew(() =>
-        {
-            while (true)
-            {
-                int step = System.Threading.Interlocked.Exchange(ref pendingVolume, 0);
-                if (step == 0) return;
-                bool muted;
-                int? current = Native.QuickVolume(null, false, out muted);
-                if (!current.HasValue) return;
-                Native.QuickVolume(Math.Max(0, Math.Min(100, current.Value + step)), false, out muted);
-            }
-        });
+        if (!Settings.TaskbarWheel || Sandbox.Active || e.Delta == 0 || !zones[1].Contains(e.Location)) return;
+        QuickSettingsForm.AdjustVolume(e.Delta > 0 ? 2 : -2);
     }
 
     void DisposeBehavior()

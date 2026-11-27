@@ -96,6 +96,26 @@ public class HardeningTests
     }
 
     [TestMethod]
+    public void ImportKeepsLocalStartShortcutsAndRestoreStillLoadsTheBackup()
+    {
+        const string local = @"a>Calculatrice>C:\Windows\System32\calc.exe";
+        const string foreign = @"a>Raccourci>C:\Fictif\exemple.lnk";
+        Settings.StartShortcuts = new List<string> { local };
+        string path = Path.Combine(dir, "raccourcis.ini");
+        File.WriteAllLines(path, Settings.Serialize().Select(line => line.StartsWith("StartShortcuts=") ? "StartShortcuts=" + foreign : line));
+
+        var kept = new List<string>();
+        Assert.IsTrue(SettingsBackup.ImportFrom(path, kept));
+        CollectionAssert.AreEqual(new[] { local }, Settings.StartShortcuts);
+        CollectionAssert.Contains(kept, L.T("les raccourcis personnels du menu Démarrer", "the personal Start menu shortcuts",
+            "los accesos directos personales del menú Inicio"));
+        StringAssert.Contains(File.ReadAllText(Settings.FilePath), "StartShortcuts=" + local);
+
+        Assert.IsTrue(SettingsBackup.RestoreFrom(path));
+        CollectionAssert.AreEqual(new[] { foreign }, Settings.StartShortcuts);
+    }
+
+    [TestMethod]
     public void RestoringOwnBackupStillRestoresEverything()
     {
         SetLocal();
@@ -135,18 +155,21 @@ public class HardeningTests
     [TestMethod]
     public void UninstallUsesTheSystemCommandProcessorWithoutAutoRun()
     {
-        // Le lancement réel est bloqué en test : on vérifie la commande construite dans la source compilée
-        string src = File.ReadAllText(Path.Combine(RepoRoot(), "src", "Core", "Installation.cs"));
-        StringAssert.Contains(src, "Path.Combine(Environment.SystemDirectory, \"cmd.exe\")");
-        StringAssert.Contains(src, "\"/d /c for");
-    }
-
-    static string RepoRoot()
-    {
-        string d = AppDomain.CurrentDomain.BaseDirectory;
-        while (d != null && !File.Exists(Path.Combine(d, "build.cmd"))) d = Path.GetDirectoryName(d);
-        Assert.IsNotNull(d);
-        return d;
+        string folder = Path.Combine(dir, "Projet %BUREAUCACHE_EXEMPLE% & suivi!");
+        Directory.CreateDirectory(folder);
+        var command = Installer.FolderRemovalCommand(folder);
+        Assert.AreEqual(Path.Combine(Environment.SystemDirectory, "cmd.exe"), command.FileName);
+        StringAssert.StartsWith(command.Arguments, "/d ");
+        // Même expansion que la désinstallation, avec une lecture du dossier temporaire.
+        int script = command.Arguments.IndexOf("for /l", StringComparison.Ordinal);
+        Assert.IsTrue(script > 0);
+        command.Arguments = command.Arguments.Substring(0, script) +
+            "for /l %i in (1,1,1) do (if exist \"!BUREAUCACHE_REMOVE_DIR!\" (exit /b 17) else (exit /b 18))";
+        using (Process process = Process.Start(command))
+        {
+            Assert.IsTrue(process.WaitForExit(5000));
+            Assert.AreEqual(17, process.ExitCode);
+        }
     }
 
     [TestMethod]

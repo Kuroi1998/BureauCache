@@ -47,6 +47,76 @@ namespace BureauCache.Tests
         }
 
         [TestMethod]
+        [DataRow("owner/repo", true)]
+        [DataRow("owner/repo.v2", true)]
+        [DataRow("../repo", false)]
+        [DataRow("owner/.", false)]
+        [DataRow("owner/..", false)]
+        [DataRow("owner/repo\n", false)]
+        public void RepositoryMustContainTwoOrdinaryPathSegments(string name, bool valid)
+        {
+            Assert.AreEqual(valid, Updater.ValidRepository(name));
+        }
+
+        [TestMethod]
+        [DataRow("https://github.com/owner/repo", true)]
+        [DataRow("https://release-assets.githubusercontent.com/example?x=1&y=2", true)]
+        [DataRow("http://github.com/owner/repo", false)]
+        [DataRow("https://github.com:444/owner/repo", false)]
+        [DataRow("https://user@github.com/owner/repo", false)]
+        [DataRow("https://github.com.example/owner/repo", false)]
+        [DataRow("https://github.com/owner/repo\n", false)]
+        public void DownloadAcceptsOnlyTheExpectedHttpsEndpoints(string url, bool valid)
+        {
+            Assert.AreEqual(valid, Updater.TrustedUrl(url));
+        }
+
+        [TestMethod]
+        public void AutomaticUpdateRecoversFromAClockRollback()
+        {
+            var now = new DateTime(2026, 11, 27, 18, 0, 0);
+            Assert.IsTrue(Updater.AutomaticCheckDue(now.AddHours(2).Ticks, now));
+            Assert.IsTrue(Updater.AutomaticCheckDue(long.MaxValue, now));
+            Assert.IsTrue(Updater.AutomaticCheckDue(0, now));
+            Assert.IsFalse(Updater.AutomaticCheckDue(now.AddHours(-24).AddTicks(1).Ticks, now));
+            Assert.IsTrue(Updater.AutomaticCheckDue(now.AddHours(-24).Ticks, now));
+        }
+
+        [TestMethod]
+        [DataRow("v")]
+        [DataRow("v999.1-preview")]
+        [DataRow("v2147483648.1")]
+        [DataRow("v999. 1")]
+        public void InvalidReleaseTagIsReportedInsteadOfBeingTreatedAsUpToDate(string tag)
+        {
+            string json = "{\"tag_name\":\"" + tag + "\",\"assets\":[]}";
+            Assert.ThrowsException<IOException>(() => Updater.ParseRelease(json, Updater.DefaultRepo));
+        }
+
+        [TestMethod]
+        public void ReleaseUsesOnlyTopLevelTagAndNamedAssets()
+        {
+            const string prefix = "https://github.com/sample/project/releases/download/v999.1/";
+            string json = "{\"example\":{\"tag_name\":\"v1.0\",\"browser_download_url\":\"" + prefix + "other/BureauCache.exe\"}," +
+                "\"tag_name\":\"v999.1\",\"body\":\"Changes\\nversion\",\"assets\":[" +
+                "{\"name\":\"BureauCache.exe\",\"browser_download_url\":\"" + prefix + "BureauCache.exe\"}," +
+                "{\"name\":\"BureauCache.exe.sha256\",\"browser_download_url\":\"" + prefix + "BureauCache.exe.sha256\"}," +
+                "{\"name\":\"motif.txt\",\"browser_download_url\":\"" + prefix + "BureauCache.exe.sig\"}]}";
+
+            Updater.Release official = Updater.ParseRelease(json, Updater.DefaultRepo);
+            Assert.AreEqual("999.1", official.Version);
+            Assert.AreEqual("Changes\nversion", official.Notes);
+            Assert.AreEqual(prefix + "BureauCache.exe", official.Url);
+            Assert.IsNull(official.SigUrl);
+            Assert.IsFalse(official.Available);
+            Assert.IsTrue(official.Incomplete);
+            Assert.IsTrue(Updater.ParseRelease(json, "sample/project").Available);
+
+            string signedJson = json.Replace("motif.txt", "BureauCache.exe.sig");
+            Assert.IsTrue(Updater.ParseRelease(signedJson, Updater.DefaultRepo).Available);
+        }
+
+        [TestMethod]
         public void SignatureAccepteBomEtRefuseOctetsSurnumeraires()
         {
             byte[] hash = new byte[32];

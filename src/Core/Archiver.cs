@@ -184,8 +184,9 @@ static class Archiver
             }
             try
             {
+                if (!FolderPathIsSafe(target)) continue;
                 string dest = Unique(Path.Combine(target, Path.GetFileName(p)));
-                if (Directory.Exists(p)) Directory.Move(p, dest); else File.Move(p, dest);
+                FileOps.Move(p, dest, Directory.Exists(p));
                 Settings.RenameKey(p, dest);
                 log.Add(p + ">" + dest + ">" + Fingerprint(dest));
                 n++;
@@ -206,7 +207,8 @@ static class Archiver
             string[] parts = log[i].Split('>');
             try
             {
-                if (Directory.Exists(parts[1])) Directory.Move(parts[1], parts[0]); else File.Move(parts[1], parts[0]);
+                if (!FolderPathIsSafe(Path.GetDirectoryName(parts[1]))) { stuck.Add(log[i]); continue; }
+                FileOps.Move(parts[1], parts[0], Directory.Exists(parts[1]));
                 Settings.RenameKey(parts[1], parts[0]);
                 n--;
             }
@@ -233,8 +235,30 @@ static class Archiver
     {
         try
         {
+            Sandbox.GuardPath(folder, "dossier de rangement");
+            if (!FolderPathIsSafe(folder)) return false;
             Directory.CreateDirectory(folder);
-            return !IsLink(new DirectoryInfo(folder));
+            return FolderPathIsSafe(folder);
+        }
+        catch (IOException) { return false; }
+        catch (UnauthorizedAccessException) { return false; }
+    }
+
+    static bool FolderPathIsSafe(string folder)
+    {
+        try
+        {
+            for (DirectoryInfo dir = new DirectoryInfo(folder); dir != null; dir = dir.Parent)
+            {
+                try
+                {
+                    if ((File.GetAttributes(dir.FullName) & FileAttributes.ReparsePoint) != 0 && Native.IsLink(dir.FullName))
+                        return false;
+                }
+                catch (FileNotFoundException) { }
+                catch (DirectoryNotFoundException) { }
+            }
+            return true;
         }
         catch (IOException) { return false; }
         catch (UnauthorizedAccessException) { return false; }
@@ -252,6 +276,7 @@ static class Archiver
 
     internal static int RestoreArchived(string desktop, List<string> journal)
     {
+        if (!FolderPathIsSafe(desktop)) return 0;
         int n = 0;
         List<string> pending = new List<string>();
         foreach (string e in journal)
@@ -275,7 +300,7 @@ static class Archiver
                 // OneDrive « à la demande » est un point d'analyse sans être un lien : il était refusé ici, et l'entrée
                 // quittait le journal, ce qui rendait l'annulation impossible (CDX-26). Un lien ou un dossier illisible
                 // garde l'entrée, pour un nouvel essai, sans rien déplacer.
-                if (IsLink(new DirectoryInfo(parent))) { pending.Add(e); continue; }
+                if (!FolderPathIsSafe(parent)) { pending.Add(e); continue; }
                 // Autre élément à la place de celui qui a été rangé (renommé puis remplacé) : on n'y touche pas.
                 // L'empreinte est l'identité NTFS du fichier ; une identité illisible compte comme un conflit (QA39-02, QA42-06).
                 if (print != null)
@@ -286,8 +311,8 @@ static class Archiver
                     if (print != current) continue;
                 }
                 if (File.Exists(src) || Directory.Exists(src)) { pending.Add(e); continue; }
-                if (Directory.Exists(dest)) Directory.Move(dest, src);
-                else if (File.Exists(dest)) File.Move(dest, src);
+                if (Directory.Exists(dest)) FileOps.Move(dest, src, true);
+                else if (File.Exists(dest)) FileOps.Move(dest, src, false);
                 else { pending.Add(e); continue; }
                 Settings.RenameKey(dest, src);
                 n++;

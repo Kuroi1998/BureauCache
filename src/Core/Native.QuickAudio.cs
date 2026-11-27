@@ -39,7 +39,7 @@ static partial class Native
         [PreserveSig] int GetMute([MarshalAs(UnmanagedType.Bool)] out bool muted);
     }
 
-    internal static int? QuickVolume(int? requested, bool toggleMute, out bool muted)
+    internal static int? QuickVolume(int? requested, bool toggleMute, out bool muted, int delta = 0)
     {
         muted = false;
         if (Sandbox.Active) return null;
@@ -54,6 +54,12 @@ static partial class Native
             Guid iid = typeof(IAudioEndpointVolume).GUID;
             if (device.Activate(ref iid, InProcess, IntPtr.Zero, out endpoint) < 0) return null;
             IAudioEndpointVolume volume = (IAudioEndpointVolume)endpoint;
+            float scalar;
+            if (delta != 0)
+            {
+                if (volume.GetMasterVolumeLevelScalar(out scalar) < 0) return null;
+                requested = (int)Math.Max(0, Math.Min(100, Math.Round(scalar * 100) + delta));
+            }
             if (requested.HasValue && volume.SetMasterVolumeLevelScalar(requested.Value / 100f, IntPtr.Zero) < 0) return null;
             if (volume.GetMute(out muted) < 0) return null;
             if (toggleMute)
@@ -61,7 +67,6 @@ static partial class Native
                 if (volume.SetMute(!muted, IntPtr.Zero) < 0) return null;
                 muted = !muted;
             }
-            float scalar;
             return volume.GetMasterVolumeLevelScalar(out scalar) < 0 ? (int?)null : (int)Math.Round(scalar * 100);
         }
         catch (COMException) { return null; }

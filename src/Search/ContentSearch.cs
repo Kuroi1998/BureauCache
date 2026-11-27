@@ -74,11 +74,16 @@ static class ContentSearch
     public static string PathFromUrl(string url)
     {
         if (string.IsNullOrEmpty(url) || !url.StartsWith("file:", StringComparison.OrdinalIgnoreCase)) return null;
-        string p = Uri.UnescapeDataString(url.Substring(5).TrimStart('/')).Replace('/', '\\');
-        // Lecteur suivi d'une barre : « C:rapport.txt » dépendrait du dossier courant du lecteur (SEC-02)
-        if (p.Length <= 3 || p[1] != ':' || p[2] != '\\' || !char.IsLetter(p[0])) return null;
-        // « .. » encodé dans l'adresse : on raisonne sur le chemin résolu (QA42-03)
-        try { return Path.GetFullPath(p); } catch { return null; }
+        try
+        {
+            string p = Uri.UnescapeDataString(url.Substring(5).TrimStart('/')).Replace('/', '\\');
+            if (p.Length <= 3 || p[1] != ':' || p[2] != '\\' ||
+                (p[0] < 'A' || p[0] > 'Z') && (p[0] < 'a' || p[0] > 'z')) return null;
+            if (p.IndexOf(':', 2) >= 0 || p.IndexOfAny(Path.GetInvalidPathChars()) >= 0 || p.IndexOfAny(new[] { '*', '?' }) >= 0) return null;
+            // « .. » encodé dans l'adresse : on raisonne sur le chemin résolu (QA42-03)
+            return Path.GetFullPath(p);
+        }
+        catch { return null; }
     }
 
     // Fichier du bureau, ou d'un dossier du bureau à au plus MaxDepth niveaux : la documentation enfouie dans un

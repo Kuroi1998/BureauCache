@@ -35,8 +35,9 @@ static class Loader
         string[] dirs = Paths.Desktops;
         if (showSystem)
         {
-            items.Add(new DesktopItem { Key = "::ce-pc", Name = L.T("Ce PC", "This PC", "Este equipo"), Target = "explorer.exe", Args = "shell:MyComputerFolder", IsSystem = true, AutoCategory = "Dossiers", Icon = IconCache.Get("stock|15|" + px, () => Icons.Stock(15, px)) });
-            items.Add(new DesktopItem { Key = "::corbeille", Name = L.T("Corbeille", "Recycle Bin", "Papelera de reciclaje"), Target = "explorer.exe", Args = "shell:RecycleBinFolder", IsSystem = true, AutoCategory = "Dossiers", Icon = IconCache.Get("stock|31|" + px, () => Icons.Stock(31, px)) });
+            string explorer = ShellUtil.SystemPath("explorer.exe");
+            items.Add(new DesktopItem { Key = "::ce-pc", Name = L.T("Ce PC", "This PC", "Este equipo"), Target = explorer, Args = "shell:MyComputerFolder", IsSystem = true, AutoCategory = "Dossiers", Icon = IconCache.Get("stock|15|" + px, () => Icons.Stock(15, px)) });
+            items.Add(new DesktopItem { Key = "::corbeille", Name = L.T("Corbeille", "Recycle Bin", "Papelera de reciclaje"), Target = explorer, Args = "shell:RecycleBinFolder", IsSystem = true, AutoCategory = "Dossiers", Icon = IconCache.Get("stock|31|" + px, () => Icons.Stock(31, px)) });
         }
         foreach (string dir in dirs)
         {
@@ -121,7 +122,7 @@ static class Loader
                     string parsing = "shell:AppsFolder\\" + p;
                     res.Add(new DesktopItem
                     {
-                        Kind = ItemKind.App, Key = "app:" + p, Name = n, Target = "explorer.exe", Args = parsing,
+                        Kind = ItemKind.App, Key = "app:" + p, Name = n, Target = ShellUtil.SystemPath("explorer.exe"), Args = parsing,
                         Detail = L.T("Application du Store", "Store app", "Aplicación de la Store"),
                         Icon = IconCache.Get("uwp|" + p + "|" + px, () => Icons.ShellImage(parsing, px, false))
                     });

@@ -26,7 +26,8 @@ partial class SettingsForm
         placeBox.Box.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; SearchPlace(); } };
         placeBox.Box.HandleCreated += (s, e) => Native.SendMessage(placeBox.Box.Handle, 0x1501, (IntPtr)1, T("Ville…", "City…", "Ciudad…"));
         bPlace = Button(T("Rechercher", "Search", "Buscar"), false, S(110), SearchPlace);
-        lWeatherPlace = Row(T("Lieu de la météo", "Weather location", "Ubicación para el tiempo"), "-", bPlace, null, null, placeBox);
+        lWeatherPlace = Row(T("Lieu de la météo", "Weather location", "Ubicación para el tiempo"), "-", bPlace, null, null, placeBox,
+            T("ville localisation", "city location", "ciudad meteorología"));
     }
 
     void UpdateWeatherPlaceText()

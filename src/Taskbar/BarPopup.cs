@@ -75,10 +75,11 @@ class BarPopup : Form
         this.anchor = anchor;
         this.area = area;
         placed = true;
-        Size content = ClientSize;
+        Size content = new Size(PanelWidth, Card.Bottom + Margin2);
         Rectangle bounds = QuickSettingsForm.PopupBounds(anchor, area, content);
-        AutoScroll = bounds.Size != content;
-        AutoScrollMinSize = AutoScroll ? content : Size.Empty;
+        bool scroll = bounds.Size != content;
+        AutoScrollMinSize = scroll ? content : Size.Empty;
+        AutoScroll = scroll;
         Bounds = bounds;
     }
 

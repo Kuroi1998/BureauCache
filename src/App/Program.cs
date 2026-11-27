@@ -15,24 +15,14 @@ static class Program
     [STAThread]
     static void Main(string[] args)
     {
+        Stopwatch startupClock = Stopwatch.StartNew();
         // Sécurité : les DLL système ne sont cherchées que dans System32, jamais à côté de l'exe (Téléchargements…)
         try { Native.SetDefaultDllDirectories(Native.LOAD_LIBRARY_SEARCH_SYSTEM32); } catch { }
-        try { Native.SetProcessDPIAware(); } catch { }
-        Application.EnableVisualStyles();
-        Application.SetCompatibleTextRenderingDefault(false);
-        using (Graphics g = Graphics.FromHwnd(IntPtr.Zero)) Ui.Scale = g.DpiX / 96f;
-
         string cmd = args.Length > 0 ? args[0].ToLowerInvariant() : "";
         if (cmd == "--watchdog" && args.Length > 1) { Watchdog(args[1]); return; }
-        if (cmd == "--make-icon" && args.Length > 1) { Ui.WriteIco(args[1]); return; }
         if (cmd == "--restore") { Native.RestoreDesktopIcons(); WindowsBar.Restore(); TaskbandRoute.Restore(); return; }
-        Settings.Load();
-        L.Refresh();
-        // Taille de l'interface (T-045) : fixée pour toute la session, comme l'échelle de l'écran
-        Ui.FontZoom = Settings.InterfaceZoom / 100f;
-        Ui.Scale *= Ui.FontZoom;
-        Settings.RefreshWindowsAccent();
-        if (cmd == "--uninstall") { UninstallFromCommandLine(); return; }
+        if (cmd == "--make-icon" && args.Length > 1) { InitWinForms(); Ui.WriteIco(args[1]); return; }
+        if (cmd == "--uninstall") { InitSession(); UninstallFromCommandLine(); return; }
 
         bool created;
         using (Mutex m = new Mutex(true, MutexName, out created))
@@ -52,6 +42,8 @@ static class Program
             using (EventWaitHandle show = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEvent))
             using (EventWaitHandle quit = new EventWaitHandle(false, EventResetMode.AutoReset, QuitEvent))
             {
+                InitSession();
+                if (Settings.TaskbarOn && !Sandbox.Active) StartupTimeline.Start(startupClock);
                 Updater.StartState start = Updater.BeginStart(Application.ExecutablePath);
                 Updater.TrialStarted = start == Updater.StartState.Trial;
                 if (start == Updater.StartState.RolledBack)
@@ -67,6 +59,7 @@ static class Program
                 {
                     if (Installer.RunningFromInstall) try { Installer.RegisterVersion(); } catch { }
                     StartWatchdog();
+                    StartupTimeline.Mark("surveillance_lancee");
                     try { Application.Run(new App(show, quit)); }
                     finally
                     {
@@ -85,6 +78,25 @@ static class Program
             else try { Process.Start(App.RelaunchPath); } catch { }
         }
         Installer.StartFolderRemoval();
+    }
+
+    static void InitWinForms()
+    {
+        try { Native.SetProcessDPIAware(); } catch { }
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
+        using (Graphics g = Graphics.FromHwnd(IntPtr.Zero)) Ui.Scale = g.DpiX / 96f;
+    }
+
+    static void InitSession()
+    {
+        InitWinForms();
+        Settings.Load();
+        L.Refresh();
+        // Taille de l'interface et échelle de l'écran fixées pour la session (T-045).
+        Ui.FontZoom = Settings.InterfaceZoom / 100f;
+        Ui.Scale *= Ui.FontZoom;
+        Settings.RefreshWindowsAccent();
     }
 
     // Vrai si le processus de surveillance tourne : la barre BureauCache en a besoin (D-013, BAR-07)

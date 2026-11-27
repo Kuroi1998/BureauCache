@@ -31,11 +31,9 @@ sealed class SettingsNavigation : Panel
         get { return selected; }
         set
         {
-            items[selected].Active = false;
-            items[selected].Invalidate();
+            if (selected != value) items[selected].Active = false;
             selected = value;
             items[selected].Active = true;
-            items[selected].Invalidate();
             RevealSelection();
         }
     }
@@ -68,7 +66,7 @@ sealed class SettingsNavigation : Panel
         {
             links.AutoScrollPosition = Point.Empty;
             links.Bounds = new Rectangle(pad, top, Width - pad * 2, Math.Max(1, preview.Top - top - pad));
-            int row = Math.Max(Ui.S(32), Math.Min(Ui.S(45), links.Height / items.Length));
+            int row = Math.Max(Ui.S(28), Math.Min(Ui.S(45), links.Height / items.Length));
             int extent = items.Length * row;
             int width = links.Width - (extent > links.Height ? SystemInformation.VerticalScrollBarWidth : 0);
             for (int i = 0; i < items.Length; i++)
@@ -104,7 +102,19 @@ sealed class SettingsNavigation : Panel
     sealed class NavigationButton : Button
     {
         readonly string glyph;
-        public bool Active;
+        bool active;
+        public bool Active
+        {
+            get { return active; }
+            set
+            {
+                if (active == value) return;
+                active = value;
+                AccessibleName = active ? Text + ", " + L.T("rubrique active", "current category", "categoría activa") : Text;
+                if (IsHandleCreated) AccessibilityNotifyClients(AccessibleEvents.NameChange, -1);
+                Invalidate();
+            }
+        }
 
         public NavigationButton(string name, string glyph)
         {
@@ -132,9 +142,12 @@ sealed class SettingsNavigation : Panel
             if (contrast && Active) { surface = SystemColors.Highlight; fg = SystemColors.HighlightText; }
             e.Graphics.Clear(surface);
             if (!contrast && (Active || ClientRectangle.Contains(PointToClient(Cursor.Position))))
-                Ui.Card(e.Graphics, Active ? Theme.SelOverlay : Theme.HoverOverlay, ClientRectangle, Ui.S(Ui.RadiusControl), Active);   // D-012
+                Ui.Card(e.Graphics, Active ? Theme.Mix(Theme.Side, Theme.Accent, 0.15f) : Theme.HoverOverlay, ClientRectangle, Ui.S(Ui.RadiusControl), Active);
             if (Active && !contrast)
-                Ui.Fill(e.Graphics, Theme.Accent, new RectangleF(0, Ui.S(10), Ui.S(3), Height - Ui.S(20)), Ui.S(2));
+            {
+                int markerHeight = Math.Max(Ui.S(12), Height - Ui.S(20));
+                Ui.Fill(e.Graphics, Theme.Accent, new RectangleF(0, (Height - markerHeight) / 2, Ui.S(3), markerHeight), Ui.S(2));
+            }
             Ui.Glyph(e.Graphics, glyph, 10f, fg, new Rectangle(Ui.S(7), 0, Ui.S(27), Height));
             TextRenderer.DrawText(e.Graphics, Text, Font, new Rectangle(Ui.S(38), 0, Width - Ui.S(42), Height), fg,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);

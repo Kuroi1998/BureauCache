@@ -146,16 +146,23 @@ static class Installer
     public static void StartFolderRemoval()
     {
         if (!removeFolderOnExit) return;
+        Sandbox.Guard("suppression différée du dossier d'installation");
         removeFolderOnExit = false;
-        string q = "\"" + Dir + "\"";
-        // Chemin complet de cmd.exe et /d : ni un cmd.exe posé ailleurs, ni les commandes AutoRun du profil (SEC-06)
+        try { using (Process.Start(FolderRemovalCommand(Dir))) { } } catch { }
+    }
+
+    internal static ProcessStartInfo FolderRemovalCommand(string directory)
+    {
+        // Le chemin n'entre dans la commande qu'à l'exécution, par expansion retardée.
         ProcessStartInfo psi = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"),
-            "/d /c for /l %i in (1,1,30) do (if exist " + q + " (ping 127.0.0.1 -n 2 > nul & rmdir /s /q " + q + " 2> nul))");
+            "/d /e:on /v:on /c for /l %i in (1,1,30) do (if exist \"!BUREAUCACHE_REMOVE_DIR!\" (\"!BUREAUCACHE_REMOVE_PING!\" 127.0.0.1 -n 2 > nul & rmdir /s /q \"!BUREAUCACHE_REMOVE_DIR!\" 2> nul))");
         psi.WindowStyle = ProcessWindowStyle.Hidden;
         psi.CreateNoWindow = true;
         psi.UseShellExecute = false;
         psi.WorkingDirectory = Path.GetTempPath();
-        try { Process.Start(psi); } catch { }
+        psi.EnvironmentVariables["BUREAUCACHE_REMOVE_DIR"] = directory;
+        psi.EnvironmentVariables["BUREAUCACHE_REMOVE_PING"] = Path.Combine(Environment.SystemDirectory, "ping.exe");
+        return psi;
     }
 
     // Message de fin de désinstallation, avec ce qui reste à supprimer à la main (R-05)

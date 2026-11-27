@@ -9,6 +9,7 @@ using System.Windows.Forms;
 partial class BarForm : Form
 {
     public event Action StartClicked, MenuRequested, ExplorerRestarted;
+    public event Action InitializationFailed;
 
     // Vrai quand Windows a accepté la réservation : sans elle, la barre ne doit pas remplacer celle de Windows (BAR-09)
     public bool Registered { get { return appbar; } }
@@ -16,6 +17,8 @@ partial class BarForm : Form
     readonly uint abMsg = Native.RegisterWindowMessage("BureauCache.Barre");
     readonly uint taskbarCreated = Native.RegisterWindowMessage("TaskbarCreated");
     readonly Timer clock = new Timer();
+    readonly Timer initialTracking = new Timer { Interval = 120 };
+    bool initialTrackingPending = true;
     bool appbar;
     Rectangle requestedBarBounds, approvedBarBounds;
     int hot = -1;   // zone survolée : 0 Démarrer, 1 Paramètres rapides, 2 horloge, Overflow, WindowZone + indice
@@ -44,9 +47,12 @@ partial class BarForm : Form
         appliedAutoHide = Settings.TaskbarAutoHide;
         autoHide.Tick += (o, e) => AutoHideTick();
         ApplyTheme();
+        appliedAppearance = new AppearanceSettings();
+        InitializeButtonIcons();
         previewDelay.Tick += (o, e) => { previewDelay.Stop(); OpenPreview(previewZone); };
         previewWatch.Tick += (o, e) => WatchPreview();
         clock.Tick += (o, e) => { ScheduleClock(); Invalidate(zones[2]); };
+        initialTracking.Tick += (o, e) => FinishInitialTracking();
         ScheduleClock();
     }
 
@@ -66,7 +72,6 @@ partial class BarForm : Form
     {
         if ((quickSettings != null && quickSettings.BackColor != Theme.Bg) || (popup != null && popup.BackColor != Theme.Bg)) ClosePanels();
         BackColor = Theme.Bg;
-        RefreshGlass();   // le voile du verre suit le thème
         Invalidate();
     }
 
@@ -102,11 +107,33 @@ partial class BarForm : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        if (!Sandbox.Active) { AppBarRegister(); StartWindows(); UpdateAutoHide(); RefreshGlass(); }
+        if (Sandbox.Active) return;
+        AppBarRegister();
+        if (!appbar) return;
+        UpdateAutoHide();
+        RebuildButtons(); // Les épingles sont visibles dès le premier dessin.
+        initialTracking.Start();
+    }
+
+    void FinishInitialTracking()
+    {
+        initialTracking.Stop();
+        if (Disposing || IsDisposed || !IsHandleCreated || !appbar) return;
+        initialTrackingPending = false;
+        try
+        {
+            StartWindows();
+            StartupTimeline.Mark("inventaire_fenetres");
+            RefreshGlass();
+            ScheduleButtonIcons();
+        }
+        catch { if (InitializationFailed != null) InitializationFailed(); }
     }
 
     protected override void OnHandleDestroyed(EventArgs e)
     {
+        initialTracking.Stop();
+        initialTrackingPending = true;
         ClosePanels();
         StopWindows();
         AppBarRemove();
@@ -130,6 +157,7 @@ partial class BarForm : Form
         if (Native.SHAppBarMessage(Native.ABM_NEW, ref d) == UIntPtr.Zero) return;
         appbar = true;
         Reposition();
+        StartupTimeline.Mark("barre_reservee");
     }
 
     protected override void Dispose(bool disposing)
@@ -138,6 +166,8 @@ partial class BarForm : Form
         base.Dispose(disposing); // OnHandleDestroyed arrête le suivi et ferme l'aperçu.
         if (disposing)
         {
+            initialTracking.Dispose();
+            DisposeButtonIcons();
             previewDelay.Dispose();
             previewWatch.Dispose();
             tip.Dispose();
@@ -174,8 +204,14 @@ partial class BarForm : Form
     {
         // Windows peut notifier la position alors que la barre n'a pas bougé.
         if (Bounds == bounds) return;
-        ClosePanels();
+        ClosePopup();
+        if (quickSettings != null && !quickSettings.ShowingConnections) CloseQuickSettings();
         Bounds = bounds;
+        if (quickSettings != null)
+        {
+            Layout2();
+            PlaceQuickSettings(quickSettings);
+        }
     }
 
     void AppBarRemove()
@@ -268,7 +304,11 @@ partial class BarForm : Form
     {
         Graphics g = e.Graphics;
         if (Settings.TaskbarLine) using (Pen line = new Pen(Theme.Line)) g.DrawLine(line, 0, 0, ClientSize.Width, 0);
-        if (collapsedBar) return;   // repliée : le liseré seul, les zones gardent leur place de la barre dépliée
+        if (collapsedBar)
+        {
+            StartupTimeline.Mark("barre_premier_dessin");
+            return;   // les zones gardent leur place de la barre dépliée
+        }
         Layout2();
         for (int i = 0; i < zones.Length; i++)
             if (zones[i].IsEmpty) continue;
@@ -300,6 +340,7 @@ partial class BarForm : Form
             TextRenderer.DrawText(g, time, ClockFont, new Rectangle(z.Left, z.Top + half - ClockFont.Height, z.Width, ClockFont.Height), Theme.Fg, f);
             TextRenderer.DrawText(g, date, ClockFont, new Rectangle(z.Left, z.Top + half, z.Width, ClockFont.Height), Theme.Fg, f);
         }
+        StartupTimeline.Mark("barre_premier_dessin");
     }
 
     int ZoneAt(Point p)

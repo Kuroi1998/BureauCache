@@ -36,7 +36,7 @@ partial class SettingsForm
         }
         customCard.Separators.Clear();
         customCounts.Clear();
-        cardRows[customCard].Clear();
+        cardSections[customCard].Rows.Clear();
         foreach (CustomCat cc in Settings.CustomCats.ToList())
         {
             CustomCat c = cc;
@@ -56,12 +56,12 @@ partial class SettingsForm
             T("Ex. : Travail, Cours, Mods… avec ton icône et ta couleur.", "E.g. Work, School, Mods… with your own icon and color.", "Por ejemplo, Trabajo, Estudios o Mods, con tu propio icono y color."), add, null);
         Style(customCard);
         cur = saved;
-        ArrangePages();
     }
 
     void BuildAdvanced()
     {
         NewPage(T("Avancé", "Advanced", "Opciones avanzadas"), T("Sauvegardes et mises à jour.", "Backups and updates.", "Copias de seguridad y actualizaciones."));
+        Subtab(T("Sauvegarde", "Backups", "Copias"));
         Section(T("SAUVEGARDE", "BACKUP", "COPIA DE SEGURIDAD"));
         lExport = Row(T("Exporter mes réglages", "Export my settings", "Exportar mi configuración"), T("Réglages, favoris, catégories et ordre.", "Settings, favorites, categories and order.", "Configuración, favoritos, categorías y orden."),
             Button(T("Exporter…", "Export…", "Exportar…"), false, S(130), Export), null);
@@ -71,6 +71,7 @@ partial class SettingsForm
             T("Une copie automatique par jour, sur les " + SettingsBackup.Kept + " derniers jours.", "One automatic copy per day, for the last " + SettingsBackup.Kept + " days.", "Una copia automática al día, durante los últimos " + SettingsBackup.Kept + " días."),
             Button(T("Restaurer…", "Restore…", "Restaurar…"), false, S(130), RestoreBackup), null);
 
+        Subtab(T("Mises à jour", "Updates", "Actualización"));
         Section(T("MISES À JOUR", "UPDATES", "ACTUALIZACIONES"));
         repo = new InputBox(S(230));
         repo.Box.Leave += (s, e) => { if (repo.Box.Text.Trim() != Settings.UpdateRepo) { Settings.UpdateRepo = repo.Box.Text.Trim(); ResetUpdateButton(); Settings.Notify(); } };
@@ -83,6 +84,7 @@ partial class SettingsForm
         lUpdate = Row(T("Version ", "Version ", "Versión ") + Installer.Version, "-", bCheck, null);
 
         // Le nettoyage rapide n'était accessible que par un clic droit sur la tuile Disque (Gemini B2)
+        Subtab(T("Entretien", "Maintenance", "Mantenimiento"));
         Section(T("ENTRETIEN", "MAINTENANCE", "MANTENIMIENTO"));
         Row(T("Nettoyage rapide", "Quick clean-up", "Limpieza rápida"),
             T("Caches et fichiers temporaires de ton compte, avec les tailles avant de supprimer. Aussi par clic droit sur la tuile Disque.",

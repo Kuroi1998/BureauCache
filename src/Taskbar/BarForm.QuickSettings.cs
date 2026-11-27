@@ -12,7 +12,6 @@ partial class BarForm
         if (Sandbox.Active) return;
         if (quickSettings != null) { CloseQuickSettings(); return; }
         HidePreview();
-        Rectangle anchor = RectangleToScreen(zones[1]);
         QuickSettingsForm form = new QuickSettingsForm(Native.QuickMonitor(Handle));
         quickSettings = form;
         form.FormClosed += (s, e) =>
@@ -20,11 +19,17 @@ partial class BarForm
             if (quickSettings == form) quickSettings = null;
             Invalidate(zones[1]);
         };
-        form.PlaceAbove(anchor, Screen.FromRectangle(anchor).WorkingArea);
+        PlaceQuickSettings(form);
         form.Show(this);
         form.Activate();
         Native.SetForegroundWindow(form.Handle);
         Invalidate(zones[1]);
+    }
+
+    void PlaceQuickSettings(QuickSettingsForm form)
+    {
+        Rectangle anchor = RectangleToScreen(zones[1]);
+        form.PlaceAbove(anchor, Screen.FromRectangle(anchor).WorkingArea);
     }
 
     void CloseQuickSettings()

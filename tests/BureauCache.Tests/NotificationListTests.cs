@@ -93,6 +93,84 @@ public class NotificationListTests
     }
 
     [TestMethod]
+    public void FeedRefreshesWhenOnlyTheBodyChangesAndClearsOnDenial()
+    {
+        RunSta(() =>
+        {
+            using (var form = new NotificationsForm())
+            {
+                var first = Sample();
+                form.ShowFeed(Native.NotificationAccess.Allowed, first);
+                form.List.HandleKey(Keys.Down);
+                var updated = Sample();
+                for (int i = 0; i < first.Count; i++) updated[i].Time = first[i].Time;
+                updated[0].Body = "Message modifié";
+                form.ShowFeed(Native.NotificationAccess.Allowed, updated);
+                Assert.AreEqual(updated[0].Body, form.List.SelectedItem.Body);
+                form.ShowFeed(Native.NotificationAccess.Denied, null);
+                Assert.AreEqual(0, form.List.Count);
+            }
+        });
+    }
+
+    [TestMethod]
+    public void FeedSnapshotStartedBeforeDismissDoesNotRestoreTheNotification()
+    {
+        RunSta(() =>
+        {
+            const BindingFlags instanceFlags = BindingFlags.Instance | BindingFlags.NonPublic;
+            var field = typeof(NotificationsForm).GetField("mutation", BindingFlags.Static | BindingFlags.NonPublic);
+            var apply = typeof(NotificationsForm).GetMethod("ApplyFeedResult", instanceFlags);
+            var dismiss = typeof(NotificationsForm).GetMethod("Dismiss", instanceFlags);
+            var prior = field.GetValue(null);
+            var pending = new System.Threading.Tasks.TaskCompletionSource<bool>();
+            try
+            {
+                using (var form = new NotificationsForm())
+                {
+                    var items = Sample();
+                    form.ShowFeed(Native.NotificationAccess.Allowed, items);
+                    dismiss.Invoke(form, new object[] { items[0] });
+                    field.SetValue(null, pending.Task);
+                    apply.Invoke(form, new[] { prior, (object)Native.NotificationAccess.Allowed, items });
+                    Assert.AreEqual(items.Count - 1, form.List.Count);
+
+                    pending.SetResult(true);
+                    apply.Invoke(form, new object[] { pending.Task, Native.NotificationAccess.Allowed, items });
+                    Assert.AreEqual(items.Count, form.List.Count);
+                }
+            }
+            finally { field.SetValue(null, prior); }
+        });
+    }
+
+    [TestMethod]
+    public void FeedRepositionRetainsScrollingOnASmallScreen()
+    {
+        RunSta(() =>
+        {
+            using (var form = new NotificationsForm())
+            {
+                var anchor = new Rectangle(400, 240, 32, 24);
+                var area = new Rectangle(0, 0, 640, 240);
+                form.ShowFeed(Native.NotificationAccess.Allowed, Sample());
+                form.PlaceAbove(anchor, area);
+                int contentHeight = form.AutoScrollMinSize.Height;
+                Assert.IsTrue(contentHeight > form.ClientSize.Height);
+                form.PlaceAbove(anchor, area);
+                Assert.AreEqual(contentHeight, form.AutoScrollMinSize.Height);
+                Assert.IsTrue(form.AutoScroll);
+
+                var largerArea = new Rectangle(0, 0, area.Width, contentHeight + 100);
+                var lowerAnchor = new Rectangle(anchor.X, largerArea.Bottom, anchor.Width, anchor.Height);
+                form.PlaceAbove(lowerAnchor, largerArea);
+                Assert.AreEqual(contentHeight, form.ClientSize.Height);
+                Assert.IsFalse(form.AutoScroll);
+            }
+        });
+    }
+
+    [TestMethod]
     public void PanelShowsTheListAndEveryFallback()
     {
         RunSta(() =>

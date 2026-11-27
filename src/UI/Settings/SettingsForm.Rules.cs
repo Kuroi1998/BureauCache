@@ -33,7 +33,7 @@ partial class SettingsForm
             c.Dispose();
         }
         rulesCard.Separators.Clear();
-        cardRows[rulesCard].Clear();
+        cardSections[rulesCard].Rows.Clear();
         for (int i = 0; i < Settings.ArchiveRules.Count; i++)
         {
             ArchiveRule rule = Settings.ArchiveRules[i];
@@ -66,7 +66,6 @@ partial class SettingsForm
               "P. ej., las capturas van a Imágenes\\Capturas después de 7 días. Gana la primera regla que coincide; los demás archivos siguen la organización por antigüedad."), add, null);
         Style(rulesCard);
         cur = saved;
-        ArrangePages();
     }
 
     string Describe(ArchiveRule r)

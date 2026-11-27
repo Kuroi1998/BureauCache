@@ -13,33 +13,44 @@ partial class NotificationsForm
     // notifications sans tâche d'arrière-plan empaquetée
     readonly Timer feed = new Timer { Interval = 3000 };
     readonly Dictionary<string, Bitmap> logos = new Dictionary<string, Bitmap>(StringComparer.OrdinalIgnoreCase);
-    Task<Tuple<List<Native.SystemNotification>, Native.NotificationAccess>> reading;
+    bool reading;
+    static Task mutation;
     string notesActionUri, shownState;
 
-    void ReadFeed()
+    async void ReadFeed()
     {
-        if (Sandbox.Active || reading != null || IsDisposed) return;
+        if (Sandbox.Active || reading || IsDisposed || (mutation != null && !mutation.IsCompleted)) return;
         string[] known = logos.Keys.ToArray();
-        reading = Task.Factory.StartNew(() =>
+        Task observedMutation = mutation;
+        reading = true;
+        Tuple<List<Native.SystemNotification>, Native.NotificationAccess> result;
+        try
         {
-            Native.NotificationAccess access;
-            List<Native.SystemNotification> list = Native.ReadNotifications(known, out access);
-            return Tuple.Create(list, access);
-        });
-        reading.ContinueWith(t =>
-        {
-            if (IsDisposed || !IsHandleCreated) { DisposeLogos(t.Result.Item1); return; }
-            try
+            result = await Task.Run(() =>
             {
-                BeginInvoke((Action)delegate
-                {
-                    reading = null;
-                    if (IsDisposed) { DisposeLogos(t.Result.Item1); return; }
-                    ShowFeed(t.Result.Item2, t.Result.Item1);
-                });
-            }
-            catch (InvalidOperationException) { DisposeLogos(t.Result.Item1); }   // fenêtre détruite entre-temps
-        }, TaskScheduler.Default);
+                Native.NotificationAccess access;
+                List<Native.SystemNotification> list = Native.ReadNotifications(known, out access);
+                return Tuple.Create(list, access);
+            });
+        }
+        catch (Exception)
+        {
+            result = Tuple.Create((List<Native.SystemNotification>)null, Native.NotificationAccess.Unavailable);
+        }
+        finally { reading = false; }
+        ApplyFeedResult(observedMutation, result.Item2, result.Item1);
+    }
+
+    void ApplyFeedResult(Task observedMutation, Native.NotificationAccess access, List<Native.SystemNotification> list)
+    {
+        if (IsDisposed || mutation != observedMutation) DisposeLogos(list);
+        else ShowFeed(access, list);
+    }
+
+    static void QueueMutation(Action change)
+    {
+        if (Sandbox.Active) return;
+        mutation = mutation == null ? Task.Run(change) : mutation.ContinueWith(t => change(), TaskScheduler.Default);
     }
 
     static void DisposeLogos(List<Native.SystemNotification> list)
@@ -54,8 +65,8 @@ partial class NotificationsForm
         if (list != null)
             foreach (Native.SystemNotification n in list)
             {
-                if (n.Logo == null || n.AppId == null) continue;
-                if (logos.ContainsKey(n.AppId)) n.Logo.Dispose();
+                if (n.Logo == null) continue;
+                if (n.AppId == null || logos.ContainsKey(n.AppId)) n.Logo.Dispose();
                 else logos[n.AppId] = n.Logo;
                 n.Logo = null;
             }
@@ -86,7 +97,7 @@ partial class NotificationsForm
                 "Windows guarda las notificaciones de las aplicaciones. Ábrelas en su panel.");
             action = L.T("Ouvrir les notifications de Windows", "Open Windows notifications", "Abrir las notificaciones de Windows");
         }
-        if (allowed) List.SetItems(list);
+        List.SetItems(allowed ? list : null);
         showList = allowed && list.Count > 0;
         showText = text != null;
         notesText.Text = text ?? string.Empty;
@@ -100,8 +111,20 @@ partial class NotificationsForm
     static string Signature(List<Native.SystemNotification> list)
     {
         StringBuilder b = new StringBuilder();
-        foreach (Native.SystemNotification n in list) b.Append(n.Id).Append('/').Append((n.Title ?? string.Empty).GetHashCode()).Append(';');
+        foreach (Native.SystemNotification n in list)
+        {
+            b.Append(n.Id).Append('/').Append(n.Time.ToBinary()).Append('/');
+            AppendField(b, n.AppId);
+            AppendField(b, n.AppName);
+            AppendField(b, n.Title);
+            AppendField(b, n.Body);
+        }
         return b.ToString();
+    }
+
+    static void AppendField(StringBuilder signature, string value)
+    {
+        signature.Append(value == null ? -1 : value.Length).Append(':').Append(value);
     }
 
     Image LogoOf(string appId)
@@ -115,14 +138,14 @@ partial class NotificationsForm
         uint id = n.Id;
         List.Remove(id);
         AfterLocalChange();
-        if (!Sandbox.Active) Task.Factory.StartNew(() => Native.RemoveNotification(id));
+        QueueMutation(() => Native.RemoveNotification(id));
     }
 
     void ClearAll()
     {
         List.SetItems(new List<Native.SystemNotification>());
         AfterLocalChange();
-        if (!Sandbox.Active) Task.Factory.StartNew(() => Native.ClearNotifications());
+        QueueMutation(() => Native.ClearNotifications());
         List.Focus();
     }
 
@@ -143,7 +166,7 @@ partial class NotificationsForm
     {
         if (!IsLaunchableAppId(n.AppId)) return;
         uint id = n.Id;
-        if (!Sandbox.Active) Task.Factory.StartNew(() => Native.RemoveNotification(id));
+        QueueMutation(() => Native.RemoveNotification(id));
         Launch(@"shell:AppsFolder\" + n.AppId);
     }
 

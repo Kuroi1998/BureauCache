@@ -8,6 +8,7 @@ partial class QuickSettingsForm : Form
     readonly Timer refresh = new Timer { Interval = 75 };
     readonly ToolTip mediaTip = new ToolTip();
     readonly IntPtr monitor;
+    readonly Size homeSize;
     readonly Label battery, mediaTitle, mediaArtist;
     readonly PictureBox artwork;
     readonly StartTile previous, playback, next, saver;
@@ -68,7 +69,8 @@ partial class QuickSettingsForm : Form
         battery = LabelAt(string.Empty, Pad, row, Inner / 2, 36, false);
         AddLink(Glyphs.Settings, L.T("Tous les paramètres", "All settings", "Toda la configuración"), "ms-settings:",
             new Rectangle(battery.Right, row, Inner - battery.Width, Ui.S(36)), null, false);
-        ClientSize = new Size(PanelWidth, battery.Bottom + Pad);
+        homeSize = new Size(PanelWidth, battery.Bottom + Pad);
+        ClientSize = homeSize;
 
         refresh.Tick += (s, e) => RefreshControls();
     }
@@ -80,14 +82,17 @@ partial class QuickSettingsForm : Form
 
     public void PlaceAbove(Rectangle anchor, Rectangle area)
     {
-        Size content = ClientSize;
-        Rectangle bounds = PopupBounds(anchor, area, content);
-        if (bounds.Size != content)
-        {
-            AutoScroll = true;
-            AutoScrollMinSize = content;
-        }
+        Rectangle bounds = PopupBounds(anchor, area, homeSize);
+        homeScroll = bounds.Size != homeSize;
+        if (!ShowingConnections)
+            ApplyHomeScrolling();
         Bounds = bounds;
+    }
+
+    void ApplyHomeScrolling()
+    {
+        AutoScrollMinSize = homeScroll ? homeSize : Size.Empty;
+        AutoScroll = homeScroll;
     }
 
     internal static Rectangle PopupBounds(Rectangle anchor, Rectangle area, Size content)
@@ -156,8 +161,8 @@ partial class QuickSettingsForm : Form
     {
         base.OnDeactivate(e);
         // Une invite Windows ou un changement de focus ne doit pas faire perdre la liste de connexions.
-        if (Visible && connectionPage == null) Close();
-        else if (connectionPassword != null) connectionPassword.Clear();   // la page reste, pas le secret (CDX-47)
+        if (ShowingConnections) connectionPassword.Clear();   // la page reste, pas le secret (CDX-47)
+        else if (Visible) Close();
     }
 
     protected override bool ProcessCmdKey(ref Message message, Keys key)

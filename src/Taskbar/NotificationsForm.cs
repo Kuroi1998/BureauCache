@@ -34,6 +34,8 @@ partial class NotificationsForm : BarPopup
 
     void Arrange()
     {
+        Point scroll = AutoScrollPosition;
+        AutoScrollPosition = Point.Empty;
         SuspendLayout();
         int x = ContentLeft, y = Margin2 + Ui.S(8);
         bool items = showList && List.Count > 0;
@@ -68,6 +70,7 @@ partial class NotificationsForm : BarPopup
         else if (showText) y += Inset - Gap;
         ResumeLayout(false);
         FinishLayout(Margin2, y);
+        AutoScrollPosition = new Point(-scroll.X, -scroll.Y);
     }
 
     protected override void OnShown(EventArgs e)

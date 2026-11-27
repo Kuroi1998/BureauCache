@@ -60,7 +60,8 @@ static class SystemCatalog
         Bitmap icon = IconCache.Tile(Glyphs.Settings, Ui.GlyphFont, Color.FromArgb(84, 96, 116), px);
         return WinSettings.Select(s => new DesktopItem
         {
-            Kind = ItemKind.Setting, Key = "set:" + s[3] + s[4], Name = L.T(s[0], s[1], s[2]), Target = s[3], Args = s[4],
+            Kind = ItemKind.Setting, Key = "set:" + s[3] + s[4], Name = L.T(s[0], s[1], s[2]), Target = ShellUtil.SystemPath(s[3]),
+            Args = s[4] == null ? null : "\"" + ShellUtil.SystemPath("sysdm.cpl") + "\",EditEnvironmentVariables",
             Keywords = s[5] + " " + s[0] + " " + s[1] + " " + s[2], Detail = L.T("Paramètres Windows", "Windows settings", "Configuración de Windows"), Icon = icon
         }).ToList();
     }
@@ -74,13 +75,13 @@ static class SystemCatalog
     {
         ProcessStartInfo psi = new ProcessStartInfo(ShellUtil.SystemPath(exe), args ?? "");
         psi.UseShellExecute = true;
-        Process.Start(psi);
+        using (Process.Start(psi)) { }
     }
 
     static void Shutdown(string args)
     {
-        ProcessStartInfo psi = new ProcessStartInfo("shutdown.exe", args) { CreateNoWindow = true, UseShellExecute = false };
-        Process.Start(psi);
+        ProcessStartInfo psi = new ProcessStartInfo(ShellUtil.SystemPath("shutdown.exe"), args) { CreateNoWindow = true, UseShellExecute = false };
+        using (Process.Start(psi)) { }
     }
 
     public static List<DesktopItem> Commands(int px, Action openSettings)

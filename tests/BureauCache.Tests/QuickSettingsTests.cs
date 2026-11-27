@@ -187,6 +187,55 @@ namespace BureauCache.Tests
         }
 
         [TestMethod]
+        public void MovingTheBarKeepsTheConnectionPageAndReanchorsIt()
+        {
+            InWinForms(() =>
+            {
+                bool previousQuick = Settings.TaskbarQuick;
+                Settings.TaskbarQuick = true;
+                try
+                {
+                    using (var bar = new BarForm())
+                    using (var panel = new QuickSettingsForm(IntPtr.Zero))
+                    {
+                        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                        typeof(BarForm).GetField("quickSettings", flags).SetValue(bar, panel);
+                        typeof(QuickSettingsForm).GetMethod("ShowConnections", flags).Invoke(panel, new object[] { true });
+                        var page = panel.Controls.OfType<Panel>().Single();
+                        Rectangle bounds = bar.Bounds;
+                        bounds.Offset(-15, 0);
+                        typeof(BarForm).GetMethod("ApplyBarBounds", flags).Invoke(bar, new object[] { bounds });
+                        Assert.IsFalse(panel.IsDisposed);
+                        Assert.AreSame(page, panel.Controls.OfType<Panel>().Single());
+                        var zones = (Rectangle[])typeof(BarForm).GetField("zones", flags).GetValue(bar);
+                        var anchor = bar.RectangleToScreen(zones[1]);
+                        Assert.AreEqual(anchor.Top - Ui.S(8), panel.Bottom);
+                    }
+                }
+                finally { Settings.TaskbarQuick = previousQuick; }
+            });
+        }
+
+        [TestMethod]
+        public void RepositioningRestoresTheFullSizeAfterAConstrainedPlacement()
+        {
+            InWinForms(() =>
+            {
+                using (var panel = new QuickSettingsForm(IntPtr.Zero))
+                {
+                    Size fullSize = panel.ClientSize;
+                    var smallArea = new Rectangle(0, 0, fullSize.Width - 30, 160);
+                    var largeArea = new Rectangle(0, 0, fullSize.Width + 100, fullSize.Height + 100);
+                    panel.PlaceAbove(new Rectangle(smallArea.Width - 50, 160, 50, 40), smallArea);
+                    Assert.IsTrue(panel.AutoScroll);
+                    panel.PlaceAbove(new Rectangle(largeArea.Width - 50, largeArea.Bottom, 50, 40), largeArea);
+                    Assert.AreEqual(fullSize, panel.ClientSize);
+                    Assert.IsFalse(panel.AutoScroll);
+                }
+            });
+        }
+
+        [TestMethod]
         public void WifiTemporaryProfile_UsesExactSsidAndEscapesThePassword()
         {
             const string password = "a<&>1234";

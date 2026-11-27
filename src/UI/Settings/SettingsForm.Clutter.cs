@@ -6,12 +6,12 @@ using System.Linq;
 using System.Windows.Forms;
 
 // Paramètres → Organisation → « Encombrement du bureau » (D-010) : nombre d'éléments, taille totale, inutilisés
-// depuis 30 et 90 jours, et les plus volumineux. Calculé sur un fil de fond à l'ouverture de la page et après
-// chaque changement de réglage ; un compteur écarte les résultats périmés.
+// depuis 30 et 90 jours, et les plus volumineux. Seul le dernier rafraîchissement visible est traité.
 partial class SettingsForm
 {
     Label lClutter, lBiggest;
-    int clutterCount;
+    readonly Timer desktopAnalysisTimer = new Timer { Interval = 120 };
+    bool desktopAnalysisPending, desktopAnalysisRunning;
 
     void BuildClutterSection()
     {
@@ -22,30 +22,70 @@ partial class SettingsForm
             Button(T("Ouvrir le bureau", "Open the desktop", "Abrir el escritorio"), false, S(170), () => ShellUtil.Open(Paths.Desktop, null)), null);
     }
 
-    void UpdateClutter()
+    bool DesktopAnalysisVisible()
     {
-        if (lClutter == null) return;
-        int my = ++clutterCount;
+        if (!Visible || Searching || nav.Selected != 4) return false;
+        SettingsPage model = pageLayouts[4];
+        return model.SelectedTab == 0 || model.SelectedTab == cardSections[(Card)lArchive.Parent].Tab;
+    }
+
+    void QueueDesktopAnalysis()
+    {
+        if (IsDisposed || Disposing) return;
+        desktopAnalysisPending = DesktopAnalysisVisible();
+        desktopAnalysisTimer.Stop();
+        if (desktopAnalysisPending && !desktopAnalysisRunning) desktopAnalysisTimer.Start();
+    }
+
+    void StartDesktopAnalysis()
+    {
+        desktopAnalysisTimer.Stop();
+        if (!desktopAnalysisPending || desktopAnalysisRunning || !DesktopAnalysisVisible()) return;
+        desktopAnalysisPending = false;
+        desktopAnalysisRunning = true;
+        int days = Settings.ArchiveDays;
+        DateTime limit = Archiver.Limit;
         string desk = Paths.Desktop, folder = Archiver.Folder;
+        var rules = Settings.ArchiveRules.ToList();
         var favorites = new HashSet<string>(Settings.Favorites, StringComparer.OrdinalIgnoreCase);
         var usage = new Dictionary<string, long[]>(Settings.Usage, StringComparer.OrdinalIgnoreCase);
-        lClutter.Text = T("Analyse du bureau…", "Checking the desktop…", "Analizando el escritorio…");
+        if (lArchive.Text == "-") lArchive.Text = T("Analyse du bureau.", "Checking the desktop.", "Analizando el escritorio.");
+        if (lClutter.Text == "-") lClutter.Text = lArchive.Text;
         Background.Run(() =>
         {
-            Clutter.Report r = Clutter.Measure(desk, favorites, usage, folder, DateTime.UtcNow);
+            int count = 0;
+            Clutter.Report report = null;
             try
             {
-                BeginInvoke(new Action(() =>
-                {
-                    if (my != clutterCount || IsDisposed) return;
-                    lClutter.Text = DescribeClutter(r);
-                    lBiggest.Text = r.Biggest.Count == 0 ? T("Aucun fichier.", "No files.", "Ningún archivo.")
-                        : string.Join("\n", r.Biggest.Select(k => "• " + Path.GetFileName(k.Key) + " — " + L.Size(k.Value)).ToArray());
-                }));
+                count = Archiver.CountCandidates(favorites, usage, limit, folder, rules);
+                report = Clutter.Measure(desk, favorites, usage, folder, DateTime.UtcNow);
             }
-            catch { }
+            catch { report = new Clutter.Report { Unreadable = true }; }
+            try { BeginInvoke(new Action(() => FinishDesktopAnalysis(count, days, report))); }
+            catch (InvalidOperationException) { }
         });
     }
+
+    void FinishDesktopAnalysis(int count, int days, Clutter.Report report)
+    {
+        if (IsDisposed || Disposing) return;
+        desktopAnalysisRunning = false;
+        if (!DesktopAnalysisVisible()) return;
+        if (desktopAnalysisPending) { desktopAnalysisTimer.Start(); return; }
+        loading = true;
+        try
+        {
+            lArchive.Text = report.Unreadable ? T("Analyse du bureau indisponible.", "Desktop analysis unavailable.", "Análisis del escritorio no disponible.")
+                : count == 0 ? T("Rien à ranger pour le moment.", "Nothing to tidy up right now.", "Por ahora no hay nada que archivar.")
+                : count + T(" élément(s) inutilisé(s) depuis " + days + " jours.", " item(s) unused for " + days + " days.", " elemento(s) sin usar durante " + days + " días.");
+            lClutter.Text = DescribeClutter(report);
+            lBiggest.Text = report.Biggest.Count == 0 ? T("Aucun fichier.", "No files.", "Ningún archivo.")
+                : string.Join("\n", report.Biggest.Select(k => "• " + Path.GetFileName(k.Key) + " – " + L.Size(k.Value)).ToArray());
+        }
+        finally { loading = false; }
+        ArrangePages();
+    }
+
 
     string DescribeClutter(Clutter.Report r)
     {

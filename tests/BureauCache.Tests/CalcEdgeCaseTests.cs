@@ -154,6 +154,30 @@ namespace BureauCache.Tests
         }
 
         [TestMethod]
+        [DataRow("2/(1/0)")]
+        [DataRow("(1/0)^0")]
+        [DataRow("sqrt(-1)^0")]
+        [DataRow("1/(1e200*1e200)")]
+        public void Resultat_intermediaire_non_fini_refuse(string expression)
+        {
+            AssertRejected(expression);
+        }
+
+        [TestMethod]
+        public void Les_grands_resultats_affiches_restent_calculables()
+        {
+            foreach (Func<LanguageScope> use in new Func<LanguageScope>[] { LanguageScope.French, LanguageScope.English, LanguageScope.Spanish })
+                using (use())
+                    AssertValue(Calc.Format(1.5e300), 1.5e300);
+        }
+
+        [TestMethod]
+        public void Cosinus_d_un_angle_fini_tres_grand()
+        {
+            AssertValue("cos(1e308)", Math.Cos(1e308 * (Math.PI / 180)));
+        }
+
+        [TestMethod]
         [DataRow("1e5e5")]
         [DataRow("e5")]
         [DataRow("sinus(90)")]

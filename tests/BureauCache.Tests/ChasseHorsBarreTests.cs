@@ -98,6 +98,16 @@ public class ChasseHorsBarreTests
     }
 
     [TestMethod]
+    public void CDX23_DirectoryAtSettingsPathIsTreatedAsUnreadable()
+    {
+        Directory.CreateDirectory(Settings.FilePath);
+        Settings.FirstRun = false;
+        Settings.LoadWithRetries(Settings.FilePath, 1, 0);
+        Assert.IsTrue(Settings.ProfileUnreadable);
+        Assert.IsFalse(Settings.FirstRun);
+    }
+
+    [TestMethod]
     public void CDX23_DamagedSettingsAreNotTreatedAsLocked()
     {
         File.WriteAllText(Settings.FilePath, "pas un fichier de réglages");

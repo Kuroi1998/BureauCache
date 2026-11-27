@@ -135,7 +135,8 @@ static class Calc
         if (magnitude > 0 && magnitude < 1e-4)
             return v.ToString("G15", culture);
         if (magnitude < 1e15 && Math.Abs(v - Math.Round(v)) < 1e-10) return Math.Round(v).ToString("#,0", culture);
-        return v.ToString("#,0.##########", culture);
+        string formatted = v.ToString("#,0.##########", culture);
+        return formatted.Length <= MaxLength ? formatted : v.ToString("G17", culture);
     }
 
     class Parser
@@ -149,14 +150,20 @@ static class Calc
         bool Eat(char c) { Skip(); if (I < S.Length && S[I] == c) { I++; return true; } return false; }
         void Enter() { if (++depth > MaxDepth) throw new FormatException(); }
 
+        static double Finite(double number)
+        {
+            if (double.IsNaN(number) || double.IsInfinity(number)) throw new ArithmeticException();
+            return number;
+        }
+
         public double Expr()
         {
             Enter();
             double v = Term();
             while (true)
             {
-                if (Eat('+')) v += Term();
-                else if (Eat('-')) v -= Term();
+                if (Eat('+')) v = Finite(v + Term());
+                else if (Eat('-')) v = Finite(v - Term());
                 else { depth--; return v; }
             }
         }
@@ -166,8 +173,8 @@ static class Calc
             double v = Unary();
             while (true)
             {
-                if (Eat('*') || Eat('x')) v *= Unary();
-                else if (Eat('/')) v /= Unary();
+                if (Eat('*') || Eat('x')) v = Finite(v * Unary());
+                else if (Eat('/')) v = Finite(v / Unary());
                 else return v;
             }
         }
@@ -188,9 +195,9 @@ static class Calc
         double Power()
         {
             Enter();
-            double b = Primary();
+            double b = Finite(Primary());
             if (Eat('%')) b /= 100;
-            if (Eat('^')) b = Math.Pow(b, Unary());
+            if (Eat('^')) b = Finite(Math.Pow(b, Unary()));
             depth--;
             return b;
         }
@@ -229,9 +236,9 @@ static class Calc
             switch (f)
             {
                 case "sqrt": case "racine": return Math.Sqrt(a);
-                case "sin": return Math.Sin(a * Math.PI / 180);
-                case "cos": return Math.Cos(a * Math.PI / 180);
-                case "tan": return Math.Tan(a * Math.PI / 180);
+                case "sin": return Math.Sin(a * (Math.PI / 180));
+                case "cos": return Math.Cos(a * (Math.PI / 180));
+                case "tan": return Math.Tan(a * (Math.PI / 180));
                 case "log": return Math.Log10(a);
                 case "ln": return Math.Log(a);
                 case "abs": return Math.Abs(a);

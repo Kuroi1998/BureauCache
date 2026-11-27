@@ -92,12 +92,12 @@ partial class QuickSettingsForm
         saver.Text = saving ? L.T("Économie active", "Saver on", "Ahorro activo") : L.T("Énergie", "Power", "Energía");
     }
 
-    static LevelResult ReadLevel(bool audio, IntPtr monitor, int? requested, bool toggle, bool? internalDisplay)
+    static LevelResult ReadLevel(bool audio, IntPtr monitor, int? requested, bool toggle, bool? internalDisplay, int volumeDelta)
     {
-        LevelResult result = new LevelResult { Wrote = requested.HasValue || toggle };
+        LevelResult result = new LevelResult { Wrote = requested.HasValue || toggle || volumeDelta != 0 };
         try
         {
-            result.Value = audio ? Native.QuickVolume(requested, toggle, out result.Muted) :
+            result.Value = audio ? Native.QuickVolume(requested, toggle, out result.Muted, volumeDelta) :
                 Native.QuickBrightness(monitor, requested, internalDisplay, out result.InternalDisplay);
         }
         catch (Exception) { }
@@ -132,9 +132,14 @@ partial class QuickSettingsForm
         }
     }
 
-    static Task<LevelResult> QueueLevel(bool audio, IntPtr display, int? requested, bool toggle, bool? internalDisplay)
+    internal static void AdjustVolume(int delta)
     {
-        Func<LevelResult> operation = () => ReadLevel(audio, display, requested, toggle, internalDisplay);
+        QueueLevel(true, IntPtr.Zero, null, false, null, delta);
+    }
+
+    static Task<LevelResult> QueueLevel(bool audio, IntPtr display, int? requested, bool toggle, bool? internalDisplay, int volumeDelta = 0)
+    {
+        Func<LevelResult> operation = () => ReadLevel(audio, display, requested, toggle, internalDisplay, volumeDelta);
         Task<LevelResult> last = audio ? lastAudio : lastBrightness;
         Task<LevelResult> work = last == null || last.IsCompleted ?
             Task.Factory.StartNew(operation, System.Threading.CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default) :

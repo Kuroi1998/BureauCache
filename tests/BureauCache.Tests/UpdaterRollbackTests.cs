@@ -103,6 +103,56 @@ namespace BureauCache.Tests
         }
 
         [TestMethod]
+        public void ConfirmationRefuseUnExécutableModifiéAvecLaMêmeTailleEtDate()
+        {
+            Write("", "v2");
+            Write(".old", "v1");
+            Assert.AreEqual(Updater.StartState.Trial, Updater.BeginStart(exe));
+            DateTime stamp = File.GetLastWriteTimeUtc(exe);
+            Write("", "v3");
+            File.SetLastWriteTimeUtc(exe, stamp);
+
+            Updater.ConfirmStart(exe);
+            Assert.AreEqual("v1", Read(".old"));
+            Assert.IsTrue(Exists(".trial"));
+        }
+
+        [TestMethod]
+        public void ConfirmationRefuseUnAutreCheminMêmeAvecLesMêmesOctets()
+        {
+            Write("", "v2");
+            Write(".old", "v1");
+            Assert.AreEqual(Updater.StartState.Trial, Updater.BeginStart(exe));
+            string other = Path.Combine(dir, "Autre.exe");
+            File.Copy(exe, other);
+            File.SetLastWriteTimeUtc(other, File.GetLastWriteTimeUtc(exe));
+            File.WriteAllText(other + ".old", "previous");
+            File.WriteAllText(other + ".trial", "marker");
+
+            Updater.ConfirmStart(other);
+            Assert.IsTrue(File.Exists(other + ".old"));
+            Assert.IsTrue(File.Exists(other + ".trial"));
+        }
+
+        [TestMethod]
+        public void RemplacementsAvantLePremierDemarrageGardentLaVersionStable()
+        {
+            Write("", "stable");
+            string staged = Path.Combine(dir, "staged.tmp");
+            File.WriteAllText(staged, "candidate 1");
+            Updater.ReplaceExecutable(staged, exe);
+            Assert.IsFalse(Exists(".trial"));
+
+            File.WriteAllText(staged, "candidate 2");
+            Updater.ReplaceExecutable(staged, exe);
+            Assert.AreEqual("candidate 2", Read(""));
+            Assert.AreEqual("stable", Read(".old"));
+            Assert.AreEqual(Updater.StartState.Trial, Updater.BeginStart(exe));
+            Assert.AreEqual(Updater.StartState.RolledBack, Updater.BeginStart(exe));
+            Assert.AreEqual("stable", Read(""));
+        }
+
+        [TestMethod]
         public void Remplacement_par_une_mise_a_jour_repart_d_un_essai_neuf()
         {
             Write("", "v1");

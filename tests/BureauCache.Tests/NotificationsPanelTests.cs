@@ -108,6 +108,45 @@ public class NotificationsPanelTests
     }
 
     [TestMethod]
+    public void ArrowKeysContinueFromTheDisplayedMonth()
+    {
+        RunSta(() =>
+        {
+            using (var view = new CalendarView())
+            {
+                view.SetSelected(new DateTime(2026, 1, 31));
+                view.ShowMonth(1);
+                Assert.AreEqual(new DateTime(2026, 1, 31), view.Selected);
+                view.HandleKey(Keys.Left);
+                Assert.AreEqual(new DateTime(2026, 2, 27), view.Selected);
+                Assert.AreEqual(new DateTime(2026, 2, 1), view.Month);
+            }
+        });
+    }
+
+    [TestMethod]
+    public void CalendarClicksFollowThePaintedColumnBoundaries()
+    {
+        RunSta(() =>
+        {
+            using (var view = new CalendarView { Width = 351 })
+            {
+                var month = new DateTime(2026, 11, 15);
+                var days = CalendarMonth.Days(month, CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek);
+                var cellBounds = typeof(CalendarView).GetMethod("CellBounds", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                var mouseDown = typeof(CalendarView).GetMethod("OnMouseDown", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                for (int i = 8; i < 14; i++)
+                {
+                    view.SetSelected(month);
+                    var cell = (Rectangle)cellBounds.Invoke(view, new object[] { i });
+                    mouseDown.Invoke(view, new object[] { new MouseEventArgs(MouseButtons.Left, 1, cell.Left, cell.Top, 0) });
+                    Assert.AreEqual(days[i], view.Selected);
+                }
+            }
+        });
+    }
+
+    [TestMethod]
     public void CalendarPanelFitsItsTextsInEveryLanguage()
     {
         RunSta(() =>

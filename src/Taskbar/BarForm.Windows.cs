@@ -40,7 +40,12 @@ partial class BarForm
 
     void StopWindows()
     {
-        if (windows == null) return;
+        if (windows == null)
+        {
+            // Les épingles ont pu charger leurs icônes avant la création de WindowList.
+            if (!Sandbox.Active) TaskIcons.Clear();
+            return;
+        }
         Native.DeregisterShellHookWindow(Handle);
         HidePreview();
         if (preview != null) { preview.Close(); preview.Dispose(); preview = null; }
@@ -65,6 +70,8 @@ partial class BarForm
     public void RebuildButtons()
     {
         if (dragging) return;   // la fin du glissement reconstruit la liste
+        appliedGrouping = Settings.TaskbarGroup;
+        if (!appliedPins.SequenceEqual(Settings.TaskbarPins)) appliedPins = Settings.TaskbarPins.ToArray();
         buttons = TaskbarModel.Build(Settings.TaskbarPins, windows != null ? windows.Items : new List<TaskWindow>(), Settings.TaskbarGroup);
         TaskIcons.PruneKeys(new HashSet<string>(buttons.Where(b => b.Key != null).Select(b => b.Key), StringComparer.OrdinalIgnoreCase));
         Invalidate();
@@ -121,7 +128,9 @@ partial class BarForm
             Rectangle ir = Settings.TaskbarLabels
                 ? new Rectangle(r.Left + Ui.S(10), r.Top + (r.Height - icon) / 2 - Ui.S(2), icon, icon)
                 : new Rectangle(r.Left + (r.Width - icon) / 2, r.Top + (r.Height - icon) / 2 - Ui.S(2), icon, icon);
-            Bitmap img = IconOf(b, icon);
+            bool pending;
+            Bitmap img = CachedButtonIcon(b, icon, out pending);
+            if (pending) ScheduleButtonIcons();
             if (img != null) g.DrawImage(img, ir);
             else Ui.Glyph(g, Glyphs.Apps, 17f * SizeScale, Theme.Fg, ir);
             if (Settings.TaskbarLabels)
@@ -318,17 +327,24 @@ partial class BarForm
     void ShowOverflowMenu()
     {
         ContextMenuStrip menu = Menus.Create();
+        TrackOverflowIcons(menu);
+        Bitmap placeholder = Ui.GlyphImage(Glyphs.Apps, Theme.Fg);
+        menu.Disposed += (s, e) => placeholder.Dispose();
         for (int i = shown; i < buttons.Count; i++)
         {
             BarButton b = buttons[i];
             string title = b.Window != null ? b.Window.Title : b.Name;
             if (title.Length > 60) title = title.Substring(0, 59) + "…";
-            menu.Items.Add(Menus.Item(title, Glyphs.Apps, () =>
+            var item = Menus.Item(title, null, () =>
             {
                 if (b.Window != null) WindowList.Activate(b.Window.Handle, false); else Launch(b.Key);
-            }));
+            });
+            item.Image = placeholder;
+            item.Tag = b;
+            menu.Items.Add(item);
         }
         ShowMenu(menu);
+        ScheduleButtonIcons();
     }
 
     // Le menu passe au premier plan pour recevoir le clavier et se fermer quand on clique ailleurs

@@ -12,11 +12,12 @@ public class QA70ReviewTests
     [TestMethod]
     public void Cdx40_SystemToolsUseTheirFullPath()
     {
-        foreach (string name in new[] { "taskmgr.exe", "control.exe" })
+        foreach (string name in new[] { "taskmgr.exe", "control.exe", "shutdown.exe", "inexistant-bc.exe" })
             Assert.AreEqual(Path.Combine(Environment.SystemDirectory, name), ShellUtil.SystemPath(name));
+        Assert.AreEqual(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), ShellUtil.SystemPath("explorer.exe"));
+        Assert.AreEqual(Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe"), ShellUtil.SystemPath("powershell.exe"));
         Assert.AreEqual("ms-settings:display", ShellUtil.SystemPath("ms-settings:display"));
         Assert.AreEqual(@"C:\Dossier\outil.exe", ShellUtil.SystemPath(@"C:\Dossier\outil.exe"));
-        Assert.AreEqual("inexistant-bc.exe", ShellUtil.SystemPath("inexistant-bc.exe"));
     }
 
     // CDX-41 : une restauration refusée ne fait pas perdre la valeur d'origine de TaskbandHWND

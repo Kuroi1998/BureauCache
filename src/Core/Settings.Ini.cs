@@ -37,7 +37,6 @@ static partial class Settings
     {
         LastLoadUnreadable = false;
         RefreshSystemTheme();
-        if (!File.Exists(path)) { FirstRun = true; return false; }
         bool hasThemeMode = false;
         bool hasWeatherPlace = false, hasWeatherShort = false;
         string oldDark = null;
@@ -188,6 +187,8 @@ static partial class Settings
                 }
             }
         }
+        catch (FileNotFoundException) { FirstRun = true; return false; }
+        catch (DirectoryNotFoundException) { FirstRun = true; return false; }
         catch (IOException) { LastLoadUnreadable = true; return false; }
         catch (UnauthorizedAccessException) { LastLoadUnreadable = true; return false; }
         catch { return false; }
@@ -294,6 +295,10 @@ static partial class Settings
                 Usage.Remove(k);
             lines = SerializeLines();
         }
+        // Chaque entrée de SerializeLines doit rester sur une seule ligne du fichier INI.
+        foreach (string line in lines)
+            if (line.IndexOf('\r') >= 0 || line.IndexOf('\n') >= 0 || line.IndexOf('\0') >= 0)
+                throw new InvalidDataException("Invalid control character in settings.");
         return lines;
     }
 

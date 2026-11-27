@@ -10,6 +10,7 @@ partial class SettingsForm
     void BuildGeneral()
     {
         NewPage(T("Général", "General", "General"), T("Bureau, démarrage et langue.", "Desktop, startup and language.", "Escritorio, inicio e idioma."));
+        Subtab(T("Bureau", "Desktop", "Escritorio"));
         Section(T("BUREAU", "DESKTOP", "ESCRITORIO"));
         tHide = NewToggle(v => Settings.HideIcons = v);
         Row(T("Cacher les icônes du bureau", "Hide desktop icons", "Ocultar los iconos del escritorio"), T("Elles restent accessibles depuis le panneau.", "They stay available in the panel.", "Siguen accesibles desde el panel."), tHide, null);
@@ -28,6 +29,7 @@ partial class SettingsForm
         };
         Row(TaskbarConsent.Label, TaskbarConsent.Detail, tTaskbar, null);
 
+        Subtab("Windows");
         Section("WINDOWS");
         tStartup = new Toggle();
         tStartup.Changed += (s, e) =>
@@ -37,7 +39,8 @@ partial class SettingsForm
             catch (Exception ex) { Dialogs.Info(this, ex.Message); }
             loading = true; tStartup.Checked = Startup.Enabled; loading = false;
         };
-        Row(T("Lancer au démarrage de Windows", "Start with Windows", "Iniciar con Windows"), null, tStartup, null);
+        Row(T("Lancer au démarrage de Windows", "Start with Windows", "Iniciar con Windows"), null, tStartup, null,
+            keywords: T("démarrage automatique ouvrir session", "automatic startup autostart sign in", "inicio automático arrancar sesión"));
         bInstall = new FlatButton(T("Installer", "Install", "Instalar"), true, S(150));
         bInstall.Click += (s, e) =>
         {
@@ -46,17 +49,19 @@ partial class SettingsForm
         };
         lInstall = Row(T("Installation", "Installation", "Instalación"), "-", bInstall, null);
 
-        Section(T("LANGUE", "LANGUAGE", "IDIOMA"));
-        sLang = NewSeg(v => Settings.Language = v, T("Système", "System", "Sistema"), "Français", "English", "Español");
-        Row(T("Langue", "Language", "Idioma"), null, sLang, null);
-
         Section(T("ICÔNE PRÈS DE L'HORLOGE", "ICON BY THE CLOCK", "ICONO JUNTO AL RELOJ"));
         lTray = Row(T("Toujours visible", "Always visible", "Siempre visible"), "-",
-            Button(T("Ouvrir le réglage", "Open the setting", "Abrir el ajuste"), false, S(150), () => { try { ShellUtil.Open("ms-settings:taskbar", null); } catch { } }), null);
+            Button(T("Ouvrir le réglage", "Open the setting", "Abrir el ajuste"), false, S(150), () => { try { ShellUtil.Open("ms-settings:taskbar", null); } catch { } }), null,
+            keywords: T("icône horloge zone de notification systray", "clock icon system tray notification area", "icono reloj bandeja del sistema área de notificación"));
         tQuiet = NewToggle(v => Settings.QuietStart = v);
         Row(T("Démarrage discret", "Quiet start", "Inicio discreto"), T("Pas de bulle d'information au lancement.", "No info bubble at startup.", "Sin aviso al iniciar."), tQuiet, null);
         Note(T("Clic sur l'icône : ouvrir la liste · double-clic : ces paramètres · clic droit : le menu. Réduire ou fermer cette fenêtre la range près de l'horloge, BureauCache continue de tourner.",
                "Click the icon: open the list · double-click: these settings · right-click: the menu. Minimizing or closing this window tucks it by the clock; BureauCache keeps running.", "Un clic en el icono abre la lista, un doble clic abre la configuración y un clic derecho abre el menú. Al minimizar o cerrar esta ventana, BureauCache sigue activo junto al reloj."));
+
+        Subtab(T("Langue et aide", "Language & help", "Idioma y ayuda"));
+        Section(T("LANGUE", "LANGUAGE", "IDIOMA"));
+        sLang = NewSeg(v => Settings.Language = v, T("Système", "System", "Sistema"), "Français", "English", "Español");
+        Row(T("Langue", "Language", "Idioma"), null, sLang, null, keywords: "Français English Español");
 
         Section(T("AIDE", "HELP", "AYUDA"));
         Row(T("Visite guidée", "Guided tour", "Visita guiada"), T("Les 4 écrans de bienvenue, pour redécouvrir l'essentiel.", "The 4 welcome screens, to go over the basics again.", "Vuelve a ver las cuatro pantallas de bienvenida."),
@@ -67,6 +72,7 @@ partial class SettingsForm
     void BuildOpening()
     {
         NewPage(T("Ouverture", "Opening", "Apertura"), T("Bord de l’écran et raccourci clavier.", "Screen edge and keyboard shortcut.", "Borde de la pantalla y atajo de teclado."));
+        Subtab(T("Souris", "Mouse", "Ratón"));
         Section(T("SOURIS", "MOUSE", "RATÓN"));
         sSide = NewSeg(v => Settings.RightSide = v == 1, T("Gauche", "Left", "Izquierda"), T("Droite", "Right", "Derecha"));
         Row(T("Bord de l'écran", "Screen edge", "Borde de la pantalla"), null, sSide, null);
@@ -81,13 +87,14 @@ partial class SettingsForm
         Row(T("Écran", "Screen", "Pantalla"), n > 1 ? T("Écran sur lequel le bord est actif.", "Screen where the edge is active.", "Pantalla en la que está activo el borde.") : T("Un seul écran détecté.", "Only one screen detected.", "Se ha detectado una sola pantalla."), sScreen, null);
         slDelay = new Slider(0, 1000, 20);
         lDelay = ValueLabel();
-        slDelay.Changed += (s, e) => { if (loading) return; Settings.Delay = slDelay.Value; Settings.Notify(); };
+        BindSlider(slDelay, lDelay, " ms", value => Settings.Delay = value);
         Row(T("Délai d'ouverture", "Opening delay", "Retraso de apertura"), T("Évite les ouvertures accidentelles.", "Avoids accidental opening.", "Evita aperturas accidentales."), slDelay, lDelay);
         tAuto = NewToggle(v => Settings.AutoClose = v);
         Row(T("Fermer quand la souris s'éloigne", "Close when the mouse leaves", "Cerrar al alejar el ratón"), null, tAuto, null);
         tFull = NewToggle(v => Settings.NoFullscreen = v);
         Row(T("Désactiver en plein écran", "Disable in full screen", "Desactivar en pantalla completa"), T("Jeux, vidéos et présentations ne sont pas dérangés.", "Games, videos and slideshows are left alone.", "Evita interrupciones en juegos, vídeos y presentaciones."), tFull, null);
 
+        Subtab(T("Clavier", "Keyboard", "Teclado"));
         Section(T("CLAVIER", "KEYBOARD", "TECLADO"));
         tHot = NewToggle(v => Settings.HotkeyOn = v);
         Row(T("Raccourci clavier", "Keyboard shortcut", "Atajo de teclado"), T("Ouvre ou ferme la liste depuis n'importe où.", "Opens or closes the list from anywhere.", "Abre o cierra la lista desde cualquier lugar."), tHot, null);
@@ -99,6 +106,7 @@ partial class SettingsForm
     void BuildLook()
     {
         NewPage(T("Apparence", "Appearance", "Apariencia"), T("Thème, disposition et widgets du panneau.", "Theme, layout and panel widgets.", "Tema, diseño y widgets del panel."));
+        Subtab(T("Thème", "Theme", "Tema"));
         Section(T("THÈMES PRÊTS", "READY-MADE THEMES", "TEMAS LISTOS"));
         themes = new ThemePicker();
         themes.Changed += (s, e) => { if (loading || themes.Selected < 0) return; Palettes.ApplyPreset(themes.Selected); Settings.Notify(); };
@@ -108,7 +116,8 @@ partial class SettingsForm
 
         Section(T("THÈME", "THEME", "TEMA"));
         sTheme = NewSeg(v => Settings.ThemeMode = v, T("Système", "System", "Sistema"), T("Sombre", "Dark", "Oscuro"), T("Clair", "Light", "Claro"));
-        Row(T("Thème", "Theme", "Tema"), T("« Système » suit Windows.", "\"System\" follows Windows.", "«Sistema» sigue la configuración de Windows."), sTheme, null);
+        Row(T("Thème", "Theme", "Tema"), T("« Système » suit Windows.", "\"System\" follows Windows.", "«Sistema» sigue la configuración de Windows."), sTheme, null,
+            keywords: T("mode sombre clair nuit", "dark light mode", "modo oscuro claro noche"));
         swatch = new Swatches();
         swatch.Changed += (s, e) => { if (loading) return; Settings.Accent = swatch.Selected; Settings.AccentFromWindows = false; Settings.Notify(); };
         Row(T("Couleur d'accent", "Accent color", "Color de énfasis"), null, swatch, null);
@@ -124,7 +133,7 @@ partial class SettingsForm
         sZoom = NewSeg(v => Settings.InterfaceZoom = Settings.Zooms[v], "90 %", "100 %", "115 %", "130 %");
         lZoom = Row(T("Taille de l'interface", "Interface size", "Tamaño de la interfaz"),
             T("Textes et éléments de BureauCache. S'applique au prochain démarrage.", "BureauCache text and elements. Applies at next start.", "Textos y elementos de BureauCache. Se aplica en el próximo inicio."), sZoom, null,
-            null, Button(T("Redémarrer", "Restart", "Reiniciar"), false, S(120), () => { if (act.Restart != null) act.Restart(); }));
+            null, Button(T("Redémarrer", "Restart", "Reiniciar"), false, S(120), () => { if (act.Restart != null) act.Restart(); }), "zoom DPI");
         tGlass = NewToggle(v => Settings.Glass = v);
         Row(T("Effet verre", "Glass effect", "Efecto de cristal"), T("Le panneau laisse deviner ce qu'il y a derrière.", "The panel shows a blur of what's behind it.", "Difumina el fondo del panel."), tGlass, null);
         tLive = NewToggle(v => Settings.LiveBlur = v);
@@ -144,16 +153,18 @@ partial class SettingsForm
         Row(T("Masquer le panneau dans les captures", "Hide panel from capture", "Ocultar el panel en capturas"), T(
             "Désactive ce réglage pour montrer le panneau en partageant l'écran entier. Le flou prend alors une image du fond à l'ouverture.",
             "Turn this off to show the panel when sharing your entire screen. The blur then uses a snapshot taken when the panel opens.",
-            "Desactiva este ajuste para mostrar el panel al compartir toda la pantalla. El desenfoque usa una imagen tomada al abrir el panel."), tCapture, null);
+            "Desactiva este ajuste para mostrar el panel al compartir toda la pantalla. El desenfoque usa una imagen tomada al abrir el panel."), tCapture, null,
+            keywords: T("capture écran screenshot partage", "screenshot screen capture recording", "captura pantalla grabación compartir"));
         tAnim = NewToggle(v => Settings.Animations = v);
         Row(T("Animations", "Animations", "Animaciones"), null, tAnim, null);
 
+        Subtab(T("Panneau", "Panel", "Panel"));
         Section(T("PANNEAU", "PANEL", "PANEL"));
         sView = NewSeg(v => Settings.GridView = v == 1, T("Liste", "List", "Lista"), T("Grille", "Grid", "Cuadrícula"));
         Row(T("Affichage", "Layout", "Vista"), null, sView, null);
         slWidth = new Slider(260, 560, 10);
         lWidth = ValueLabel();
-        slWidth.Changed += (s, e) => { if (loading) return; Settings.PanelWidth = slWidth.Value; Settings.Notify(); };
+        BindSlider(slWidth, lWidth, " px", value => Settings.PanelWidth = value);
         Row(T("Largeur du panneau", "Panel width", "Ancho del panel"), null, slWidth, lWidth);
         tWidgets = NewToggle(v => Settings.Widgets = v);
         Row(T("Widgets", "Widgets", "Widgets"), T("Heure, espace disque et corbeille en haut du panneau. Clic droit sur le disque : nettoyage rapide.", "Clock, disk space and Recycle Bin at the top. Right-click the disk: quick clean-up.", "Hora, espacio en disco y papelera en la parte superior. Haz clic derecho en el disco para abrir la limpieza rápida."), tWidgets, null);
@@ -165,7 +176,8 @@ partial class SettingsForm
             Settings.WeatherOn = v;
             if (!v) Weather.Reset();
         });
-        Row(T("Météo", "Weather", "Tiempo"), T("Temps et prévisions du lieu choisi (données Open-Meteo.com, CC BY 4.0).", "Weather and forecast for the chosen place (Open-Meteo.com data, CC BY 4.0).", "Tiempo y pronóstico del lugar elegido (datos de Open-Meteo.com, CC BY 4.0)."), tWeather, null);
+        Row(T("Météo", "Weather", "Tiempo"), T("Temps et prévisions du lieu choisi (données Open-Meteo.com, CC BY 4.0).", "Weather and forecast for the chosen place (Open-Meteo.com data, CC BY 4.0).", "Tiempo y pronóstico del lugar elegido (datos de Open-Meteo.com, CC BY 4.0)."), tWeather, null,
+            keywords: T("température", "temperature", "meteorología temperatura"));
         BuildPlaceRow();
         tPreview = NewToggle(v => Settings.HoverPreview = v);
         Row(T("Aperçu au survol", "Preview on hover", "Vista previa al pasar el ratón"), T("Miniature des images, PDF et vidéos.", "Thumbnail of images, PDFs and videos.", "Miniaturas de imágenes, PDF y vídeos."), tPreview, null);
@@ -174,6 +186,7 @@ partial class SettingsForm
     void BuildSearch()
     {
         NewPage(T("Recherche", "Search", "Búsqueda"), T("Sources de recherche et moteur web.", "Search sources and web engine.", "Fuentes de búsqueda y motor web."));
+        Subtab(T("Sources", "Sources", "Fuentes"));
         Section(T("CHERCHER AUSSI DANS", "ALSO SEARCH IN", "BUSCAR TAMBIÉN EN"));
         tSApps = NewToggle(v => Settings.SearchApps = v);
         Row(T("Applications", "Apps", "Aplicaciones"), T("Menu Démarrer et Microsoft Store.", "Start menu and Microsoft Store.", "Menú Inicio y Microsoft Store."), tSApps, null);
@@ -186,6 +199,7 @@ partial class SettingsForm
         tSContent = NewToggle(v => Settings.SearchContent = v);
         Row(T("Contenu des fichiers du bureau", "Desktop file contents", "Contenido de los archivos del escritorio"), T("Utilise l'index de Windows Search : trouve un document par un mot qu'il contient.", "Uses the Windows Search index: finds a document by a word it contains.", "Usa el índice de Windows Search: encuentra un documento por una palabra que contiene."), tSContent, null);
 
+        Subtab(T("Presse-papiers", "Clipboard", "Portapapeles"));
         Section(T("PRESSE-PAPIERS", "CLIPBOARD", "PORTAPAPELES"));
         tClip = NewToggle(v => Settings.ClipboardOn = v);
         Row(T("Historique des textes copiés", "History of copied text", "Historial de textos copiados"),
@@ -193,6 +207,7 @@ partial class SettingsForm
               "The last 20 texts, in the panel. Kept in memory only: nothing is written to disk, everything is gone when the app closes. Private copies (password managers) are ignored.",
               "Los últimos 20 textos, en el panel. Solo en memoria: no se escribe nada en el disco y todo desaparece al cerrar. Se ignoran las copias privadas (gestores de contraseñas)."), tClip, null);
 
+        Subtab("Web");
         Section("WEB");
         sEngine = NewSeg(v => Settings.WebEngine = v, "Google", "Bing", "DuckDuckGo", T("Aucun", "None", "Ninguno"));
         Row(T("Moteur de recherche", "Search engine", "Motor de búsqueda"), null, sEngine, null);
@@ -215,6 +230,7 @@ partial class SettingsForm
     void BuildOrganize()
     {
         NewPage(T("Organisation", "Organization", "Organización"), T("Catégories, favoris et rangement du bureau.", "Categories, favorites and desktop tidy-up.", "Categorías, favoritos y orden del escritorio."));
+        Subtab(T("Affichage", "Display", "Vista"));
         Section(T("AFFICHAGE", "DISPLAY", "VISUALIZACIÓN"));
         tGroups = NewToggle(v => Settings.GroupCats = v);
         Row(T("Grouper par catégories", "Group by category", "Agrupar por categoría"), null, tGroups, null);
@@ -235,6 +251,7 @@ partial class SettingsForm
         sNewDays = NewSeg(v => Settings.NewDays = NewDaysOpts[v], T("1 jour", "1 day", "1 día"), T("3 jours", "3 days", "3 días"), T("7 jours", "7 days", "7 días"));
         Row(T("Pendant", "For", "Durante"), null, sNewDays, null);
 
+        Subtab(T("Rangement", "Tidy-up", "Archivado"));
         Section(T("RANGEMENT AUTOMATIQUE", "AUTOMATIC TIDY-UP", "ORGANIZACIÓN AUTOMÁTICA"));
         tArchive = new Toggle();
         tArchive.Changed += (s, e) =>
@@ -270,6 +287,7 @@ partial class SettingsForm
         BuildClutterSection();
         BuildRulesSection();
 
+        Subtab(T("Catégories", "Categories", "Categorías"));
         Section(T("RÉINITIALISER", "RESET", "RESTABLECER"));
         Row(T("Favoris", "Favorites", "Favoritos"), null, ResetButton(T("Tout retirer", "Remove all", "Quitar todo"), () => Settings.Favorites.Clear()), null);
         Row(T("Ordre et catégories", "Order and categories", "Orden y categorías"), null, ResetButton(T("Réinitialiser", "Reset", "Restablecer"), () => { Settings.Order.Clear(); Settings.CatOverride.Clear(); }), null);

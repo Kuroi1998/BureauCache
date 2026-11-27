@@ -1,4 +1,4 @@
-﻿// BureauCache — SettingsForm (partie 4)
+// BureauCache — SettingsForm (partie 4)
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -10,6 +10,34 @@ partial class SettingsForm
     Icon settingsIcon;
     int iconAccent;
     Point? restoredScroll;
+    readonly Timer sliderRefresh = new Timer { Interval = 45 };
+    bool sliderChangePending;
+
+    void BindSlider(Slider slider, Label label, string unit, Action<int> set)
+    {
+        slider.Changed += (s, e) =>
+        {
+            if (loading) return;
+            set(slider.Value);
+            label.Text = slider.Value + unit;
+            sliderChangePending = true;
+            if (!slider.IsDragging) PublishSliderChange();
+            else if (!sliderRefresh.Enabled)
+            {
+                sliderRefresh.Start();
+                Settings.SaveQuiet();
+            }
+        };
+        slider.DragEnded += (s, e) => PublishSliderChange();
+    }
+
+    void PublishSliderChange()
+    {
+        if (!sliderChangePending || Disposing || IsDisposed) return;
+        sliderRefresh.Stop();
+        sliderChangePending = false;
+        Settings.Notify();
+    }
     // ---------- Valeurs ----------
     void LoadValues()
     {
@@ -17,7 +45,6 @@ partial class SettingsForm
         tHide.Checked = Settings.HideIcons;
         tQuiet.Checked = Settings.QuietStart;
         LoadTaskbarValues();
-        tStartup.Checked = Startup.Enabled;
         sLang.Selected = Settings.Language;
         sSide.Selected = Settings.RightSide ? 1 : 0;
         sZone.Selected = Settings.EdgeZone;
@@ -26,17 +53,19 @@ partial class SettingsForm
         tAuto.Checked = Settings.AutoClose;
         tFull.Checked = Settings.NoFullscreen;
         tHot.Checked = Settings.HotkeyOn;
-        hk.Mods = Settings.HotMods;
-        hk.Key = Settings.HotKey;
-        hk.Invalidate();
+        if (hk.Mods != Settings.HotMods || hk.Key != Settings.HotKey)
+        {
+            hk.Mods = Settings.HotMods;
+            hk.Key = Settings.HotKey;
+            hk.Invalidate();
+        }
         sTheme.Selected = Settings.ThemeMode;
-        swatch.Selected = Settings.Accent;
-        themes.Selected = Palettes.CurrentPreset();
-        themes.Invalidate();
+        if (swatch.Selected != Settings.Accent) { swatch.Selected = Settings.Accent; swatch.Invalidate(); }
+        int preset = Palettes.CurrentPreset();
+        if (themes.Selected != preset) { themes.Selected = preset; themes.Invalidate(); }
         tAccentWindows.Checked = Settings.AccentFromWindows;
         sPalette.Selected = Math.Max(0, Math.Min(Palettes.All.Length - 1, Settings.Palette));
         sZoom.Selected = Math.Max(0, Array.IndexOf(Settings.Zooms, Settings.InterfaceZoom));
-        swatch.Invalidate();
         tGlass.Checked = Settings.Glass;
         tLive.Checked = Settings.LiveBlur;
         tCapture.Checked = Settings.HidePanelInCapture;
@@ -80,12 +109,25 @@ partial class SettingsForm
         else if (ok) { lHotStatus.Text = T("Clique dans le champ puis appuie sur tes touches.", "Click the box, then press your keys.", "Haz clic en el campo y pulsa las teclas."); lHotStatus.Tag = null; }
         else { lHotStatus.Text = T("Déjà utilisé par une autre application : choisis-en un autre.", "Already used by another app: pick another one.", "Otra aplicación ya lo usa. Elige otro."); lHotStatus.Tag = "err"; }
         lHotStatus.ForeColor = SystemInformation.HighContrast ? SystemColors.WindowText : lHotStatus.Tag != null ? Theme.Danger : Theme.FgDim;
-        if (Installer.IsInstalled && Installer.RunningFromInstall)
+        bArchiveUndo.Enabled = Archiver.CanUndo;
+        var release = Updater.AvailableRelease;
+        bCheck.Text = release == null ? T("Vérifier", "Check", "Comprobar") : T("Installer la ", "Install ", "Instalar ") + release.Version;
+        if (release != null)
+            lUpdate.Text = T("Version ", "Version ", "Versión ") + release.Version + T(" disponible.", " available.", " disponible.");
+        else if (lUpdate.Text == "-" || lUpdate.Text.Length == 0)
+            lUpdate.Text = Updater.RepoValid ? T("Clique pour vérifier.", "Click to check.", "Haz clic para comprobar.") : T("Dépôt invalide.", "Invalid repository.", "Repositorio no válido.");
+    }
+
+    void UpdateWindowsStatus()
+    {
+        tStartup.Checked = Startup.Enabled;
+        bool installed = Installer.IsInstalled;
+        if (installed && Installer.RunningFromInstall)
         {
             lInstall.Text = T("Installé, présent dans le menu Démarrer et les applications.", "Installed, in the Start menu and installed apps.", "Instalado y disponible en el menú Inicio y en Aplicaciones instaladas.");
             bInstall.Text = T("Désinstaller", "Uninstall", "Desinstalar"); bInstall.Primary = false; bInstall.Danger = true;
         }
-        else if (Installer.IsInstalled)
+        else if (installed)
         {
             lInstall.Text = T("Une version installée existe : la mettre à jour avec celle-ci.", "An installed version exists: update it with this one.", "Ya hay una versión instalada. Puedes actualizarla con esta.");
             bInstall.Text = T("Mettre à jour", "Update", "Actualizar"); bInstall.Primary = true; bInstall.Danger = false;
@@ -96,72 +138,73 @@ partial class SettingsForm
             bInstall.Text = T("Installer", "Install", "Instalar"); bInstall.Primary = true; bInstall.Danger = false;
         }
         bInstall.Invalidate();
-        bool? promoted = ShellUtil.TrayIconPromoted(Application.ExecutablePath);
-        lTray.Text = promoted == true ? T("✓ L'icône est affichée à côté de l'horloge.", "✓ The icon is shown next to the clock.", "✓ El icono aparece junto al reloj.")
-                   : promoted == false ? T("Rangée dans la flèche ^ : ouvre le réglage, puis active BureauCache.", "Hidden in the ^ arrow: open the setting, then turn BureauCache on.", "El icono está en la flecha ^. Abre el ajuste y activa BureauCache.")
-                   : T("Si l'icône est dans la flèche ^, ouvre le réglage pour l'afficher.", "If the icon is in the ^ arrow, open the setting to show it.", "Si el icono está en la flecha ^, abre el ajuste para mostrarlo.");
-        bArchiveUndo.Enabled = Archiver.CanUndo;
-        bArchiveUndo.Invalidate();
-        var release = Updater.AvailableRelease;
-        bCheck.Text = release == null ? T("Vérifier", "Check", "Comprobar") : T("Installer la ", "Install ", "Instalar ") + release.Version;
-        if (release != null)
-            lUpdate.Text = T("Version ", "Version ", "Versión ") + release.Version + T(" disponible.", " available.", " disponible.");
-        else if (lUpdate.Text == "-" || lUpdate.Text.Length == 0)
-            lUpdate.Text = Updater.RepoValid ? T("Clique pour vérifier.", "Click to check.", "Haz clic para comprobar.") : T("Dépôt invalide.", "Invalid repository.", "Repositorio no válido.");
+        if (lTray.Text == "-") SetTrayIconStatus(null);
     }
 
-    int archiveCount;
+    bool readingTrayIconStatus;
 
-    // Le parcours du bureau (jusqu'à 5 000 entrées par dossier, OneDrive à la demande) se fait sur un fil de
-    // fond, à partir d'une copie des favoris et de l'historique ; seul le dernier décompte demandé s'affiche (R-23)
-    void UpdateArchiveText()
+    void RefreshTrayIconStatus()
     {
-        int my = ++archiveCount;
-        int days = Settings.ArchiveDays;
-        var favorites = new HashSet<string>(Settings.Favorites, StringComparer.OrdinalIgnoreCase);
-        var usage = new Dictionary<string, long[]>(Settings.Usage, StringComparer.OrdinalIgnoreCase);
-        DateTime limit = Archiver.Limit;
-        string folder = Archiver.Folder;
-        List<ArchiveRule> rules = Settings.ArchiveRules.ToList();
-        lArchive.Text = T("Analyse du bureau…", "Checking the desktop…", "Analizando el escritorio…");
-        UpdateClutter();
+        if (readingTrayIconStatus || !lTray.Visible || !IsHandleCreated || Disposing || IsDisposed) return;
+        readingTrayIconStatus = true;
+        string exe = Application.ExecutablePath;
         Background.Run(() =>
         {
-            int n = Archiver.CountCandidates(favorites, usage, limit, folder, rules);
+            bool? promoted = ShellUtil.TrayIconPromoted(exe);
             try
             {
                 BeginInvoke(new Action(() =>
                 {
-                    if (my != archiveCount || IsDisposed) return;
-                    lArchive.Text = n == 0 ? T("Rien à ranger pour le moment.", "Nothing to tidy up right now.", "Por ahora no hay nada que archivar.")
-                        : n + T(" élément(s) inutilisé(s) depuis " + days + " jours.", " item(s) unused for " + days + " days.", " elemento(s) sin usar durante " + days + " días.");
+                    readingTrayIconStatus = false;
+                    if (!IsDisposed && !Disposing) SetTrayIconStatus(promoted);
                 }));
             }
-            catch { }
+            catch (InvalidOperationException) { }
         });
+    }
+
+    void SetTrayIconStatus(bool? promoted)
+    {
+        lTray.Text = promoted == true ? T("✓ L'icône est affichée à côté de l'horloge.", "✓ The icon is shown next to the clock.", "✓ El icono aparece junto al reloj.")
+                   : promoted == false ? T("Rangée dans la flèche ^ : ouvre le réglage, puis active BureauCache.", "Hidden in the ^ arrow: open the setting, then turn BureauCache on.", "El icono está en la flecha ^. Abre el ajuste y activa BureauCache.")
+                   : T("Si l'icône est dans la flèche ^, ouvre le réglage pour l'afficher.", "If the icon is in the ^ arrow, open the setting to show it.", "Si el icono está en la flecha ^, abre el ajuste para mostrarlo.");
     }
 
     void OnSettingsChanged()
     {
         if (IsDisposed) return;
         LoadValues();
-        if (nav.Selected == 4) UpdateArchiveText();
-        ArrangePages();
+        QueueDesktopAnalysis();
+        if (Searching && searchCatalogDirty) RefreshSettingsSearch(true);
+        else if (!Searching) ArrangePages();
         Restyle();
     }
 
     void ShowPage(int i)
     {
         if (i < 0 || i >= pages.Count) return;
-        for (int k = 0; k < pages.Count; k++) pages[k].Visible = k == i;
+        RememberSettingsSearch();
+        ClearSettingsSearch();
+        ClearRevealedRow();
         nav.Selected = i;
-        pageTitle.Text = pageLayouts[i].Title;
-        pageSummary.Text = pageLayouts[i].Summary;
-        if (i == 4) { RebuildCustoms(); UpdateArchiveText(); }
-        ArrangePages();
+        if (i == 4) RebuildCustoms();
+        UpdateSettingsView();
+        RefreshTrayIconStatus();
     }
 
     public void SelectPage(int i) { ShowPage(i); }
+
+    public void ShowAfterPainting()
+    {
+        // La fenêtre précédente reste affichée pendant le premier dessin de la remplaçante.
+        Opacity = 0;
+        try
+        {
+            Show();
+            Refresh();
+        }
+        finally { Opacity = 1; }
+    }
 
     public void RestoreWindowState(SettingsForm previous)
     {
@@ -178,6 +221,10 @@ partial class SettingsForm
         Bounds = bounds;
         WindowState = state;
         SelectPage(previous.CurrentPage);
+        SettingsPage model = pageLayouts[CurrentPage];
+        model.View.SelectedIndex = Math.Max(0, previous.pageLayouts[CurrentPage].View.SelectedIndex);
+        // Avant la création du HWND, WinForms mémorise l'index sans toujours lever SelectedIndexChanged.
+        SwitchSubtab(model, pages[CurrentPage]);
         Point scroll = previous.restoredScroll ?? previous.pages[previous.CurrentPage].AutoScrollPosition;
         restoredScroll = previous.restoredScroll ?? new Point(-scroll.X, -scroll.Y);
         RestorePageScroll();
@@ -189,12 +236,14 @@ partial class SettingsForm
             box.Select(oldBox.SelectionStart, oldBox.SelectionLength);
             if (oldBox.Focused) ActiveControl = box;
         }
+        if (previous.sLang.Focused) ActiveControl = sLang;
     }
 
     protected override void OnVisibleChanged(EventArgs e)
     {
         base.OnVisibleChanged(e);
         RestorePageScroll();
+        if (layoutReady) QueueDesktopAnalysis();
     }
 
     void RestorePageScroll()
@@ -205,11 +254,28 @@ partial class SettingsForm
         restoredScroll = null;
     }
 
-    void Restyle()
+    bool paletteApplied, styledDark, styledContrast;
+    int styledPalette;
+    Color styledAccent;
+
+    void Restyle(bool force = false)
     {
-        BackColor = SystemInformation.HighContrast ? SystemColors.Window : Theme.Bg;
+        bool dark = Settings.Dark, contrast = SystemInformation.HighContrast;
+        Color accent = Settings.EffectiveAccent;
+        if (!force && paletteApplied && styledDark == dark && styledContrast == contrast &&
+            styledPalette == Settings.Palette && styledAccent == accent) return;
+        paletteApplied = true;
+        styledDark = dark;
+        styledContrast = contrast;
+        styledPalette = Settings.Palette;
+        styledAccent = accent;
+        BackColor = contrast ? SystemColors.Window : Theme.Bg;
         nav.RefreshPalette();
         Style(this);
+        settingsSearch.ApplySearchTheme();
+        searchResults.BackColor = BackColor;
+        searchResults.ForeColor = Theme.Fg;
+        if (searchResults.IsHandleCreated) Native.SetDarkScrollbars(searchResults.Handle, Settings.Dark && !SystemInformation.HighContrast);
         if (settingsIcon == null || iconAccent != Settings.EffectiveAccent.ToArgb())
         {
             Icon old = settingsIcon;
@@ -237,7 +303,7 @@ partial class SettingsForm
             }
             else if (ch is FlatControl) ch.BackColor = pb;
             else if (ch is InputBox) { ch.BackColor = pb; ((InputBox)ch).ApplyTheme(contrast); continue; }
-            else if (ch is Panel && !(ch is Card) && !(ch is SettingsNavigation) && !(c is SettingsNavigation)) ch.BackColor = BackColor;
+            else if (ch is TabPage || (ch is Panel && !(ch is Card) && !(ch is SettingsNavigation) && !(c is SettingsNavigation))) ch.BackColor = BackColor;
             Style(ch);
             ch.Invalidate();
         }
@@ -252,7 +318,7 @@ partial class SettingsForm
     protected override void OnSystemColorsChanged(EventArgs e)
     {
         base.OnSystemColorsChanged(e);
-        if (layoutReady && !Disposing) Restyle();
+        if (layoutReady && !Disposing) Restyle(true);
     }
 
     // On revient souvent ici après avoir changé le réglage de Windows : on met l'état de l'icône à jour
@@ -261,23 +327,43 @@ partial class SettingsForm
         base.OnActivated(e);
         if (!loading)
         {
+            loading = true;
             if (nav.Selected == 4) RebuildCustoms();
+            UpdateWindowsStatus();
+            RefreshTrayIconStatus();
             UpdateTexts();
+            loading = false;
+            if (Searching && searchCatalogDirty) RefreshSettingsSearch(true);
+            else if (!Searching) ArrangePages();
         }
-    }
-
-    protected override void OnShown(EventArgs e)
-    {
-        base.OnShown(e);
-        foreach (Panel p in pages) Native.SetDarkScrollbars(p.Handle, Settings.Dark && !SystemInformation.HighContrast);
-        UpdateTexts();
-        ArrangePages();
     }
 
     protected override bool ProcessDialogKey(Keys keyData)
     {
+        if (Searching && (settingsSearch.Box.Focused || searchResults.Focused) && searchResults.Items.Count > 0)
+        {
+            if (keyData == Keys.Enter) { OpenSettingMatch(); return true; }
+            if (settingsSearch.Box.Focused && (keyData == Keys.Up || keyData == Keys.Down))
+            {
+                MoveSearchSelection(keyData == Keys.Down ? 1 : -1);
+                return true;
+            }
+        }
         if (keyData != Keys.Escape || hk.Focused) return base.ProcessDialogKey(keyData);
+        if (Searching)
+        {
+            settingsSearch.Box.Clear();
+            settingsSearch.Box.Focus();
+            return true;
+        }
         HideToTray();
+        return true;
+    }
+
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        if (keyData != (Keys.Control | Keys.F) || hk.Focused) return base.ProcessCmdKey(ref msg, keyData);
+        ResumeSettingsSearch();
         return true;
     }
 
@@ -304,6 +390,7 @@ partial class SettingsForm
 
     void HideToTray()
     {
+        PublishSliderChange();
         Hide();
         if (act.HiddenToTray != null) act.HiddenToTray();
     }

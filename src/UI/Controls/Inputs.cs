@@ -83,6 +83,7 @@ class Toggle : FlatControl
         get { return on; }
         set
         {
+            if (on == value && (!anim.Enabled || Settings.Animations)) return;
             bool animate = on != value && Visible && IsHandleCreated && Settings.Animations;
             on = value;
             AnnounceAccessibleChange();
@@ -134,6 +135,8 @@ class Toggle : FlatControl
 class Segmented : FlatControl
 {
     readonly string[] opts;
+    readonly int minChoiceWidth;
+    int columns;
     int sel, hover = -1;
     public event EventHandler Changed;
 
@@ -143,8 +146,18 @@ class Segmented : FlatControl
         Font = Ui.Font("Segoe UI", 9.5f);
         int w = 0;
         foreach (string o in opts) w = Math.Max(w, TextRenderer.MeasureText(o, Font).Width);
+        minChoiceWidth = w + Ui.S(8);
+        columns = opts.Length;
         Size = new Size((w + Ui.S(22)) * opts.Length + Ui.S(6), Ui.S(32));
     }
+
+    public void FitSettingsWidth()
+    {
+        columns = Math.Max(1, Math.Min(opts.Length, (Width - Ui.S(6)) / minChoiceWidth));
+        Height = ((opts.Length + columns - 1) / columns) * Ui.S(26) + Ui.S(6);
+    }
+
+    internal bool ChoicesFit { get { return SegW >= minChoiceWidth - Ui.S(8); } }
 
     protected override AccessibleRole FlatRole { get { return AccessibleRole.ComboBox; } }
     protected override string FlatValue { get { return sel >= 0 && sel < opts.Length ? opts[sel] : null; } }
@@ -158,20 +171,32 @@ class Segmented : FlatControl
     public int Selected
     {
         get { return sel; }
-        set { sel = Math.Max(0, Math.Min(opts.Length - 1, value)); Invalidate(); AnnounceAccessibleChange(); }
+        set
+        {
+            int next = Math.Max(0, Math.Min(opts.Length - 1, value));
+            if (next == sel) return;
+            sel = next; Invalidate(); AnnounceAccessibleChange();
+        }
     }
 
-    float SegW { get { return (Width - Ui.S(6)) / (float)opts.Length; } }
-    int IndexAt(int x) { return Math.Max(0, Math.Min(opts.Length - 1, (int)((x - Ui.S(3)) / SegW))); }
+    float SegW { get { return Math.Max(1, Width - Ui.S(6)) / (float)columns; } }
+    int IndexAt(Point point)
+    {
+        int pad = Ui.S(3);
+        int column = Math.Max(0, Math.Min(columns - 1, (int)((point.X - pad) / SegW)));
+        int row = Math.Max(0, Math.Min((opts.Length - 1) / columns, (point.Y - pad) / Ui.S(26)));
+        int index = row * columns + column;
+        return index < opts.Length ? index : -1;
+    }
 
-    protected override void OnMouseMove(MouseEventArgs e) { int h = IndexAt(e.X); if (h != hover) { hover = h; Invalidate(); } base.OnMouseMove(e); }
+    protected override void OnMouseMove(MouseEventArgs e) { int h = IndexAt(e.Location); if (h != hover) { hover = h; Invalidate(); } base.OnMouseMove(e); }
     protected override void OnMouseLeave(EventArgs e) { hover = -1; Invalidate(); base.OnMouseLeave(e); }
     protected override void OnMouseDown(MouseEventArgs e)
     {
         if (e.Button == MouseButtons.Left)
         {
-            int i = IndexAt(e.X);
-            if (i != sel) { sel = i; Invalidate(); AnnounceAccessibleChange(); if (Changed != null) Changed(this, EventArgs.Empty); }
+            int i = IndexAt(e.Location);
+            if (i >= 0 && i != sel) { sel = i; Invalidate(); AnnounceAccessibleChange(); if (Changed != null) Changed(this, EventArgs.Empty); }
         }
         base.OnMouseDown(e);
     }
@@ -195,7 +220,7 @@ class Segmented : FlatControl
         float sw = SegW, pad = Ui.S(3);
         for (int i = 0; i < opts.Length; i++)
         {
-            RectangleF r = new RectangleF(pad + i * sw, pad, sw, Height - pad * 2 - 1);
+            RectangleF r = new RectangleF(pad + (i % columns) * sw, pad + (i / columns) * Ui.S(26), sw, Ui.S(26) - 1);
             if (i == sel) Ui.Fill(g, SettingsHighContrast ? SystemColors.Highlight : Theme.Accent, r, Ui.S(6));
             else if (i == hover && !SettingsHighContrast) Ui.Fill(g, Theme.Hover, r, Ui.S(6));
             Color text = SettingsHighContrast ? (i == sel ? SystemColors.HighlightText : SystemColors.ControlText)
@@ -224,11 +249,17 @@ class Slider : FlatControl
     protected override AccessibleRole FlatRole { get { return AccessibleRole.Slider; } }
     protected override string FlatValue { get { return val.ToString(); } }
     internal bool IsDragging { get { return drag; } }
+    public event EventHandler DragEnded;
 
     public int Value
     {
         get { return val; }
-        set { val = Math.Max(Min, Math.Min(Max, value)); Invalidate(); AnnounceAccessibleChange(); }
+        set
+        {
+            int next = Math.Max(Min, Math.Min(Max, value));
+            if (next == val) return;
+            val = next; Invalidate(); AnnounceAccessibleChange();
+        }
     }
 
     float Pad { get { return Math.Min(Ui.S(9), Math.Max(0, (Width - 1) / 2f)); } }
@@ -265,6 +296,7 @@ class Slider : FlatControl
         if (!drag) return;
         drag = false;
         Invalidate();
+        if (DragEnded != null) DragEnded(this, EventArgs.Empty);
     }
 
     protected override void OnKeyDown(KeyEventArgs e)

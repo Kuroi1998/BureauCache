@@ -83,7 +83,9 @@ static class ShellUtil
     // Ouvre l'Explorateur avec l'élément sélectionné
     public static void Reveal(string path)
     {
-        try { Process.Start("explorer.exe", "/select,\"" + path + "\""); } catch { }
+        Sandbox.Guard("ouverture de l'emplacement dans Explorer");
+        if (string.IsNullOrEmpty(path) || path.IndexOfAny(Path.GetInvalidPathChars()) >= 0) return;
+        try { using (Process.Start(SystemPath("explorer.exe"), "/select,\"" + path + "\"")) { } } catch { }
     }
 
     public static void Properties(string path)
@@ -125,18 +127,15 @@ static class ShellUtil
         catch { return null; }
     }
 
-    // Un nom nu (« taskmgr.exe », « devmgmt.msc ») est cherché par le Shell dans le dossier courant avant System32 :
-    // un fichier homonyme posé à côté de BureauCache serait lancé à sa place (CDX-40). On donne le chemin complet
-    // quand l'outil existe dans le dossier système, sinon le nom tel quel (adresses ms-settings:, protocoles).
+    // Les noms d'outils Windows sont résolus dans leur dossier système même si le fichier est absent.
     internal static string SystemPath(string name)
     {
         if (string.IsNullOrEmpty(name) || name.IndexOfAny(new[] { '\\', '/', ':' }) >= 0) return name;
-        try
-        {
-            string full = Path.Combine(Environment.SystemDirectory, name);
-            return File.Exists(full) ? full : name;
-        }
-        catch (Exception) { return name; }
+        if (string.Equals(name, "explorer.exe", StringComparison.OrdinalIgnoreCase))
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
+        if (string.Equals(name, "powershell.exe", StringComparison.OrdinalIgnoreCase))
+            return Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe");
+        return Path.Combine(Environment.SystemDirectory, name);
     }
 
     public static void Open(string target, string args)

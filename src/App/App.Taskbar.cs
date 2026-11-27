@@ -8,18 +8,57 @@ partial class App
     BarForm bar;
     bool taskbarRefused;            // un échec n'est signalé qu'une fois, jusqu'à ce que l'option soit coupée
     bool taskbarRestorePending;
+    readonly Timer taskbarRefresh = new Timer { Interval = 150 };
+    long explorerDeadline = -1;
     volatile bool sessionEnding;    // fin de session : plus aucun masquage (BAR-11)
+
+    void InitializeTaskbar()
+    {
+        taskbarRefresh.Tick += (s, e) => { taskbarRefresh.Stop(); ApplyTaskbar(); };
+        if (Settings.TaskbarOn) taskbarRefresh.Start();
+        else ApplyTaskbar();
+    }
+
+    internal static bool WaitForTaskbarExplorer(long now, ref long deadline, bool available)
+    {
+        if (available) { deadline = -1; return false; }
+        if (deadline < 0) deadline = now + 10000;
+        return now < deadline;
+    }
 
     // Ordre imposé par D-013 : la barre Windows est cachée AVANT que la nôtre ne s'installe, et rendue APRÈS son départ.
     // Tout échec en chemin rend immédiatement la barre Windows (BAR-09).
     void ApplyTaskbar()
     {
         bool want = Settings.TaskbarOn && !Sandbox.Active && !sessionEnding;
-        if (!want) taskbarRefused = false;
+        if (!want)
+        {
+            StartupTimeline.Finish("barre_desactivee");
+            taskbarRefused = false;
+            explorerDeadline = -1;
+            taskbarRefresh.Stop();
+        }
+        else if (taskbarRefresh.Enabled) return;
         if (want && bar == null && !taskbarRefused)
         {
+            StartupTimeline.Mark("attente_explorer");
             // Sans le processus de surveillance, un plantage laisserait la barre Windows cachée (BAR-07)
-            if (!Program.WatchdogRunning || !WindowsBar.Hide()) { RefuseTaskbar(); return; }
+            if (!Program.WatchdogRunning) { RefuseTaskbar(); return; }
+            bool explorerReady = Native.WindowsTaskbarResponds();
+            if (WaitForTaskbarExplorer(clock.ElapsedMilliseconds, ref explorerDeadline, explorerReady))
+            {
+                taskbarRefresh.Start();
+                return;
+            }
+            if (!explorerReady)
+            {
+                taskbarRestorePending = true;
+                WarnTaskbarRefused();
+                return;
+            }
+            StartupTimeline.Mark("explorer_pret");
+            if (!WindowsBar.Hide()) { RefuseTaskbar(); return; }
+            StartupTimeline.Mark("barre_windows_masquee");
             BarForm created = null;
             bool ready = false;
             try
@@ -28,8 +67,9 @@ partial class App
                 created.StartClicked += StartFromBar;
                 created.MenuRequested += ShowTrayMenu;
                 created.ExplorerRestarted += OnExplorerRestarted;
+                created.InitializationFailed += () => { if (bar == created) RefuseTaskbar(); };
                 created.Show();
-                ready = created.Registered;
+                ready = created.Registered && !sessionEnding;
             }
             catch { }
             if (!ready)
@@ -39,16 +79,23 @@ partial class App
                 return;
             }
             bar = created;
+            return;
         }
         else if (!want && bar != null) CloseBar();
         else if (!want) RestoreTaskbar();   // reste d'un plantage ou d'un arrêt brutal : la barre Windows revient
-        if (bar != null) { bar.ApplyTheme(); bar.ApplyLayoutSettings(); bar.RebuildButtons(); }   // épingles changées par une restauration (D-014)
+        if (bar != null) bar.ApplyChangedSettings();
     }
 
     void RefuseTaskbar()
     {
         CloseBar();
-        if (taskbarRefused) return;
+        WarnTaskbarRefused();
+    }
+
+    void WarnTaskbarRefused()
+    {
+        StartupTimeline.Finish("barre_refusee");
+        if (taskbarRefused || sessionEnding) return;
         taskbarRefused = true;
         Balloon(L.T("Échec du remplacement de la barre des tâches. BureauCache rétablit la barre Windows.",
                     "Taskbar replacement failed. BureauCache is restoring the Windows taskbar.",
@@ -118,7 +165,7 @@ partial class App
         if (sessionEnding) return;   // jusqu'à ce que Windows dise si la fin de session a lieu (OnSessionEnded)
         if (bar == null)
         {
-            if (taskbarRestorePending) RestoreTaskbar();
+            if (taskbarRestorePending && Native.WindowsTaskbarResponds()) RestoreTaskbar();
             return;
         }
         if (!Program.WatchdogRunning || !bar.Registered || !WindowsBar.Reapply()) { RefuseTaskbar(); return; }

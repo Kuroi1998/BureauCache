@@ -60,6 +60,75 @@ public class TaskbarCustomizationTests
     }
 
     [TestMethod]
+    public void UnrelatedAndLayoutChangesKeepTheTaskbarButtonModel()
+    {
+        RunSta(() =>
+        {
+            int previousDelay = Settings.Delay;
+            try
+            {
+                using (var bar = new BarForm())
+                {
+                    var model = typeof(BarForm).GetField("buttons", BindingFlags.Instance | BindingFlags.NonPublic);
+                    bar.RebuildButtons();
+                    object original = model.GetValue(bar);
+                    Settings.Delay++;
+                    bar.ApplyChangedSettings();
+                    Assert.AreSame(original, model.GetValue(bar));
+                    Settings.TaskbarDate = !Settings.TaskbarDate;
+                    bar.ApplyChangedSettings();
+                    Assert.AreSame(original, model.GetValue(bar));
+                    Settings.TaskbarGroup = !Settings.TaskbarGroup;
+                    bar.ApplyChangedSettings();
+                    Assert.AreNotSame(original, model.GetValue(bar));
+                }
+            }
+            finally { Settings.Delay = previousDelay; }
+        });
+    }
+
+    [TestMethod]
+    public void StartupTimelineRecordsEachMilestoneOnceInOrder()
+    {
+        string path = Path.Combine(dir, "demarrage-barre.csv");
+        StartupTimeline.Start(System.Diagnostics.Stopwatch.StartNew());
+        StartupTimeline.Mark("attente_explorer");
+        StartupTimeline.Mark("attente_explorer");
+        StartupTimeline.Mark("explorer_pret");
+        StartupTimeline.Finish("icones_visibles_initiales");
+        Assert.IsTrue(SpinWait.SpinUntil(() => File.Exists(path) && new FileInfo(path).Length > 0, 5000));
+        string[] rows = null;
+        Assert.IsTrue(SpinWait.SpinUntil(() =>
+        {
+            try { rows = File.ReadAllLines(path); return rows.Length == 5; }
+            catch (IOException) { return false; }
+        }, 5000));
+        int previous = -1;
+        string[] phases = { "profil_charge", "attente_explorer", "explorer_pret", "icones_visibles_initiales" };
+        for (int i = 0; i < phases.Length; i++)
+        {
+            string[] fields = rows[i + 1].Split(',');
+            Assert.AreEqual(phases[i], fields[1]);
+            int elapsed = int.Parse(fields[2]);
+            Assert.IsTrue(elapsed >= previous);
+            previous = elapsed;
+        }
+    }
+
+    [TestMethod]
+    public void StartupLogAppendsRunsAndBoundsItsSize()
+    {
+        string path = Path.Combine(dir, "demarrage-barre.csv");
+        const string header = "utc,phase,ms\r\n";
+        FileOps.AppendBoundedLog(path, header, "test1,explorer_pret,15\r\n");
+        FileOps.AppendBoundedLog(path, header, "test2,barre_premier_dessin,30\r\n");
+        CollectionAssert.AreEqual(new[] { "utc,phase,ms", "test1,explorer_pret,15", "test2,barre_premier_dessin,30" }, File.ReadAllLines(path));
+        File.WriteAllText(path, new string('x', 64 * 1024));
+        FileOps.AppendBoundedLog(path, header, "test3,inventaire_fenetres,60\r\n");
+        CollectionAssert.AreEqual(new[] { "utc,phase,ms", "test3,inventaire_fenetres,60" }, File.ReadAllLines(path));
+    }
+
+    [TestMethod]
     public void TaskbarChoicesSurviveSaveAndLoad()
     {
         Settings.TaskbarSize = 2; Settings.TaskbarCenter = true; Settings.TaskbarLabels = true;

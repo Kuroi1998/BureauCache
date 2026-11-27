@@ -95,7 +95,7 @@ partial class App : ApplicationContext
         Settings.Changed += OnSettingsChanged;
         ClipboardHistory.Changed += panel.OnClipboardChanged;
         ApplyClipboard();
-        ApplyTaskbar();
+        InitializeTaskbar();
         bool lastContrast = SystemInformation.HighContrast;
         SystemEvents.UserPreferenceChanged += (s, e) =>
         {
@@ -153,6 +153,7 @@ partial class App : ApplicationContext
         }
         else if (!Settings.Pinned && !Settings.QuietStart) Balloon(L.T("Amène la souris sur le bord " + (Settings.RightSide ? "droit" : "gauche") + " de l'écran", "Move the mouse to the " + (Settings.RightSide ? "right" : "left") + " edge of the screen", "Lleva el ratón al borde " + (Settings.RightSide ? "derecho" : "izquierdo") + " de la pantalla") +
             (Settings.HotkeyOn ? L.T(" ou appuie sur ", " or press ", " o pulsa ") + HotkeyBox.Format(Settings.HotMods, Settings.HotKey) : "") + ".", null);
+        StartupTimeline.Mark("interface_initialisee");
     }
 
     // Écoute du presse-papiers seulement quand l'option est active ; la désactiver vide l'historique (D-011)
@@ -166,18 +167,20 @@ partial class App : ApplicationContext
     void OnSettingsChanged()
     {
         L.Refresh();
+        bool languageChanged = L.CurrentLanguage != lastLanguage;
+        if (languageChanged)
+        {
+            lastLanguage = L.CurrentLanguage;
+            panel.Dirty = true;
+            RebuildSettingsForm();
+        }
         ApplyIconVisibility();
         RegisterHotkey();
         ApplyClipboard();
-        ApplyTaskbar();
+        if (languageChanged && Settings.TaskbarOn) taskbarRefresh.Start();
+        else ApplyTaskbar();
         panel.OnSettingsChanged();
         RefreshTray();
-        if (L.CurrentLanguage != lastLanguage)
-        {
-            lastLanguage = L.CurrentLanguage;
-            panel.ReloadNow();
-            RebuildSettingsForm();
-        }
     }
 
     // Recrée la fenêtre des Paramètres ouverte en gardant sa rubrique, son défilement et sa position
@@ -192,8 +195,8 @@ partial class App : ApplicationContext
             SettingsForm replacement = new SettingsForm(Actions());
             replacement.RestoreWindowState(old2);
             settingsForm = replacement;
+            if (vis) replacement.ShowAfterPainting();
             old2.Dispose();
-            if (vis) settingsForm.Show();
         }));
     }
 
@@ -311,7 +314,7 @@ partial class App : ApplicationContext
     void CheckUpdateInBackground()
     {
         if (installingUpdate || !Settings.AutoUpdate || !Updater.RepoValid) return;
-        if (DateTime.Now - new DateTime(Settings.LastUpdateCheck) < TimeSpan.FromHours(24)) return;
+        if (!Updater.AutomaticCheckDue(Settings.LastUpdateCheck, DateTime.Now)) return;
         Background.Run(() =>
         {
             Updater.Release release = Updater.Check();
@@ -383,6 +386,8 @@ partial class App : ApplicationContext
         if (installingUpdate) return;
         clickTimer.Stop();
         poll.Stop();
+        taskbarRefresh.Dispose();
+        StartupTimeline.Finish("demarrage_interrompu");
         try { panel.FlushToast(); } catch { }
         Settings.Flush();
         try { panel.Unpin(); } catch { }

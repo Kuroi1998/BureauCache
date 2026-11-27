@@ -2,6 +2,33 @@
 
 ## Non publié
 
+- La barre ne reconstruit ses boutons qu’en cas de changement utile. Les icônes sont chargées après le premier dessin, avec les boutons visibles avant le menu « +N ». Les durées du démarrage de la barre sont conservées dans `demarrage-barre.csv`.
+
+- Au changement de langue, les Paramètres sont dessinés avant d’apparaître. Au démarrage, la barre personnalisée attend Explorer s’il tarde et affiche les épingles avant de charger les fenêtres ouvertes.
+
+- Les Paramètres gardent le contenu de l’onglet actif lors d’un changement de langue, y compris en plein écran. Le catalogue de recherche du panneau est chargé à la première requête, et une seconde instance ouvre les Paramètres sans relire le profil.
+
+- Les Paramètres évitent de recalculer les résultats, la disposition et le thème quand ils n’ont pas changé. Les curseurs répondent immédiatement et regroupent la propagation des changements. L’analyse du bureau est réservée au volet de rangement et s’exécute sans analyses concurrentes.
+
+- Dans les Paramètres, `Ctrl+F` retrouve la dernière recherche et son résultat sélectionné. Les sous-onglets et les sélecteurs s’étalent sur plusieurs lignes quand l’espace manque.
+
+- Fenêtre Paramètres réorganisée en sous-onglets. `Ctrl+F` recherche un réglage par mots-clés, avec ou sans accents, et ouvre directement sa rubrique.
+
+- La vérification automatique des mises à jour reprend après un recul de l'horloge. Un numéro de version GitHub invalide déclenche une erreur de vérification explicite.
+
+- Un champ de réglages contenant un caractère de contrôle susceptible de fausser le fichier INI bloque l'enregistrement. Un profil inaccessible reste protégé en écriture.
+- La confirmation d'une mise à jour vérifie le chemin et le SHA-256 de l'exécutable avant de supprimer la version de secours.
+
+- Le nettoyage et le rangement vérifient les dossiers parents pour éviter les redirections par jonction. Une annulation de rangement bloquée par une jonction conserve son journal.
+- Deux mises à jour installées avant le redémarrage conservent la dernière version stable. Une restauration de réglages qui échoue maintient la protection d'un profil illisible.
+
+- Les outils Windows intégrés sont ouverts depuis leurs chemins système. La désinstallation différée isole son chemin de la commande et les raccourcis personnels du menu Démarrer sont conservés lors d'un import.
+- Les mises à jour valident le dépôt et les adresses de téléchargement, puis lisent les fichiers de version dans le JSON GitHub. La recherche de contenu écarte les chemins spéciaux retournés par l'index.
+
+- Les listes Wi-Fi et Bluetooth restent ouvertes si la barre des tâches se déplace. Les paramètres rapides reprennent leur taille si l'espace disponible augmente.
+- Les notifications effacées ne réapparaissent plus à cause d'une lecture en cours. Les touches fléchées du calendrier repartent du mois affiché.
+- La calculatrice refuse les résultats intermédiaires non finis et peut relire les très grands nombres qu'elle affiche.
+- Correctifs pour le calendrier, l’actualisation et le défilement des notifications, les noms des raccourcis personnels, le fond en verre, le masquage automatique et le réglage du volume à la molette.
 - Thèmes prêts en un clic dans Paramètres > Apparence (Classique, Minuit, Forêt, Prune, Ambre, Ardoise), teinte des fonds au choix, couleur d'accent qui peut suivre celle de Windows, et taille de l'interface (90 à 130 %).
 - Menu Démarrer à la carte : chaque partie (recherche, compte, BureauCache, Windows, session, alimentation) peut être masquée, une tuile se masque d'un clic droit, et la section « Mes raccourcis » accueille jusqu'à 12 applications, dossiers ou sites de ton choix.
 - Barre des tâches, suite : fond uni, en verre (le fond d'écran flouté) ou teinté de la couleur d'accent ; masquage automatique ; fenêtres d'une même application regroupées sur un seul bouton ; clic du milieu au choix (nouvelle fenêtre ou fermer) ; molette sur l'icône du son pour régler le volume.

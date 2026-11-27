@@ -27,7 +27,6 @@ partial class QuickSettingsForm
 
     Panel connectionPage;
     Control[] visibleHome;
-    Size homeScrollSize;
     bool wifiPage, homeScroll;
     CancellationTokenSource connectionWork;
     ListBox connectionList;
@@ -36,6 +35,8 @@ partial class QuickSettingsForm
     Button connectionAction, connectionRefresh, connectionSettings, connectionPrivacy;
     Label connectionStatus;
 
+    internal bool ShowingConnections { get { return connectionPage != null; } }
+
     void ShowConnections(bool wifi)
     {
         if (connectionPage != null) return;
@@ -43,8 +44,6 @@ partial class QuickSettingsForm
         FlushLevel(volume);      // le minuteur s'arrête : la dernière position du curseur part maintenant (CDX-46)
         FlushLevel(brightness);
         wifiPage = wifi;
-        homeScroll = AutoScroll;
-        homeScrollSize = AutoScrollMinSize;
         visibleHome = Controls.Cast<Control>().Where(control => control.Visible).ToArray();
         AutoScrollPosition = Point.Empty;
         AutoScrollMinSize = Size.Empty;
@@ -270,8 +269,7 @@ partial class QuickSettingsForm
         CancelConnections();
         connectionPage.Dispose();
         connectionPage = null;
-        AutoScroll = homeScroll;
-        AutoScrollMinSize = homeScrollSize;
+        ApplyHomeScrolling();
         foreach (Control control in visibleHome) control.Show();
         if (!Sandbox.Active) { RefreshControls(); refresh.Start(); }
     }

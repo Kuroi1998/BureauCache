@@ -324,6 +324,26 @@ static class TaskIcons
     internal const int MaxMisses = 3;
     internal static TimeSpan RetryDelay = TimeSpan.FromSeconds(2);
 
+    internal static Bitmap CachedWindow(IntPtr window, int px, out bool pending)
+    {
+        var key = Tuple.Create(window, px);
+        Bitmap image;
+        cache.TryGetValue(key, out image);
+        int misses;
+        pending = image == null && (!missCount.TryGetValue(key, out misses) ||
+            (misses < MaxMisses && DateTime.UtcNow - missAt[key] >= RetryDelay));
+        return image;
+    }
+
+    internal static Bitmap CachedKey(string key, int px, out bool pending)
+    {
+        pending = false;
+        if (key == null) return null;
+        Bitmap image;
+        pending = !byKey.TryGetValue(px + "|" + key, out image);
+        return image;
+    }
+
     public static Bitmap For(IntPtr h, int px)
     {
         Tuple<IntPtr, int> key = Tuple.Create(h, px);
