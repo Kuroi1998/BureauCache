@@ -52,9 +52,11 @@ static class Program
                 Updater.TrialStarted = start == Updater.StartState.Trial;
                 if (start == Updater.StartState.RolledBack)
                 {
-                    // L'ancienne version est revenue à la place de l'exe : on la relance, une fois le mutex libéré
-                    Dialogs.Warn(null, L.T("La nouvelle version de BureauCache n'a pas réussi à démarrer.\nLa version précédente a été restaurée.",
-                                           "The new version of BureauCache failed to start.\nThe previous version has been restored.", "La nueva versión de BureauCache no pudo iniciarse.\nSe restauró la versión anterior."));
+                    // L'ancienne version est revenue à la place de l'exe : on la relance, une fois le mutex libéré.
+                    // La barre Windows est rendue AVANT l'avertissement : la surveillance de la version plantée a vu notre
+                    // mutex et s'est arrêtée, et l'ancienne version peut ne pas connaître la barre BureauCache (CDX-01).
+                    PrepareRollback(WindowsBar.Restore, RetryRestore, () => Dialogs.Warn(null, L.T("La nouvelle version de BureauCache n'a pas réussi à démarrer.\nLa version précédente a été restaurée.",
+                                           "The new version of BureauCache failed to start.\nThe previous version has been restored.", "La nueva versión de BureauCache no pudo iniciarse.\nSe restauró la versión anterior.")));
                     App.RelaunchPath = Application.ExecutablePath;
                 }
                 else
@@ -116,6 +118,20 @@ static class Program
             Thread.Sleep(2000);
             if (InstanceExists()) return;
         }
+    }
+
+    internal static void PrepareRollback(Func<bool> restore, Action retry, Action warn)
+    {
+        bool restored = false;
+        try { restored = restore(); } catch { }
+        if (!restored) try { retry(); } catch { }
+        warn();
+    }
+
+    // Explorer absent ou restauration non constatée : quelques essais avant l'avertissement (10 s au plus)
+    static void RetryRestore()
+    {
+        for (int i = 0; i < 5 && !WindowsBar.Restore(); i++) Thread.Sleep(2000);
     }
 
     static bool InstanceExists()

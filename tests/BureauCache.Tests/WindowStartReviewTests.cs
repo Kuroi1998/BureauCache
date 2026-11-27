@@ -29,29 +29,37 @@ static class Native {
         return new IntPtr(a);
     }
     public static bool UnhookWinEvent(IntPtr h) {return true;}
+    public static bool TwoWindows, Cloaked, Iconic;
+    public static int SyncShows, AsyncShows, LastShow;
+    public static IntPtr BorrowedIcon;
     public static bool EnumWindows(Func<IntPtr,IntPtr,bool> cb, IntPtr p) {
-        return !EnumerationFails && cb(new IntPtr(1),p);
+        if (EnumerationFails) return false;
+        return cb(new IntPtr(1),p) && (!TwoWindows || cb(new IntPtr(2),p));
     }
     public static IntPtr GetForegroundWindow(){return IntPtr.Zero;}
     public static bool IsWindowVisible(IntPtr h){return true;}
     public static bool IsWindow(IntPtr h){return true;}
-    public static bool IsCloaked(IntPtr h){return false;}
-    public static bool IsIconic(IntPtr h){return false;}
+    public static bool IsCloaked(IntPtr h){return Cloaked;}
+    public static bool IsIconic(IntPtr h){return Iconic;}
+    public static bool ShowWindowAsync(IntPtr h,int cmd){AsyncShows++; LastShow=cmd; return true;}
+    public static IntPtr CopyIcon(IntPtr h){return h==IntPtr.Zero ? IntPtr.Zero : new IntPtr(17);}
+    public static bool PostMessageChecked(IntPtr h,int m,IntPtr w,IntPtr l){return true;}
     public static long WindowStyle(IntPtr h,int i){return 0;}
     public static IntPtr GetWindow(IntPtr h,int cmd){return IntPtr.Zero;}
     public static int GetWindowTextLength(IntPtr h){return 1;}
     public static string WindowTitle(IntPtr h){return ""X"";}
     public static string WindowClass(IntPtr h){return ""Window"";}
     public static string AppUserModelId(IntPtr h){return null;}
-    public static IntPtr WindowIcon(IntPtr h,bool big){return IntPtr.Zero;}
+    public static IntPtr WindowIcon(IntPtr h,bool big){return BorrowedIcon;}
     public static string ProcessPath(IntPtr h){return IconMissing ? null : ""fake"";}
-    public static void ShowWindow(IntPtr h,int cmd){}
+    public static void ShowWindow(IntPtr h,int cmd){SyncShows++;}
     public static bool SetForegroundWindow(IntPtr h){return true;}
     public static void SwitchToThisWindow(IntPtr h,bool alt){}
     public static bool PostMessage(IntPtr h,int m,IntPtr w,IntPtr l){return true;}
 }
 static class Icons {
-    public static Bitmap FromHIcon(IntPtr h){return null;}
+    public static IntPtr ConsumedIcon;
+    public static Bitmap FromHIcon(IntPtr h){ConsumedIcon=h; return h==IntPtr.Zero ? null : new Bitmap(16,16);}
     public static Bitmap ForPath(string p,int px){return new Bitmap(px,px);}
     public static Bitmap ShellImage(string p,int px,bool f){return null;}
 }";
@@ -193,5 +201,77 @@ static class Icons {
     public void BAR_12_InitialsKeepWholeUnicodeCharacters()
     {
         Assert.AreEqual("\U00010400M", SessionActions.Initials("\U00010400 Martin"));
+    }
+
+    // Revue Codex (QA-67) ------------------------------------------------------------------------------------------
+
+    [TestMethod]
+    public void CDX03_MinimizeAndRestoreArePosted()
+    {
+        IntPtr hwnd = new IntPtr(1);
+        MethodInfo activate = listType.GetMethod("Activate");
+
+        activate.Invoke(null, new object[] { hwnd, true });
+        Assert.AreEqual(6, native.GetField("LastShow").GetValue(null));
+
+        native.GetField("Iconic").SetValue(null, true);
+        activate.Invoke(null, new object[] { hwnd, false });
+        Assert.AreEqual(9, native.GetField("LastShow").GetValue(null));
+
+        Assert.AreEqual(0, native.GetField("SyncShows").GetValue(null), "Aucun ShowWindow synchrone vers une autre application.");
+        Assert.AreEqual(2, native.GetField("AsyncShows").GetValue(null));
+    }
+
+    [TestMethod]
+    public void CDX07_OnlyTheIconCopyIsConsumed()
+    {
+        IntPtr borrowed = new IntPtr(9);
+        native.GetField("BorrowedIcon").SetValue(null, borrowed);
+
+        Assert.IsNotNull(Icon(16));
+
+        Type fakeIcons = native.Assembly.GetType("Icons", true);
+        Assert.AreEqual(new IntPtr(17), fakeIcons.GetField("ConsumedIcon").GetValue(null), "FromHIcon reçoit la copie, jamais l'icône de la fenêtre.");
+    }
+
+    [TestMethod]
+    public void CDX08_WindowOrderSurvivesVirtualDesktopRoundTrip()
+    {
+        native.GetField("TwoWindows").SetValue(null, true);
+        MethodInfo refresh = listType.GetMethod("Refresh");
+        FieldInfo items = listType.GetField("Items");
+        Func<IntPtr[]> order = delegate
+        {
+            System.Collections.IList windows = (System.Collections.IList)items.GetValue(list);
+            return windows.Cast<object>().Select(w => (IntPtr)w.GetType().GetField("Handle").GetValue(w)).ToArray();
+        };
+        IntPtr[] chosen = { new IntPtr(1), new IntPtr(2) };
+
+        refresh.Invoke(list, null);
+        listType.GetMethod("Reorder").Invoke(list, new object[] { chosen });
+        CollectionAssert.AreEqual(chosen, order());
+
+        native.GetField("Cloaked").SetValue(null, true);   // autre bureau virtuel
+        refresh.Invoke(list, null);
+        Assert.AreEqual(0, order().Length);
+
+        native.GetField("Cloaked").SetValue(null, false);  // retour
+        refresh.Invoke(list, null);
+        CollectionAssert.AreEqual(chosen, order(), "L'ordre choisi est retrouvé au retour sur le bureau.");
+    }
+
+    [TestMethod]
+    public void CDX12_PruneDisposesAnIconWithNoRemainingButton()
+    {
+        const string gone = @"exe:C:\Fictif\avant.exe";
+        const string kept = @"exe:C:\Fictif\maintenant.exe";
+        MethodInfo get = icons.GetMethod("ForKey");
+        Bitmap removed = (Bitmap)get.Invoke(null, new object[] { gone, 16 });
+        Bitmap retained = (Bitmap)get.Invoke(null, new object[] { kept, 16 });
+
+        icons.GetMethod("PruneKeys").Invoke(null, new object[] { new HashSet<string>(StringComparer.OrdinalIgnoreCase) { kept } });
+
+        Assert.ThrowsException<ArgumentException>(() => removed.GetPixel(0, 0), "Image libérée.");
+        Assert.AreEqual(16, retained.Width, "Image encore utilisée : gardée.");
     }
 }

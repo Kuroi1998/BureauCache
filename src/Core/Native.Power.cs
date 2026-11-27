@@ -17,6 +17,21 @@ static partial class Native
     [DllImport("netapi32.dll", CharSet = CharSet.Unicode)] static extern int NetUserGetInfo(string server, string user, int level, out IntPtr buffer);
     [DllImport("netapi32.dll")] static extern int NetApiBufferFree(IntPtr buffer);
 
+    [DllImport("powrprof.dll")] [return: MarshalAs(UnmanagedType.U1)] static extern bool GetPwrCapabilities(IntPtr capabilities);   // BOOLEAN : 1 octet
+
+    // Veille moderne (S0, « AoAc ») : octet 20 de SYSTEM_POWER_CAPABILITIES (CDX-11). Faux si inconnu.
+    public static bool ModernStandby()
+    {
+        IntPtr buf = Marshal.AllocHGlobal(256);
+        try
+        {
+            for (int i = 0; i < 256; i++) Marshal.WriteByte(buf, i, 0);
+            return GetPwrCapabilities(buf) && Marshal.ReadByte(buf, 20) != 0;
+        }
+        catch { return false; }
+        finally { Marshal.FreeHGlobal(buf); }
+    }
+
     public const uint SHUTDOWN_RESTART = 0x4, SHUTDOWN_POWEROFF = 0x8, SHUTDOWN_INSTALL_UPDATES = 0x40, SHUTDOWN_HYBRID = 0x200;
 
     // Arrêt ou redémarrage demandé comme le menu Démarrer : les applications ouvertes peuvent proposer d'enregistrer.

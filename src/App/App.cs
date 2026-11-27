@@ -14,6 +14,8 @@ using Microsoft.Win32;
 class HotkeyWindow : NativeWindow
 {
     public event Action Pressed;
+    // WM_ENDSESSION : vrai si la session se termine vraiment, faux si la déconnexion ou l'arrêt a été annulé (CDX-05)
+    public event Action<bool> SessionEnded;
     public HotkeyWindow() { CreateHandle(new CreateParams()); }
 
     public bool Register(bool on, int mods, int key)
@@ -26,6 +28,7 @@ class HotkeyWindow : NativeWindow
     protected override void WndProc(ref Message m)
     {
         if (m.Msg == 0x0312 && Pressed != null) Pressed();
+        if (m.Msg == 0x0016 /*WM_ENDSESSION*/ && SessionEnded != null) SessionEnded(m.WParam != IntPtr.Zero);
         base.WndProc(ref m);
     }
 }
@@ -103,6 +106,7 @@ partial class App : ApplicationContext
                 panel.BeginInvoke(new Action(Settings.Fire));
         };
         SystemEvents.SessionEnding += delegate { OnSessionEnding(); };
+        hotkey.SessionEnded += OnSessionEnded;
         screenSignature = ScreenSignature(screens);
         SystemEvents.DisplaySettingsChanged += delegate
         {

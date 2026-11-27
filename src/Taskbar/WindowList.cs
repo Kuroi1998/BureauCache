@@ -28,6 +28,8 @@ sealed class WindowList : IDisposable
     readonly Timer debounce = new Timer();
     readonly HashSet<IntPtr> flashing = new HashSet<IntPtr>();
     readonly Func<IntPtr, bool> isOwn;
+    readonly List<IntPtr> sessionOrder = new List<IntPtr>();
+    readonly Dictionary<IntPtr, TaskWindow> tracked = new Dictionary<IntPtr, TaskWindow>();
 
     // isOwn : fenêtres de la barre elle-même, jamais listées
     public WindowList(Func<IntPtr, bool> isOwn)
@@ -88,9 +90,23 @@ sealed class WindowList : IDisposable
         }
         found.Reverse();   // EnumWindows suit l'ordre Z : les plus anciennes sont plutôt en dessous
         HashSet<IntPtr> present = new HashSet<IntPtr>(found);
-        List<TaskWindow> next = Items.Where(w => present.Contains(w.Handle)).ToList();
-        HashSet<IntPtr> known = new HashSet<IntPtr>(next.Select(w => w.Handle));
-        foreach (IntPtr h in found) if (!known.Contains(h)) next.Add(new TaskWindow { Handle = h, AppKey = AppKeyOf(h) });
+        // Ordre de session gardé pour les fenêtres momentanément absentes (autre bureau virtuel, masquées par DWM) :
+        // elles retrouvent leur place au retour au lieu d'être rajoutées à la fin (CDX-08). Une fenêtre détruite sort.
+        foreach (IntPtr gone in sessionOrder.Where(x => !present.Contains(x) && !Native.IsWindow(x)).ToList())
+        {
+            sessionOrder.Remove(gone);
+            tracked.Remove(gone);
+        }
+        foreach (IntPtr h in found) if (!sessionOrder.Contains(h)) sessionOrder.Add(h);
+        if (sessionOrder.Count > 500) sessionOrder.RemoveAll(x => !present.Contains(x));
+        List<TaskWindow> next = new List<TaskWindow>();
+        foreach (IntPtr h in sessionOrder)
+        {
+            if (!present.Contains(h)) continue;
+            TaskWindow w;
+            if (!tracked.TryGetValue(h, out w)) tracked[h] = w = new TaskWindow { Handle = h, AppKey = AppKeyOf(h) };
+            next.Add(w);
+        }
         flashing.RemoveWhere(h => !present.Contains(h));
         foreach (TaskWindow w in next)
         {
@@ -113,6 +129,12 @@ sealed class WindowList : IDisposable
             if (w != null && !next.Contains(w)) next.Add(w);
         }
         foreach (TaskWindow w in Items) if (!next.Contains(w)) next.Add(w);
+        // Les places des fenêtres visibles dans l'ordre de session reçoivent le nouvel ordre ; les absentes gardent la leur
+        HashSet<IntPtr> moved = new HashSet<IntPtr>(next.Select(w => w.Handle));
+        foreach (TaskWindow w in next) if (!sessionOrder.Contains(w.Handle)) sessionOrder.Add(w.Handle);
+        List<int> slots = new List<int>();
+        for (int i = 0; i < sessionOrder.Count; i++) if (moved.Contains(sessionOrder[i])) slots.Add(i);
+        for (int k = 0; k < slots.Count && k < next.Count; k++) sessionOrder[slots[k]] = next[k].Handle;
         Items = next;
         if (Changed != null) Changed();
     }
@@ -172,17 +194,32 @@ sealed class WindowList : IDisposable
     {
         Sandbox.Guard("activation d'une fenêtre");
         if (!Native.IsWindow(h)) return;
-        if (wasActive && !Native.IsIconic(h)) { Native.ShowWindow(h, Native.SW_MINIMIZE); return; }
-        if (Native.IsIconic(h)) Native.ShowWindow(h, Native.SW_RESTORE);
+        // Demandes postées (ShowWindowAsync) : une application figée ne bloque jamais la barre ni le panneau (CDX-03)
+        if (wasActive && !Native.IsIconic(h)) { Native.ShowWindowAsync(h, Native.SW_MINIMIZE); return; }
+        if (Native.IsIconic(h)) Native.ShowWindowAsync(h, Native.SW_RESTORE);
         // Le dernier clic vient de notre processus : Windows nous laisse donner le premier plan
         if (!Native.SetForegroundWindow(h) || Native.GetForegroundWindow() != h) Native.SwitchToThisWindow(h, true);
     }
 
     // « Fermer la fenêtre » : la même demande que le bouton X, l'application peut proposer d'enregistrer
-    public static void Close(IntPtr h)
+    public static void Close(IntPtr h, Action<int> reportError)
     {
         Sandbox.Guard("fermeture d'une fenêtre");
-        if (Native.IsWindow(h)) Native.PostMessage(h, Native.WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+        TryClose(h, Native.IsWindow,
+            x => Native.PostMessageChecked(x, Native.WM_CLOSE, IntPtr.Zero, IntPtr.Zero) ? 0 : System.Runtime.InteropServices.Marshal.GetLastWin32Error(),
+            reportError);
+    }
+
+    // Faux si la demande n'est pas partie. Une fenêtre lancée en administrateur refuse le message d'une application
+    // ordinaire (erreur 5) : l'échec est signalé au lieu d'être silencieux (CDX-10). Une demande partie ne garantit pas
+    // la fermeture : l'application peut proposer d'enregistrer, ou refuser.
+    internal static bool TryClose(IntPtr h, Func<IntPtr, bool> isWindow, Func<IntPtr, int> postClose, Action<int> reportError)
+    {
+        if (!isWindow(h)) return false;
+        int error = postClose(h);
+        if (error == 0) return true;
+        if (reportError != null) reportError(error);
+        return false;
     }
 
     public void Dispose()
@@ -230,7 +267,10 @@ static class TaskIcons
                 string id = Native.AppUserModelId(h);
                 if (id != null) { Bitmap s = Icons.ShellImage(@"shell:AppsFolder\" + id, px, false); if (s != null) return s; }
             }
-            Bitmap own = Icons.FromHIcon(Native.WindowIcon(h, true));
+            // L'icône appartient à la fenêtre : on en convertit une copie, que FromHIcon détruit ensuite (CDX-07)
+            IntPtr borrowed = Native.WindowIcon(h, true);
+            IntPtr copy = borrowed != IntPtr.Zero ? Native.CopyIcon(borrowed) : IntPtr.Zero;
+            Bitmap own = Icons.FromHIcon(copy);
             if (own != null) return own;
             string exe = Native.ProcessPath(h);
             if (exe != null) return Icons.ForPath(exe, px);
@@ -259,6 +299,18 @@ static class TaskIcons
 
     // Icône d'une épingle dont l'application est fermée : celle de l'application du Store, ou celle de l'exe
     static readonly Dictionary<string, Bitmap> byKey = new Dictionary<string, Bitmap>(StringComparer.OrdinalIgnoreCase);
+
+    // Images des épingles et applications qui n'ont plus aucun bouton : libérées à chaque reconstruction (CDX-12)
+    public static void PruneKeys(HashSet<string> liveKeys)
+    {
+        foreach (string k in byKey.Keys.ToList())
+        {
+            int bar = k.IndexOf('|');
+            if (bar >= 0 && liveKeys.Contains(k.Substring(bar + 1))) continue;
+            if (byKey[k] != null) byKey[k].Dispose();
+            byKey.Remove(k);
+        }
+    }
 
     public static Bitmap ForKey(string key, int px)
     {

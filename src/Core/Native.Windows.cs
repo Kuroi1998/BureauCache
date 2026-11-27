@@ -19,6 +19,10 @@ static partial class Native
     [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
     [DllImport("user32.dll")] public static extern void SwitchToThisWindow(IntPtr hWnd, bool altTab);
+    // Version postée de ShowWindow : une application figée ne bloque jamais la barre (CDX-03)
+    [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int cmd);
+    [DllImport("user32.dll")] public static extern IntPtr CopyIcon(IntPtr hIcon);
+    [DllImport("user32.dll", EntryPoint = "PostMessageW", SetLastError = true)] public static extern bool PostMessageChecked(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
     [DllImport("user32.dll")] public static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr module, WinEventProc proc, uint pid, uint thread, uint flags);
     [DllImport("user32.dll")] public static extern bool UnhookWinEvent(IntPtr hook);
     [DllImport("user32.dll")] public static extern bool RegisterShellHookWindow(IntPtr hWnd);

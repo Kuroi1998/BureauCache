@@ -126,6 +126,8 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-27 · Correctifs de l’historique d’utilisation, de la restauration, du glisser-déposer et du cycle de vie du panneau. Surveillance de la barre vérifiée aussi pendant son fonctionnement. Détails dans QA-64.
 - 2026-11-27 · Audit du dépôt local et correctifs du rangement, du catalogue, du chargement WinForms, de la météo, du cache d’icônes et des scripts CI et publication. Inventaire dans QA-65.
 - 2026-11-27 · Claude · Lot externe QA-61 à QA-65 relu et commité à part. Chasse aux bugs de la barre : icônes retentées, hôtes sans clé, noms d'applications par Windows, fermeture différée du menu, veille moderne, fin de session annulée (QA-66). Suite : 570 réussis.
+- 2026-11-27 · Toi · Gemini non connecté (connexion Google fermée aux particuliers, clé en prépaiement sans crédit) : Codex seul est appelé directement, Gemini par prompt (D-015).
+- 2026-11-27 · Codex puis Claude · Revue de la barre en lecture seule : 13 constats, tous retenus (certains en partie), 4 reproduits sur l'ancien code (QA-67). Suite : 582 réussis.
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.

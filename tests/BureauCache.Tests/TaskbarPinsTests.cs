@@ -185,7 +185,7 @@ public class TaskbarPinsTests
     {
         Assert.ThrowsException<InvalidOperationException>(() => TaskbarModel.Launch(Notepad));
         Assert.IsFalse(TaskbarModel.CanLaunch(@"exe:C:\nexiste\pas.exe"));
-        Assert.IsTrue(TaskbarModel.CanLaunch(Calc));
+        Assert.IsTrue(TaskbarModel.CanLaunch(Calc, id => true), "Application connue de Windows : lançable.");
     }
 
     [TestMethod]
@@ -218,5 +218,114 @@ public class TaskbarPinsTests
             Settings.DirOverride = previous;
             try { Directory.Delete(dir, true); } catch { }
         }
+    }
+
+    // Revue Codex (QA-67) ------------------------------------------------------------------------------------------
+
+    [TestMethod]
+    public void CDX01_RollbackAssuresRecoveryBeforeShowingWarning()
+    {
+        foreach (bool restored in new[] { true, false })
+        {
+            List<string> calls = new List<string>();
+            Program.PrepareRollback(() => { calls.Add("restore"); return restored; }, () => calls.Add("retry"), () => calls.Add("warn"));
+            CollectionAssert.AreEqual(restored ? new[] { "restore", "warn" } : new[] { "restore", "retry", "warn" }, calls);
+        }
+        List<string> afterError = new List<string>();
+        Program.PrepareRollback(() => { throw new InvalidOperationException(); }, () => afterError.Add("retry"), () => afterError.Add("warn"));
+        CollectionAssert.AreEqual(new[] { "retry", "warn" }, afterError, "Une restauration qui échoue n'empêche pas l'avertissement.");
+    }
+
+    [TestMethod]
+    public void CDX06_ShutdownReportsRefusalWithoutRetrying()
+    {
+        foreach (uint error in new uint[] { 1191, 1314, 5 })
+        {
+            List<uint> calls = new List<uint>(), errors = new List<uint>();
+            uint flags = Native.SHUTDOWN_POWEROFF | Native.SHUTDOWN_HYBRID | Native.SHUTDOWN_INSTALL_UPDATES;
+            Assert.IsFalse(SessionActions.RequestShutdown(flags, f => { calls.Add(f); return error; }, errors.Add));
+            CollectionAssert.AreEqual(new[] { flags }, calls, "Erreur " + error + " : pas de nouvel essai.");
+            CollectionAssert.AreEqual(new[] { error }, errors, "Erreur " + error + " : signalée.");
+        }
+    }
+
+    [TestMethod]
+    public void CDX06_HybridFailureRetriesNormalShutdownKeepingUpdates()
+    {
+        List<uint> calls = new List<uint>(), errors = new List<uint>();
+        uint flags = Native.SHUTDOWN_POWEROFF | Native.SHUTDOWN_HYBRID | Native.SHUTDOWN_INSTALL_UPDATES;
+        Assert.IsTrue(SessionActions.RequestShutdown(flags, f => { calls.Add(f); return (f & Native.SHUTDOWN_HYBRID) != 0 ? 50u : 0u; }, errors.Add));
+        CollectionAssert.AreEqual(new[] { flags, Native.SHUTDOWN_POWEROFF | Native.SHUTDOWN_INSTALL_UPDATES }, calls);
+        Assert.AreEqual(0, errors.Count);
+    }
+
+    [TestMethod]
+    public void CDX09_ValidAppIdAloneDoesNotMakeAnAppLaunchable()
+    {
+        List<string> lookups = new List<string>();
+        Func<string, bool> exists = id => { lookups.Add(id); return id == "Exemple_abc!App"; };
+        Assert.IsTrue(TaskbarModel.ValidKey("aumid:Exemple.Win32"));
+        Assert.IsFalse(TaskbarModel.CanLaunch("aumid:Exemple.Win32", exists));
+        Assert.IsTrue(TaskbarModel.CanLaunch("aumid:Exemple_abc!App", exists));
+        CollectionAssert.AreEqual(new[] { "Exemple.Win32", "Exemple_abc!App" }, lookups);
+    }
+
+    [TestMethod]
+    public void CDX10_CloseReportsAnAccessDeniedByTheTarget()
+    {
+        IntPtr target = new IntPtr(42);
+        List<int> errors = new List<int>();
+        List<IntPtr> attempts = new List<IntPtr>();
+        Assert.IsFalse(WindowList.TryClose(target, h => h == target, h => { attempts.Add(h); return 5; }, errors.Add));
+        CollectionAssert.AreEqual(new[] { target }, attempts);
+        CollectionAssert.AreEqual(new[] { 5 }, errors);
+        Assert.IsTrue(WindowList.TryClose(target, h => true, h => 0, errors.Add), "Demande partie : vrai.");
+        Assert.IsFalse(WindowList.TryClose(target, h => false, h => 0, errors.Add), "Fenêtre disparue : rien n'est envoyé.");
+        Assert.AreEqual(1, errors.Count);
+    }
+
+    [TestMethod]
+    public void CDX11_FailedSleepDoesNotBlankDisplayOnNonS0Machine()
+    {
+        int displayOff = 0, failures = 0;
+        SessionActions.RequestSleep(() => false, () => false, () => displayOff++, () => failures++);
+        Assert.AreEqual(0, displayOff);
+        Assert.AreEqual(1, failures);
+        SessionActions.RequestSleep(() => false, () => true, () => displayOff++, () => failures++);
+        Assert.AreEqual(1, displayOff, "Veille moderne : l'écran s'éteint, le PC entre en veille.");
+        SessionActions.RequestSleep(() => true, () => true, () => displayOff++, () => failures++);
+        Assert.AreEqual(1, displayOff, "Veille classique réussie : rien d'autre.");
+        Assert.AreEqual(1, failures);
+    }
+
+    [TestMethod]
+    public void CDX13_ReleasingOverStartAfterPressInEmptyBarDoesNotOpenIt()
+    {
+        Assert.IsTrue(Sandbox.Active);
+        List<string> previous = Settings.TaskbarPins;
+        try
+        {
+            Settings.TaskbarPins = new List<string>();
+            using (ClickBar bar = new ClickBar())
+            using (Bitmap frame = new Bitmap(bar.Width, bar.Height))
+            {
+                bar.RebuildButtons();
+                bar.DrawToBitmap(frame, bar.ClientRectangle);
+                Rectangle start = bar.RectangleToClient(bar.StartButtonBounds);
+                int y = start.Top + start.Height / 2;
+                Point center = new Point(start.Left + start.Width / 2, y);
+                int opens = 0;
+                bar.StartClicked += () => opens++;
+
+                bar.PressAt(new Point(start.Right + 1, y));
+                bar.ReleaseAt(center);
+                Assert.AreEqual(0, opens, "Appui dans le vide, relâché sur Démarrer : rien.");
+
+                bar.PressAt(center);
+                bar.ReleaseAt(center);
+                Assert.AreEqual(1, opens, "Clic entier sur Démarrer : le menu s'ouvre.");
+            }
+        }
+        finally { Settings.TaskbarPins = previous; }
     }
 }

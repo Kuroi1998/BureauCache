@@ -93,7 +93,7 @@ public class TaskbarWindowsStartTests
         Assert.ThrowsException<InvalidOperationException>(() => SessionActions.Restart());
         Assert.ThrowsException<InvalidOperationException>(() => SessionActions.PowerOff());
         Assert.ThrowsException<InvalidOperationException>(() => WindowList.Activate(new IntPtr(1), false));
-        Assert.ThrowsException<InvalidOperationException>(() => WindowList.Close(new IntPtr(1)));
+        Assert.ThrowsException<InvalidOperationException>(() => WindowList.Close(new IntPtr(1), null));
     }
 
     [TestMethod]

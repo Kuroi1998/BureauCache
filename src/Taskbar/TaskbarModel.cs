@@ -88,15 +88,7 @@ static class TaskbarModel
         // du titre, qui change avec le document ouvert (un morceau de chanson pour un lecteur de musique, par exemple)
         if (key != null && key.StartsWith(AumidPrefix))
         {
-            string shellName;
-            lock (appNames)
-            {
-                if (!appNames.TryGetValue(key, out shellName))
-                {
-                    shellName = Native.ShellDisplayName(@"shell:AppsFolder\" + key.Substring(AumidPrefix.Length));
-                    if (appNames.Count < 500) appNames[key] = shellName;
-                }
-            }
+            string shellName = ShellAppName(key);
             if (shellName != null) return shellName;
         }
         if (!string.IsNullOrEmpty(title))
@@ -105,6 +97,21 @@ static class TaskbarModel
             return i >= 0 && i + 3 < title.Length ? title.Substring(i + 3).Trim() : title.Trim();
         }
         return key != null && key.StartsWith(AumidPrefix) ? key.Substring(AumidPrefix.Length) : "";
+    }
+
+    // Nom de l'application dans shell:AppsFolder, ou null si Windows ne la connaît pas (mis en cache, absences comprises)
+    static string ShellAppName(string key)
+    {
+        string shellName;
+        lock (appNames)
+        {
+            if (!appNames.TryGetValue(key, out shellName))
+            {
+                shellName = Native.ShellDisplayName(@"shell:AppsFolder\" + key.Substring(AumidPrefix.Length));
+                if (appNames.Count < 500) appNames[key] = shellName;
+            }
+        }
+        return shellName;
     }
 
     // Épingles d'abord, dans l'ordre enregistré, chacune avec la première fenêtre de son application ; puis les autres
@@ -171,7 +178,7 @@ static class TaskbarModel
     public static void Launch(string key)
     {
         Sandbox.Guard("lancement d'une application épinglée");
-        if (key == null) return;
+        if (!CanLaunch(key)) return;
         if (key.StartsWith(AumidPrefix)) ShellUtil.Open(@"shell:AppsFolder\" + key.Substring(AumidPrefix.Length), null);
         else if (key.StartsWith(ExePrefix))
         {
@@ -180,10 +187,14 @@ static class TaskbarModel
         }
     }
 
-    public static bool CanLaunch(string key)
+    public static bool CanLaunch(string key) { return CanLaunch(key, id => ShellAppName(AumidPrefix + id) != null); }
+
+    // Un identifiant d'application ne suffit pas : il faut que Windows sache lancer l'application (une entrée dans
+    // shell:AppsFolder), sinon l'épingle ne ferait rien au clic (CDX-09)
+    internal static bool CanLaunch(string key, Func<string, bool> hasAppsFolderEntry)
     {
         if (key == null) return false;
-        if (key.StartsWith(AumidPrefix)) return true;
+        if (key.StartsWith(AumidPrefix)) return key.Length > AumidPrefix.Length && hasAppsFolderEntry(key.Substring(AumidPrefix.Length));
         return key.StartsWith(ExePrefix) && File.Exists(key.Substring(ExePrefix.Length));
     }
 }

@@ -23,9 +23,22 @@ static class SessionActions
     public static void Sleep()
     {
         Sandbox.Guard("mise en veille");
-        if (Application.SetSuspendState(PowerState.Suspend, false, false)) return;
-        // Veille moderne (beaucoup de portables récents) : Windows refuse la veille classique. Éteindre l'écran, comme
-        // un appui sur le bouton d'alimentation, fait alors entrer le PC en veille.
+        RequestSleep(() => Application.SetSuspendState(PowerState.Suspend, false, false), Native.ModernStandby, TurnOffDisplay,
+            () => Dialogs.Warn(null, L.T("Windows a refusé la mise en veille.", "Windows refused to go to sleep.", "Windows rechazó la suspensión.")));
+    }
+
+    // Veille moderne (beaucoup de portables récents) : Windows refuse la veille classique, et éteindre l'écran, comme un
+    // appui sur le bouton d'alimentation, fait entrer le PC en veille. Ailleurs, l'échec est signalé : éteindre l'écran
+    // laisserait le PC allumé (CDX-11).
+    internal static void RequestSleep(Func<bool> suspend, Func<bool> modernStandby, Action turnOffDisplay, Action reportFailure)
+    {
+        if (suspend()) return;
+        if (modernStandby()) turnOffDisplay();
+        else if (reportFailure != null) reportFailure();
+    }
+
+    static void TurnOffDisplay()
+    {
         NativeWindow w = new NativeWindow();
         try
         {
@@ -42,11 +55,35 @@ static class SessionActions
     static bool Shutdown(bool restart)
     {
         Sandbox.Guard(restart ? "redémarrage" : "arrêt du PC");
-        uint flags = ShutdownFlags(restart, UpdatesPending, FastStartup);
-        uint r = Native.Shutdown(flags);
-        // Démarrage rapide impossible (veille prolongée désactivée entre-temps) : arrêt normal
-        if (r != 0 && (flags & Native.SHUTDOWN_HYBRID) != 0) r = Native.Shutdown(flags & ~Native.SHUTDOWN_HYBRID);
+        return RequestShutdown(ShutdownFlags(restart, UpdatesPending, FastStartup), Native.Shutdown, ReportShutdownError);
+    }
+
+    // Refus que l'arrêt normal ne résoudrait pas mieux que l'arrêt rapide : on les signale sans nouvel essai (CDX-06)
+    const uint ErrorAccessDenied = 5, ErrorUsersLoggedOn = 1191, ErrorPrivilegeNotHeld = 1314;
+
+    internal static bool RequestShutdown(uint flags, Func<uint, uint> request, Action<uint> reportError)
+    {
+        uint r = request(flags);
+        // Démarrage rapide impossible (veille prolongée désactivée entre-temps) : arrêt normal, mises à jour comprises
+        if (r != 0 && (flags & Native.SHUTDOWN_HYBRID) != 0 &&
+            r != ErrorAccessDenied && r != ErrorUsersLoggedOn && r != ErrorPrivilegeNotHeld)
+            r = request(flags & ~Native.SHUTDOWN_HYBRID);
+        if (r != 0 && reportError != null) reportError(r);
         return r == 0;
+    }
+
+    static void ReportShutdownError(uint error)
+    {
+        Dialogs.Warn(null, error == ErrorUsersLoggedOn
+            ? L.T("D'autres utilisateurs sont connectés à ce PC : Windows refuse de l'arrêter ou de le redémarrer d'ici. Utilise l'écran de verrouillage.",
+                  "Other users are signed in to this PC, so Windows won't shut it down or restart it from here. Use the lock screen.",
+                  "Hay otros usuarios conectados a este PC, así que Windows no permite apagarlo ni reiniciarlo desde aquí. Usa la pantalla de bloqueo.")
+            : error == ErrorPrivilegeNotHeld || error == ErrorAccessDenied
+            ? L.T("Ton compte n'a pas le droit d'arrêter ce PC (règle de l'administrateur).",
+                  "Your account isn't allowed to shut down this PC (administrator policy).",
+                  "Tu cuenta no tiene permiso para apagar este PC (directiva del administrador).")
+            : L.T("Windows a refusé l'arrêt (erreur " + error + ").", "Windows refused to shut down (error " + error + ").",
+                  "Windows rechazó el apagado (error " + error + ")."));
     }
 
     internal static uint ShutdownFlags(bool restart, bool updates, bool fastStartup)

@@ -290,3 +290,25 @@ Le lot externe QA-61 à QA-65 a d'abord été relu dans le code (barre Windows, 
 | Une déconnexion ou un arrêt annulé laissait la barre Windows réaffichée sous la barre BureauCache, sans retour. | Une minute après une fin de session restée sans suite, la barre est remise en place. | Relu seulement. |
 
 Suite : 570 réussis, 6 ignorés. Restent à essayer en vrai : veille, déconnexion annulée, noms des applis du Store.
+
+## QA-67 · Revue de la barre par Codex (ChatGPT), appelé directement en lecture seule
+
+Première revue lancée depuis le terminal (D-015) : 13 constats (CDX-01 à 13), aucun fichier modifié par Codex. Chaque constat a été vérifié dans le code ; **les 13 sont retenus**, certains en partie. Quatre défauts sont reproduits sur l'ancien code par des tests qui recompilent la source contre des doubles (CDX-02, 03, 07, 08 : échec avant, réussite après). Les autres reposent sur des fonctions extraites pour être testées.
+
+| Constat | Gravité | Correction | Vérification |
+|---|---|---|---|
+| CDX-01 · Retour à l'ancienne version après un plantage : la surveillance s'arrête (mutex repris), l'avertissement reste ouvert, la barre Windows reste cachée | Haute | `Program.PrepareRollback` rend la barre avant l'avertissement, avec 5 essais si Explorer ne répond pas | Test d'ordre des opérations ; relu |
+| CDX-02 · Un ancien `barre.etat` remis en place pendant le masquage passait la vérification | Haute | `Reapply` contrôle le fichier avant tout retour anticipé | Reproduit puis corrigé |
+| CDX-03 · `ShowWindow` vers une application figée pouvait geler la barre et le panneau | Haute | `ShowWindowAsync` pour réduire et restaurer | Reproduit puis corrigé |
+| CDX-04 · Le message `TaskbarCreated` envoyé lors d'un changement d'échelle faisait redemander une réservation existante, refusée comme doublon : barre retirée à tort | Moyenne | La réservation est rendue avant d'être redemandée | Relu seulement |
+| CDX-05 · Le délai d'une minute (QA-66) pouvait recacher la barre pendant une fin de session encore en négociation | Moyenne | `WM_ENDSESSION` décide : session annulée, la barre revient ; session terminée, plus aucun masquage | Relu seulement |
+| CDX-06 · Arrêt ou redémarrage refusé (autres utilisateurs connectés, privilège retiré) sans aucun message, avec un nouvel essai inutile | Moyenne | `RequestShutdown` signale l'erreur traduite et ne retente que pour le mode hybride, mises à jour comprises | 2 tests ; *en partie : le privilège n'est pas remis dans son état précédent* |
+| CDX-07 · `FromHIcon` détruisait l'icône que la fenêtre déclare (handle emprunté) | Moyenne | Conversion d'une copie (`CopyIcon`) | Reproduit puis corrigé |
+| CDX-08 · L'ordre choisi des fenêtres était perdu au retour d'un autre bureau virtuel | Moyenne | Ordre de session gardé pour les fenêtres masquées par DWM | Reproduit puis corrigé |
+| CDX-09 · Un AppUserModelID sans entrée dans `shell:AppsFolder` donnait une épingle qui ne lance rien | Moyenne | Lancement et épinglage exigent une entrée connue de Windows ; une épingle introuvable reste détachable | Test |
+| CDX-10 · Fermer une fenêtre lancée en administrateur échouait en silence | Moyenne | `TryClose` lit l'erreur et la barre explique la cause | Test |
+| CDX-11 · Le repli de veille de QA-66 éteignait l'écran même sur un PC sans veille moderne | Moyenne | Repli seulement si Windows annonce la veille moderne (`GetPwrCapabilities`, AoAc) ; sinon message | Test |
+| CDX-12 · Les images des épingles et applications disparues restaient en mémoire | Basse | `PruneKeys` à chaque reconstruction des boutons | Test |
+| CDX-13 · Un appui dans le vide relâché sur Démarrer ouvrait le menu | Basse | Un clic n'agit que s'il est relâché dans la zone où il a commencé | Test |
+
+Suite : 582 réussis, 6 ignorés. Restent à essayer en vrai : changement d'échelle avec la barre active, déconnexion annulée, veille sur le PC du chef de projet, fermeture d'une fenêtre administrateur.

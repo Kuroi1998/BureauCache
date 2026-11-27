@@ -9,6 +9,9 @@ partial class BarForm
     int dragIndex = -1, pressIndex = -1;
     BarButton pressedButton;
     Point pressPoint;
+    // Zone où le bouton gauche a été enfoncé : un clic n'agit que s'il est relâché dans la même zone (CDX-13)
+    int pressZone = NoZone;
+    const int NoZone = -2;
 
     protected override void OnMouseDown(MouseEventArgs e)
     {
@@ -16,6 +19,7 @@ partial class BarForm
         pressIndex = -1;
         pressedButton = null;
         if (e.Button != MouseButtons.Left) return;
+        pressZone = ZoneAt(e.Location);
         int i = WindowZoneAt(e.Location) - WindowZone;
         if (i < 0 || i >= shown || i >= buttons.Count) return;
         pressIndex = i;

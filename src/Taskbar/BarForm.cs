@@ -161,8 +161,10 @@ partial class BarForm : Form
         else if (m.Msg == (int)shellHook) OnShellHook(m.WParam, m.LParam);
         else if (!Sandbox.Active && taskbarCreated != 0 && m.Msg == (int)taskbarCreated)
         {
-            // Explorer a redémarré : il a oublié notre réservation, et sa barre réapparaît
-            appbar = false;
+            // Explorer a redémarré : il a oublié notre réservation, et sa barre réapparaît. Windows envoie aussi ce
+            // message quand l'échelle de l'écran change, réservation conservée : on la rend d'abord, sinon la nouvelle
+            // demande serait refusée comme un doublon et la barre BureauCache retirée à tort (CDX-04).
+            AppBarRemove();
             requestedBarBounds = Rectangle.Empty;
             AppBarRegister();
             if (windows != null) Native.RegisterShellHookWindow(Handle);
@@ -256,7 +258,9 @@ partial class BarForm : Form
         if (e.Button == MouseButtons.Left)
         {
             bool changed = (pressedButton != null || z >= WindowZone) && !StillPressed(z - WindowZone);
-            if (DragEnd() || changed) return;
+            bool sameZone = pressZone == z;
+            pressZone = NoZone;
+            if (DragEnd() || changed || !sameZone) return;
         }
         if (WindowMouseUp(z, e.Button)) return;
         if (e.Button == MouseButtons.Right) { if (MenuRequested != null) MenuRequested(); return; }

@@ -64,6 +64,7 @@ partial class BarForm
     {
         if (dragging) return;   // la fin du glissement reconstruit la liste
         buttons = TaskbarModel.Build(Settings.TaskbarPins, windows != null ? windows.Items : new List<TaskWindow>());
+        TaskIcons.PruneKeys(new HashSet<string>(buttons.Where(b => b.Key != null).Select(b => b.Key), StringComparer.OrdinalIgnoreCase));
         Invalidate();
     }
 
@@ -158,7 +159,7 @@ partial class BarForm
         {
             preview = new WindowPreview();
             preview.ActivateRequested += h => { HidePreview(); WindowList.Activate(h, false); if (windows != null) windows.Refresh(); };
-            preview.CloseRequested += h => { HidePreview(); WindowList.Close(h); };
+            preview.CloseRequested += h => { HidePreview(); WindowList.Close(h, ReportCloseError); };
         }
         Rectangle r = RectangleToScreen(buttonRects[zone - WindowZone]);
         preview.ShowFor(b.Window.Handle, b.Window.Title, IconOf(b, Ui.S(32)), r);
@@ -240,9 +241,10 @@ partial class BarForm
         if (TaskbarModel.CanLaunch(key))
             menu.Items.Add(Menus.Item(b.Window != null ? L.T("Nouvelle fenêtre", "New window", "Nueva ventana") : L.T("Ouvrir", "Open", "Abrir"),
                 Glyphs.Open, () => Launch(key)));
-        if (TaskbarModel.ValidKey(key))
+        bool pinned = TaskbarModel.ValidKey(key) && TaskbarModel.IsPinned(Settings.TaskbarPins, key);
+        // Épingler seulement ce que Windows sait relancer ; une épingle devenue introuvable peut toujours être détachée
+        if (TaskbarModel.ValidKey(key) && (pinned || TaskbarModel.CanLaunch(key)))
         {
-            bool pinned = TaskbarModel.IsPinned(Settings.TaskbarPins, key);
             menu.Items.Add(Menus.Item(pinned ? L.T("Détacher de la barre des tâches", "Unpin from taskbar", "Desanclar de la barra de tareas")
                                              : L.T("Épingler à la barre des tâches", "Pin to taskbar", "Anclar a la barra de tareas"),
                 pinned ? Glyphs.Pinned : Glyphs.Pin, () => SetPinned(key, name, !pinned)));
@@ -251,9 +253,20 @@ partial class BarForm
         {
             IntPtr h = b.Window.Handle;
             menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add(Menus.Item(L.T("Fermer la fenêtre", "Close window", "Cerrar la ventana"), Glyphs.Delete, () => WindowList.Close(h)));
+            menu.Items.Add(Menus.Item(L.T("Fermer la fenêtre", "Close window", "Cerrar la ventana"), Glyphs.Delete, () => WindowList.Close(h, ReportCloseError)));
         }
         ShowMenu(menu);
+    }
+
+    // Fermeture refusée par Windows (CDX-10) : le plus souvent, une fenêtre lancée en administrateur
+    static void ReportCloseError(int error)
+    {
+        Dialogs.Warn(null, error == 5
+            ? L.T("Cette fenêtre a été ouverte en tant qu'administrateur : BureauCache ne peut pas la fermer. Ferme-la depuis l'application elle-même.",
+                  "This window was opened as administrator, so BureauCache can't close it. Close it from the app itself.",
+                  "Esta ventana se abrió como administrador, así que BureauCache no puede cerrarla. Ciérrala desde la propia aplicación.")
+            : L.T("Windows a refusé de fermer cette fenêtre (erreur " + error + ").", "Windows refused to close this window (error " + error + ").",
+                  "Windows se negó a cerrar esta ventana (error " + error + ")."));
     }
 
     // Épingler ajoute l'application à la fin des épingles ; détacher la retire (ses fenêtres ouvertes restent)

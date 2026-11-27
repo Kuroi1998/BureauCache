@@ -201,4 +201,20 @@ public static class Native {
         Assert.AreEqual(0, State);
         Assert.IsTrue((bool)native.GetField("Visible").GetValue(null));
     }
+
+    // Revue Codex (QA-67) : un ancien fichier d'état remis en place pendant le masquage est refusé tout de suite
+    [TestMethod]
+    public void CDX02_ReapplyRejectsWrongJournalWhileExplorerIsStillHidden()
+    {
+        Assert.IsTrue(Hide());
+        Assert.AreEqual(1, State & 1);
+        Assert.IsFalse((bool)native.GetField("Visible").GetValue(null));
+
+        File.WriteAllText(Journal, "BureauCache barre 1\r\netat=1\r\n");
+
+        Assert.IsFalse((bool)bar.GetMethod("Reapply").Invoke(null, null));
+        Restore();
+        Assert.AreEqual(0, State & 1, "La copie en mémoire de l'état d'origine l'emporte.");
+        Assert.IsTrue((bool)native.GetField("Visible").GetValue(null));
+    }
 }

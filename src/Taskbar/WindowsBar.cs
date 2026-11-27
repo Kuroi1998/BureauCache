@@ -65,14 +65,14 @@ static class WindowsBar
     // Explorer réaffiche sa barre après un redémarrage, un changement d'écran ou l'ouverture du menu Démarrer
     public static bool Reapply()
     {
-        if (!Hidden) return false;
+        // Le fichier d'état est vérifié avant tout retour anticipé : un ancien « barre.etat » remis en place pendant que
+        // la barre Windows reste cachée ferait sinon restaurer, après un plantage, un état qui n'est pas l'original (CDX-02)
+        if (!Hidden || !KeepJournal() || ReadState() != original) return false;
         IntPtr bar = Native.WindowsTaskbar();
         if (bar == IntPtr.Zero) return true;   // Explorer est en train de redémarrer.
-        if (!KeepJournal()) return false;
         bool autoHide = (Native.GetTaskbarState() & Native.ABS_AUTOHIDE) != 0;
         bool visible = Native.IsWindowVisible(bar);
         if (autoHide && !visible) return true;
-        if (ReadState() != original) return false;
         if (!autoHide) Native.SetTaskbarState(original | Native.ABS_AUTOHIDE);
         if (visible || Native.IsWindowVisible(bar)) Native.ShowWindow(bar, Native.SW_HIDE);
         return !Native.IsWindowVisible(bar) && (Native.GetTaskbarState() & Native.ABS_AUTOHIDE) != 0;
