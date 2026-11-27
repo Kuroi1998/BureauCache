@@ -85,6 +85,11 @@ partial class App
         open.ShortcutKeyDisplayString = HotkeyBox.Format(Settings.HotMods, Settings.HotKey);
         trayMenu.Items.Add(open);
         trayMenu.Items.Add(Menus.Item(L.T("Paramètres…", "Settings…", "Configuración…"), Glyphs.Settings, ShowSettings));
+        // Comme le menu de la barre de Windows : utile surtout quand la barre BureauCache la remplace (T-037)
+        ToolStripMenuItem taskManager = Menus.Item(L.T("Gestionnaire des tâches", "Task Manager", "Administrador de tareas"), Glyphs.TaskManager,
+            () => { try { ShellUtil.Open("taskmgr.exe", null); } catch { } });
+        taskManager.ShortcutKeyDisplayString = L.T("Ctrl + Maj + Échap", "Ctrl + Shift + Esc", "Ctrl + Mayús + Esc");
+        trayMenu.Items.Add(taskManager);
         trayMenu.Items.Add(new ToolStripSeparator());
 
         ToolStripMenuItem pin = Menus.Item(L.T("Épingler le panneau", "Pin the panel", "Fijar el panel"), Glyphs.Pin, () => panel.TogglePin());

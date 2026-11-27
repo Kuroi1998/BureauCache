@@ -1,5 +1,9 @@
 ﻿# Nouveautés
 
+## Non publié
+
+- Le menu de BureauCache (clic droit sur son icône ou sur la barre BureauCache) ouvre le Gestionnaire des tâches.
+
 ## 3.10.2 — Barre des tâches BureauCache
 
 **Nouvelle barre des tâches** (option « Remplacer la barre des tâches », Paramètres → Général, désactivée par défaut)

@@ -23,6 +23,7 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | T-034 | Barre, étape 3 : menu Démarrer avec compte et alimentation | Fait (3.10.2) ; essais réels restants listés dans QA-67 et QA-68 | Claude puis Toi | PR #26 | D-013, QA-56 |
 | T-035 | Barre, étape 4 : bouton « ^ » avec les vraies icônes de notification (prototype, recherche Gemini, puis version finale) | À faire | Gemini, Claude, Toi | — | D-013 |
 | T-036 | Chasse aux bugs hors de la barre : mises à jour, installation, panneau, Paramètres, recherche, presse-papiers, météo (Codex en lecture seule, puis Claude) | Fait (3.10.2) ; essais réels restants listés dans QA-67 et QA-68 | Codex, Claude | PR #26 | QA-68 |
+| T-037 | Gestionnaire des tâches dans le menu de BureauCache (icône et barre) | Code fait ; essai réel à faire | Claude puis Toi | `feat/T-037-gestionnaire-taches` | — |
 | T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel fait sur la 3.9 installée | Claude puis Toi | PR #19 | D-007, QA-32, QA-33 |
 | T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |
 | T-018 | Verbes du shell sur un fil dédié, liste des écrans suivie (QA-28, QA-29) | Fait (3.8) ; essais manuels encore à faire | Claude | PR #16 | QA-28 |
@@ -133,6 +134,7 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-27 · Toi · Publication demandée en 3.10.2 (Barre des tâches BureauCache) : T-032 à T-034 et T-036 réunis dans la PR #26.
 - 2026-11-27 · Claude · PR #26 fusionnée (CI verte), `publier.ps1 -Version 3.10.2` : commit et tag `v3.10.2` envoyés, brouillon compilé par GitHub Actions.
 - 2026-11-27 · Toi · Version 3.10.2 (Barre des tâches BureauCache) signée et publiée : exe, empreinte et signature en ligne.
+- 2026-11-27 · Toi puis Claude · T-037 : « Gestionnaire des tâches » ajouté au menu de BureauCache, sous « Paramètres… », avec le rappel Ctrl + Maj + Échap.
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.
