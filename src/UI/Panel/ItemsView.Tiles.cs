@@ -54,7 +54,7 @@ partial class ItemsView
     void DrawClipItem(Graphics g, DesktopItem it, Rectangle r, bool selected, bool hot)
     {
         Rectangle bg = new Rectangle(r.X, r.Y + S(2), r.Width, r.Height - S(4));
-        Ui.Fill(g, selected ? Theme.SelOverlay : hot && !dragging ? Theme.HoverOverlay : Color.FromArgb(Settings.Dark ? 14 : 10, Theme.Fg), bg, S(8));
+        Ui.Card(g, selected ? Theme.SelOverlay : hot && !dragging ? Theme.HoverOverlay : Color.FromArgb(Settings.Dark ? 14 : 10, Theme.Fg), bg, S(Ui.RadiusControl), selected || hot);
         if (selected) Ui.Fill(g, Theme.Accent, new RectangleF(bg.X, bg.Y + S(10), S(3), bg.Height - S(20)), S(2));
         Ui.Glyph(g, Glyphs.Copy, 11f, Theme.FgDim, new Rectangle(r.X + S(10), r.Y, S(22), r.Height));
         int tx = r.X + S(40), right = r.Right - S(10);

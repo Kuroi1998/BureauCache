@@ -409,8 +409,8 @@ partial class ItemsView : Control
     void DrawListItem(Graphics g, DesktopItem it, Rectangle r, bool selected, bool hot, bool ghost)
     {
         Rectangle bg = new Rectangle(r.X, r.Y + S(1), r.Width, r.Height - S(2));
-        if (selected) Ui.Fill(g, Theme.SelOverlay, bg, S(8));
-        else if (hot && !dragging) Ui.Fill(g, Theme.HoverOverlay, bg, S(8));
+        if (selected) Ui.Card(g, Theme.SelOverlay, bg, S(Ui.RadiusControl), true);
+        else if (hot && !dragging) Ui.Card(g, Theme.HoverOverlay, bg, S(Ui.RadiusControl), false);
         if (selected) Ui.Fill(g, Theme.Accent, new RectangleF(bg.X, bg.Y + S(11), S(3), bg.Height - S(22)), S(2));
         int isz = S(32);
         int ix = r.X + S(12), iy = r.Y + (r.Height - isz) / 2;
@@ -443,8 +443,9 @@ partial class ItemsView : Control
     void DrawCell(Graphics g, DesktopItem it, Rectangle r, bool selected, bool hot, bool ghost)
     {
         Rectangle bg = new Rectangle(r.X + S(3), r.Y + S(3), r.Width - S(6), r.Height - S(6));
-        if (selected) Ui.Fill(g, Theme.SelOverlay, bg, S(10));
-        else if (hot && !dragging) Ui.Fill(g, Theme.HoverOverlay, bg, S(10));
+        // Survol et sélection : fond éclairci et bordure fine lumineuse (D-012)
+        if (selected) Ui.Card(g, Theme.SelOverlay, bg, S(Ui.RadiusCard), true);
+        else if (hot && !dragging) Ui.Card(g, Theme.HoverOverlay, bg, S(Ui.RadiusCard), false);
         int isz = S(48);
         Rectangle ir = new Rectangle(r.X + (r.Width - isz) / 2, r.Y + S(10), isz, isz);
         DrawIconOrPlaceholder(g, it.Icon, ir, ghost);

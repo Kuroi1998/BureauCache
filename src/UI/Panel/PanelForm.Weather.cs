@@ -20,7 +20,7 @@ partial class PanelForm
     void DrawWeather(Graphics g)
     {
         if (rcWeather.IsEmpty) return;
-        Ui.Fill(g, hoverBtn == 6 ? Theme.SelOverlay : Theme.HoverOverlay, rcWeather, S(8));
+        Ui.Card(g, hoverBtn == 6 ? Theme.SelOverlay : Theme.HoverOverlay, rcWeather, S(Ui.RadiusCard), hoverBtn == 6);
         WeatherReport w = Weather.Current;
         TextFormatFlags left = TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis;
         if (!Weather.Configured || w == null)

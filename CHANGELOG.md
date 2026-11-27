@@ -15,6 +15,7 @@
 - Le presse-papiers s'affiche en liste compacte, avec un aperçu du texte et un bouton « Copier » au survol.
 - La météo affiche simplement « Ville, Pays », et l'espace disque « 130 Go libres » sur une ligne.
 - La Corbeille et Ce PC n'apparaissent plus dans les Récents.
+- Style plus net : cartes, widgets et icônes ont une bordure fine et un survol plus visible ; le champ de recherche s'illumine quand on y tape.
 
 ## 3.10 — Règles de rangement, recherche dans le contenu, presse-papiers
 

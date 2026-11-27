@@ -78,6 +78,8 @@ partial class PanelForm : Form
             Rebuild(false); if (search.Text.Trim().Length > 0) View.SelectFirst(); Invalidate(rcSearch);
         };
         search.KeyDown += SearchKeyDown;
+        search.GotFocus += (s, e) => Invalidate(rcSearch);
+        search.LostFocus += (s, e) => Invalidate(rcSearch);
         search.HandleCreated += (s, e) => SetCue();
 
         View = new ItemsView(this);
@@ -231,7 +233,9 @@ partial class PanelForm : Form
         Ui.Glyph(g, Settings.GridView ? Glyphs.List : Glyphs.Grid, 11f, hoverBtn == 0 ? Theme.Accent : Theme.FgDim, rcViewBtn);
         Ui.Glyph(g, Glyphs.Settings, 11f, hoverBtn == 1 ? Theme.Accent : Theme.FgDim, rcGear);
 
-        Ui.Fill(g, Theme.Surface, rcSearch, S(8));
+        // Champ de recherche : bordure fine, qui prend l'accent au focus (D-012)
+        Ui.Fill(g, Theme.Surface, rcSearch, S(Ui.RadiusControl));
+        Ui.Edge(g, search.Focused ? Color.FromArgb(170, Theme.Accent) : Theme.Edge, rcSearch, S(Ui.RadiusControl));
         Ui.Glyph(g, Glyphs.Search, 10f, Theme.FgDim, new Rectangle(rcSearch.X + S(6), rcSearch.Y, S(28), rcSearch.Height));
         DrawChips(g);
 
@@ -252,7 +256,11 @@ partial class PanelForm : Form
     void DrawWidgets(Graphics g)
     {
         Rectangle[] rs = { rcClock, rcDisk, rcBin };
-        for (int i = 0; i < 3; i++) Ui.Fill(g, hoverBtn == i + 2 && i > 0 ? Theme.SelOverlay : Theme.HoverOverlay, rs[i], S(8));
+        for (int i = 0; i < 3; i++)
+        {
+            bool hot = hoverBtn == i + 2 && i > 0;
+            Ui.Card(g, hot ? Theme.SelOverlay : Theme.HoverOverlay, rs[i], S(Ui.RadiusCard), hot);
+        }
         DateTime now = DateTime.Now;
         TextRenderer.DrawText(g, now.ToString("HH:mm", L.Culture), fClock, new Rectangle(rcClock.X, rcClock.Y + S(3), rcClock.Width, S(24)), Theme.Fg,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);

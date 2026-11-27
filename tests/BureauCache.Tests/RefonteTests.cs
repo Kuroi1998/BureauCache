@@ -91,4 +91,22 @@ public class RefonteTests
             }
         });
     }
+
+    [TestMethod]
+    public void SharedEdgeIsAFaintOnePixelLine()
+    {
+        int mode = Settings.ThemeMode;
+        try
+        {
+            Settings.ThemeMode = 1;   // sombre
+            double a = Theme.Edge.A / 255.0;
+            Assert.IsTrue(a >= 0.06 && a <= 0.10, "Étape 2 : bordure blanche entre 6 et 10 % (" + a.ToString("0.000") + ").");
+            Assert.IsTrue(Theme.EdgeHot.A > Theme.Edge.A, "Plus marquée au survol.");
+            Theme.HighContrastOverride = true;
+            Assert.AreEqual(System.Drawing.SystemColors.WindowText, Theme.Edge, "Contraste élevé : bordure aux couleurs système.");
+        }
+        finally { Theme.HighContrastOverride = null; Settings.ThemeMode = mode; }
+        Assert.AreEqual(10, Ui.RadiusCard);
+        Assert.AreEqual(8, Ui.RadiusControl);
+    }
 }

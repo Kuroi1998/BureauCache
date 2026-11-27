@@ -186,9 +186,10 @@ class Card : Panel
         bool contrast = SystemInformation.HighContrast;
         Color line = contrast ? SystemColors.WindowText : Theme.Line;
         g.Clear(contrast ? SystemColors.Window : Theme.Bg);
-        Ui.Fill(g, contrast ? SystemColors.Window : Theme.Card, new RectangleF(0, 0, Width - 1, Height - 1), Ui.S(10));
-        using (var outline = Ui.Round(new RectangleF(0, 0, Width - 1, Height - 1), Ui.S(10)))
-        using (Pen stroke = new Pen(line)) g.DrawPath(stroke, outline);
+        // Carte des Paramètres : même rayon et même bordure fine que les cartes du panneau (D-012)
+        RectangleF box = new RectangleF(0, 0, Width, Height);
+        Ui.Fill(g, contrast ? SystemColors.Window : Theme.Card, box, Ui.S(Ui.RadiusCard));
+        Ui.Edge(g, contrast ? SystemColors.WindowText : Theme.Edge, box, Ui.S(Ui.RadiusCard));
         using (Pen p = new Pen(line))
             foreach (int y in Separators) g.DrawLine(p, Ui.S(16), y, Width - Ui.S(16), y);
     }

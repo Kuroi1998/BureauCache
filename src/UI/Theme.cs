@@ -34,6 +34,9 @@ static class Theme
     // Thème clair : (92, 92, 102) donne 5,4:1 sur Surface, au-dessus du seuil AA de 4,5:1 (GEM-10 : 4,45:1 avant)
     public static Color FgDim { get { return H(SystemColors.GrayText, D(150, 150, 162, 92, 92, 102)); } }
     public static Color Danger { get { return Color.FromArgb(239, 68, 68); } }
+    // Bordure lumineuse de 1 px des cartes et tuiles : blanc à 9 % (sombre), noir à 8 % (clair) ; plus marquée au survol (D-012)
+    public static Color Edge { get { return HighContrast ? SystemColors.WindowText : Settings.Dark ? Color.FromArgb(24, 255, 255, 255) : Color.FromArgb(20, 0, 0, 0); } }
+    public static Color EdgeHot { get { return HighContrast ? SystemColors.Highlight : Settings.Dark ? Color.FromArgb(46, 255, 255, 255) : Color.FromArgb(40, 0, 0, 0); } }
     public static Color Accent { get { return H(SystemColors.Highlight, Settings.Accent); } }
     public static Color HoverOverlay { get { return Settings.Dark ? Color.FromArgb(26, 255, 255, 255) : Color.FromArgb(16, 0, 0, 0); } }
     public static Color SelOverlay { get { return Settings.Dark ? Color.FromArgb(44, 255, 255, 255) : Color.FromArgb(28, 0, 0, 0); } }
@@ -48,6 +51,9 @@ static class Ui
 {
     public static float Scale = 1f;
     public static int S(int v) { return (int)Math.Round(v * Scale); }
+
+    // Rayons communs (D-012) : cartes et tuiles 10 px, contrôles 8 px, avant mise à l'échelle
+    public const int RadiusCard = 10, RadiusControl = 8;
     public const string GlyphFont = "Segoe MDL2 Assets";
 
     public static GraphicsPath Round(RectangleF r, float rad)
@@ -69,6 +75,22 @@ static class Ui
         g.SmoothingMode = SmoothingMode.AntiAlias;
         using (GraphicsPath p = Round(r, rad))
         using (SolidBrush b = new SolidBrush(c)) g.FillPath(b, p);
+        g.SmoothingMode = old;
+    }
+
+    // Carte : fond arrondi et bordure fine de 1 px, plus marquée au survol ou au focus (D-012)
+    public static void Card(Graphics g, Color fill, RectangleF r, float rad, bool hot)
+    {
+        Fill(g, fill, r, rad);
+        Edge(g, hot ? Theme.EdgeHot : Theme.Edge, r, rad);
+    }
+
+    public static void Edge(Graphics g, Color c, RectangleF r, float rad)
+    {
+        SmoothingMode old = g.SmoothingMode;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        using (GraphicsPath p = Round(new RectangleF(r.X + 0.5f, r.Y + 0.5f, r.Width - 1, r.Height - 1), rad))
+        using (Pen pen = new Pen(c)) g.DrawPath(pen, p);
         g.SmoothingMode = old;
     }
 
