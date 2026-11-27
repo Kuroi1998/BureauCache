@@ -8,8 +8,12 @@ _Une tâche terminée passe dans « Fait » avec sa date, puis disparaît à la 
 | ID | Titre | Statut | Porteur | Branche | Lien |
 |---|---|---|---|---|---|
 | T-021 | Garde-fous des tests, modales allégées, optimisations (Gemini, lot 1) | Revue (394 tests réussis) | Claude | `feat/T-021-garde-fous-ux` | QA-34, QA-35 |
-| T-022 | Gemini, lot 2 : découverte des fonctions, infobulles, états vides, confirmations système thématisées | À faire | Claude | — | QA-34 |
-| T-023 | Gemini, lot 3 : météo intégrée aux Paramètres, détail non modal, clavier dans le panneau, DPI par écran (R-10) | À faire | Claude | — | QA-34, R-10 |
+| T-022 | Gemini, lot 2 : découverte des fonctions, infobulles, états vides, confirmations système thématisées | Revue (407 tests réussis, revue faite) | Claude | `feat/T-022-decouverte` | QA-34, QA-36, QA-38 |
+| T-023 | Gemini, lot 3 : météo intégrée aux Paramètres, détail non modal, clavier dans le panneau, DPI par écran (R-10) | Revue (403 tests réussis ; DPI par écran reporté en T-027) | Claude | `feat/T-023-confort` | QA-34, QA-37 |
+| T-024 | Règles de rangement (par type ou par nom, destination choisie) | Revue faite (QA-40) | Claude | `feat/T-024-regles` | D-009, QA-39, QA-40 |
+| T-025 | Recherche dans le contenu des fichiers, statistiques d'encombrement | Revue faite (QA-43) | Claude | `feat/T-025-contenu` | D-010, QA-41, QA-43 |
+| T-026 | Historique du presse-papiers, panneau sur le bureau virtuel actif | Revue faite (QA-43) | Claude | `feat/T-026-presse-papiers` | D-011, QA-42, QA-43 |
+| T-027 | Échelle par écran (DPI par moniteur) | Reporté (un seul écran aujourd'hui) | Claude | — | D-008, R-10 |
 | T-020 | Sauvegarde automatique des réglages (D-007) | Fait (3.9) ; essai réel fait sur la 3.9 installée | Claude puis Toi | PR #19 | D-007, QA-32, QA-33 |
 | T-019 | Bugs d'interface : image figée du panneau, dialogues, Paramètres (QA-30, QA-31) | Fait (3.8) ; essais manuels encore à faire | Claude puis Toi | PR #17 | QA-30 |
 | T-018 | Verbes du shell sur un fil dédié, liste des écrans suivie (QA-28, QA-29) | Fait (3.8) ; essais manuels encore à faire | Claude | PR #16 | QA-28 |
@@ -65,6 +69,16 @@ Les autres risques ouverts (R-10 et R-23 en partie, R-22, R-24, R-25) restent da
 - 2026-11-24 · Claude · T-021 : analyse de Gemini triée ; lot 1 appliqué (bac à sable des tests, modales allégées, cache du bord, découpage de App et Settings) (QA-34). Suite : 387 réussis.
 - 2026-11-26 · Claude · QA-32 rectifié : l'écrasement n'avait touché que la copie du bac à sable de Claude ; les vrais réglages étaient intacts (vérifié par les sauvegardes de la 3.9).
 - 2026-11-26 · Claude · T-021 : revue du lot 1 par ChatGPT, 10 constats retenus et corrigés, QA34-04 écarté (QA-35). Suite : 394 réussis.
+- 2026-11-27 · Claude · T-022 : pastilles = ? > dans la recherche, infobulles, indice de menu sur les tuiles, nettoyage dans Paramètres → Avancé, états vides utiles, rappel Ctrl+1…9, boîtes de message aux couleurs de l'application (QA-36). Suite : 398 réussis.
+- 2026-11-27 · Claude · T-023 (1/2) : lieu de la météo cherché dans les Paramètres, détail météo non modal, F6 pour les boutons et tuiles du haut (QA-37). Suite : 403 réussis hors revue de T-022 en attente.
+- 2026-11-27 · Claude · T-022 : revue par ChatGPT, 8 constats retenus et corrigés (QA-38). Suite : 407 réussis.
+- 2026-11-27 · Toi · Échelle par écran reportée (D-008, T-027). Règles de rangement conçues (D-009), à valider.
+- 2026-11-27 · Toi puis Claude · D-009 validée ; T-024 codée : règles par extension ou par mot du nom, âge, destination parmi les dossiers connus, liste et dialogue avec aperçu dans Organisation, annulation comprise (QA-39). Suite : 412 réussis.
+- 2026-11-27 · Toi · D-010 et D-011 validées.
+- 2026-11-27 · Claude · Revue de T-023 et T-024 par ChatGPT : 7 échecs reproduits, tous retenus et corrigés (QA-40).
+- 2026-11-27 · Claude · T-025 : recherche dans le contenu par l'index Windows (groupe « Dans le contenu »), encombrement du bureau dans Organisation (QA-41). Suite : 432 réussis.
+- 2026-11-27 · Claude · T-026 : historique du presse-papiers en mémoire (copies privées ignorées), panneau ouvert sur le bureau virtuel actif et qui suit quand il est épinglé (QA-42). Suite : 441 réussis.
+- 2026-11-27 · Claude · Revue de T-025 et T-026 par ChatGPT : 8 échecs reproduits, tous retenus et corrigés ; journal de rangement fondé sur l'identité NTFS, conservé si la destination manque, retour arrière si l'enregistrement échoue (QA-43). Suite : 449 réussis.
 - 2026-11-23 · Claude · Projet créé : 52 tests réussis, 5 ignorés. Les tests ignorés montrent le défaut R-19 (séparateur de milliers), suivi en T-007.
 - 2026-11-23 · ChatGPT · T-002 : `CalcEdgeCaseTests.cs`, 61 cas dont 18 échecs présumés.
 - 2026-11-23 · Claude · Revue de T-002 : les 18 échecs sont reproduits. 14 sont retenus (R-16, R-19, R-20, R-21) et 4 écartés parce qu'ils supposaient une spécification non voulue : refuser `1,234.5` en français, accepter `50%%`, exiger 64 paires de parenthèses. Suite totale : 97 réussis, 19 ignorés.

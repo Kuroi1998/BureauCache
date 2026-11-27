@@ -45,6 +45,8 @@ partial class SettingsForm
         tSRecent.Checked = Settings.SearchRecent;
         tSSettings.Checked = Settings.SearchSettings;
         tSCmd.Checked = Settings.SearchCommands;
+        tSContent.Checked = Settings.SearchContent;
+        tClip.Checked = Settings.ClipboardOn;
         sEngine.Selected = Settings.WebEngine;
         tGroups.Checked = Settings.GroupCats;
         tRecents.Checked = Settings.ShowRecents;
@@ -56,6 +58,7 @@ partial class SettingsForm
         if (!repo.Box.Focused) repo.Box.Text = Settings.UpdateRepo;
         tAutoUpd.Checked = Settings.AutoUpdate;
         RebuildCustoms();
+        RebuildRules();
         UpdateTexts();
         loading = false;
     }
@@ -112,10 +115,12 @@ partial class SettingsForm
         var usage = new Dictionary<string, long[]>(Settings.Usage, StringComparer.OrdinalIgnoreCase);
         DateTime limit = Archiver.Limit;
         string folder = Archiver.Folder;
+        List<ArchiveRule> rules = Settings.ArchiveRules.ToList();
         lArchive.Text = T("Analyse du bureau…", "Checking the desktop…", "Analizando el escritorio…");
+        UpdateClutter();
         Background.Run(() =>
         {
-            int n = Archiver.CountCandidates(favorites, usage, limit, folder);
+            int n = Archiver.CountCandidates(favorites, usage, limit, folder, rules);
             try
             {
                 BeginInvoke(new Action(() =>

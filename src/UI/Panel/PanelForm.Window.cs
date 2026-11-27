@@ -118,6 +118,8 @@ partial class PanelForm
     public void ShowPanel(Screen scr)
     {
         if (IsOpen) { Activate(); return; }
+        // Toujours sur le bureau virtuel actif (D-011)
+        Native.MoveToActiveDesktop(Handle);
         if (Visible)
         {
             StartAnim(true);
@@ -159,6 +161,7 @@ partial class PanelForm
     public void HidePanel()
     {
         View.CancelHover();
+        UpdateTip(-1);   // pas d'infobulle restée affichée après la fermeture (QA36-03)
         if (Settings.Pinned && appbar) return;
         if (!Visible || !opening) return;
         View.StopScroll();
@@ -187,6 +190,8 @@ partial class PanelForm
         Location = new Point(all.Left - Width - S(200), Top);
         widgetTimer.Stop();
         blurTimer.Stop();
+        // La prochaine ouverture repart sans focus F6 sur la barre (QA37-03)
+        chromeFocus = -1;
     }
 
     void AnimTick(object sender, EventArgs e)

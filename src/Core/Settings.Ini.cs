@@ -60,6 +60,8 @@ static partial class Settings
                     case "SearchRecent": SearchRecent = b; break;
                     case "SearchSettings": SearchSettings = b; break;
                     case "SearchCommands": SearchCommands = b; break;
+                    case "SearchContent": SearchContent = b; break;
+                    case "ClipboardOn": ClipboardOn = b; break;
                     case "NewBadge": NewBadge = b; break;
                     case "ArchiveOn": ArchiveOn = b; break;
                     case "HoverPreview": HoverPreview = b; break;
@@ -114,6 +116,14 @@ static partial class Settings
                             long c, t;
                             if (p.Length == 2 && long.TryParse(p[0], out c) && long.TryParse(p[1], out t))
                                 Usage[e.Substring(0, j)] = new long[] { c, t };
+                        }
+                        break;
+                    case "ArchiveRules":
+                        ArchiveRules = new List<ArchiveRule>();
+                        foreach (string e in SplitList(v))
+                        {
+                            ArchiveRule r = ArchiveRule.Parse(e);
+                            if (r != null && ArchiveRules.Count < global::ArchiveRules.MaxRules) ArchiveRules.Add(r);
                         }
                         break;
                     case "CustomCats":
@@ -251,7 +261,7 @@ static partial class Settings
                 "GridView=" + B(GridView), "Glass=" + B(Glass), "LiveBlur=" + B(LiveBlur), "HidePanelInCapture=" + B(HidePanelInCapture), "Animations=" + B(Animations),
                 "NoFullscreen=" + B(NoFullscreen), "HotkeyOn=" + B(HotkeyOn),
                 "SearchApps=" + B(SearchApps), "SearchRecent=" + B(SearchRecent), "SearchSettings=" + B(SearchSettings),
-                "SearchCommands=" + B(SearchCommands), "NewBadge=" + B(NewBadge), "ArchiveOn=" + B(ArchiveOn),
+                "SearchCommands=" + B(SearchCommands), "SearchContent=" + B(SearchContent), "ClipboardOn=" + B(ClipboardOn), "NewBadge=" + B(NewBadge), "ArchiveOn=" + B(ArchiveOn),
                 "HoverPreview=" + B(HoverPreview), "Widgets=" + B(Widgets), "AutoUpdate=" + B(AutoUpdate),
                 "Pinned=" + B(Pinned), "QuietStart=" + B(QuietStart), "TrayHintShown=" + B(TrayHintShown), "LastVersion=" + LastVersion, "ArchiveLog=" + string.Join("|", ArchiveLog),
                 "ThemeMode=" + ThemeMode, "Language=" + Language, "Delay=" + Delay, "PanelWidth=" + PanelWidth,
@@ -268,7 +278,8 @@ static partial class Settings
                 "Collapsed=" + string.Join("|", Collapsed),
                 "CatOverride=" + string.Join("|", CatOverride.Select(kv => kv.Key + ">" + kv.Value)),
                 "Usage=" + string.Join("|", Usage.Select(kv => kv.Key + ">" + kv.Value[0] + "," + kv.Value[1])),
-                "CustomCats=" + string.Join("|", CustomCats.Select(c => c.Name + ">" + ((int)c.Glyph[0]).ToString("X4") + ">" + Hex(c.Color)))
+                "CustomCats=" + string.Join("|", CustomCats.Select(c => c.Name + ">" + ((int)c.Glyph[0]).ToString("X4") + ">" + Hex(c.Color))),
+                "ArchiveRules=" + string.Join("|", ArchiveRules.Select(r => r.Serialize()))
             };
         }
     }

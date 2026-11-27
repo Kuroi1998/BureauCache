@@ -261,7 +261,7 @@ partial class ItemsView : Control
             Ui.Fill(g, Theme.Accent, Screenify(dropMark), S(1));
 
         if (rows.Count == 0)
-            TextRenderer.DrawText(g, EmptyText, fItem, new Rectangle(S(10), S(30), Width - S(20), S(60)), Theme.FgDim,
+            TextRenderer.DrawText(g, EmptyText, fItem, new Rectangle(S(16), S(30), Width - S(32), S(140)), Theme.FgDim,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
 
         if (contentH > Height)
@@ -355,6 +355,10 @@ partial class ItemsView : Control
         if (!row.G.IsSearch)
             TextRenderer.DrawText(g, collapsed ? Glyphs.ChevronRight : Glyphs.ChevronDown, fGlyph, new Rectangle(r.Right - S(30), r.Y, S(24), r.Height), Theme.FgDim,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+        // Rappel des raccourcis des favoris, sinon visibles seulement en maintenant Ctrl (Gemini B6)
+        if (row.G.Key == "fav" && row.G.Items.Count > 0 && !collapsed)
+            TextRenderer.DrawText(g, "Ctrl+1…" + Math.Min(9, row.G.Items.Count), fHeader, new Rectangle(r.X, r.Y, r.Width - S(36), r.Height),
+                Color.FromArgb(150, Theme.FgDim), TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
     }
 
     void DrawIconOrPlaceholder(Graphics g, Bitmap b, Rectangle r, bool ghost)

@@ -125,28 +125,14 @@ partial class SettingsForm
         Row(T("Widgets", "Widgets", "Widgets"), T("Heure, espace disque et corbeille en haut du panneau. Clic droit sur le disque : nettoyage rapide.", "Clock, disk space and Recycle Bin at the top. Right-click the disk: quick clean-up.", "Hora, espacio en disco y papelera en la parte superior. Haz clic derecho en el disco para abrir la limpieza rápida."), tWidgets, null);
         tWeather = NewToggle(v =>
         {
-            // Sans lieu, la météo n'est pas activée tout de suite : c'est le choix d'un lieu qui l'active. Une
-            // fenêtre fermée ou un choix annulé ne laissent donc jamais la météo active sans lieu (Q30-08).
-            if (v && !Weather.Configured)
-            {
-                if (!weatherPrompt)
-                {
-                    weatherPrompt = true;
-                    BeginInvoke(new Action(() =>
-                    {
-                        weatherPrompt = false;
-                        if (IsDisposed || Weather.Configured || Settings.WeatherOn) return;
-                        WeatherPlaceDialog.Run();   // Choisir active la météo
-                        if (!IsDisposed) UpdateTexts();
-                    }));
-                }
-                return;
-            }
+            // Sans lieu, la météo n'est pas activée tout de suite : c'est le choix d'un lieu qui l'active (Q30-08).
+            // Le lieu se cherche juste en dessous, sans fenêtre à part (Gemini A8).
+            if (v && !Weather.Configured) { AskForPlace(); return; }
             Settings.WeatherOn = v;
             if (!v) Weather.Reset();
         });
         Row(T("Météo", "Weather", "Tiempo"), T("Temps et prévisions du lieu choisi (données Open-Meteo.com, CC BY 4.0).", "Weather and forecast for the chosen place (Open-Meteo.com data, CC BY 4.0).", "Tiempo y pronóstico del lugar elegido (datos de Open-Meteo.com, CC BY 4.0)."), tWeather, null);
-        lWeatherPlace = Row(T("Lieu de la météo", "Weather location", "Ubicación para el tiempo"), "-", Button(T("Choisir…", "Choose…", "Elegir…"), false, S(120), () => { WeatherPlaceDialog.Run(); UpdateTexts(); }), null);
+        BuildPlaceRow();
         tPreview = NewToggle(v => Settings.HoverPreview = v);
         Row(T("Aperçu au survol", "Preview on hover", "Vista previa al pasar el ratón"), T("Miniature des images, PDF et vidéos.", "Thumbnail of images, PDFs and videos.", "Miniaturas de imágenes, PDF y vídeos."), tPreview, null);
     }
@@ -163,6 +149,15 @@ partial class SettingsForm
         Row(T("Paramètres Windows", "Windows settings", "Configuración de Windows"), null, tSSettings, null);
         tSCmd = NewToggle(v => Settings.SearchCommands = v);
         Row(T("Commandes système", "System commands", "Comandos del sistema"), T("Verrouiller, veille, redémarrer…", "Lock, sleep, restart…", "Bloquear, suspender, reiniciar…"), tSCmd, null);
+        tSContent = NewToggle(v => Settings.SearchContent = v);
+        Row(T("Contenu des fichiers du bureau", "Desktop file contents", "Contenido de los archivos del escritorio"), T("Utilise l'index de Windows Search : trouve un document par un mot qu'il contient.", "Uses the Windows Search index: finds a document by a word it contains.", "Usa el índice de Windows Search: encuentra un documento por una palabra que contiene."), tSContent, null);
+
+        Section(T("PRESSE-PAPIERS", "CLIPBOARD", "PORTAPAPELES"));
+        tClip = NewToggle(v => Settings.ClipboardOn = v);
+        Row(T("Historique des textes copiés", "History of copied text", "Historial de textos copiados"),
+            T("Les 20 derniers textes, dans le panneau. Gardés en mémoire seulement : rien n'est écrit sur le disque, tout disparaît à la fermeture. Les copies privées (gestionnaires de mots de passe) sont ignorées.",
+              "The last 20 texts, in the panel. Kept in memory only: nothing is written to disk, everything is gone when the app closes. Private copies (password managers) are ignored.",
+              "Los últimos 20 textos, en el panel. Solo en memoria: no se escribe nada en el disco y todo desaparece al cerrar. Se ignoran las copias privadas (gestores de contraseñas)."), tClip, null);
 
         Section("WEB");
         sEngine = NewSeg(v => Settings.WebEngine = v, "Google", "Bing", "DuckDuckGo", T("Aucun", "None", "Ninguno"));
@@ -227,20 +222,7 @@ partial class SettingsForm
         Row(T("Ranger les fichiers inutilisés", "Tidy up unused files", "Archivar archivos sin usar"), T("Vérifié au démarrage puis toutes les 6 heures.", "Checked at startup, then every 6 hours.", "Se comprueba al iniciar y cada 6 horas."), tArchive, null);
         sArchDays = NewSeg(v => Settings.ArchiveDays = ArchiveOpts[v], T("30 j", "30 d", "30 d"), T("60 j", "60 d", "60 d"), T("90 j", "90 d", "90 d"), T("180 j", "180 d", "180 d"));
         Row(T("Inutilisés depuis", "Unused for", "Sin usar durante"), null, sArchDays, null);
-        bArchiveNow = Button(T("Ranger maintenant", "Tidy up now", "Archivar ahora"), false, S(170), () =>
-        {
-            List<string> c = Archiver.Candidates();
-            // Résultats affichés sous les réglages, sans boîte à valider (Gemini A4, A5) ; la confirmation du déplacement reste
-            if (c.Count == 0) { lArchive.Text = T("Rien à ranger pour le moment.", "Nothing to tidy up right now.", "Por ahora no hay nada que archivar."); return; }
-            string list = string.Join("\n", c.Take(12).Select(p => "• " + Path.GetFileName(p))) + (c.Count > 12 ? "\n…" : "");
-            if (!Ask(T(c.Count + " élément(s) seront déplacés dans « " + Settings.ArchiveName + " » :\n\n", c.Count + " item(s) will be moved into \"" + Settings.ArchiveName + "\":\n\n", c.Count + " elemento(s) se moverán a «" + Settings.ArchiveName + "»:\n\n") + list)) return;
-            Begin(lArchiveUndo);
-            int n = Archiver.Run(c);
-            // Rien déplacé : le journal d'annulation reste celui du rangement précédent, on ne propose pas de l'annuler (QA34-07)
-            if (n == 0) { lArchive.Text = T("Aucun élément n'a pu être rangé (déjà déplacés ou en cours d'utilisation).", "No item could be moved (already moved or in use).", "No se pudo mover ningún elemento (ya movidos o en uso)."); return; }
-            Done(lArchiveUndo, T(n + " élément(s) rangé(s) dans « " + Settings.ArchiveName + " ». Annuler les remet sur le bureau.", n + " item(s) moved into \"" + Settings.ArchiveName + "\". Undo puts them back.", n + " elemento(s) movido(s) a «" + Settings.ArchiveName + "». Deshacer los devuelve."));
-            Settings.Fire();
-        });
+        bArchiveNow = Button(T("Ranger maintenant", "Tidy up now", "Archivar ahora"), false, S(170), TidyNow);
         lArchive = Row(T("Ranger maintenant", "Tidy up now", "Archivar ahora"), "-", bArchiveNow, null);
         bArchiveUndo = Button(T("Annuler", "Undo", "Deshacer"), false, S(170), () =>
         {
@@ -250,6 +232,9 @@ partial class SettingsForm
             Settings.Fire();
         });
         lArchiveUndo = Row(T("Annuler le dernier rangement", "Undo the last tidy-up", "Deshacer el último archivado"), T("Remet les éléments rangés à leur place sur le bureau.", "Puts the moved items back on the desktop.", "Devuelve al escritorio los elementos movidos."), bArchiveUndo, null);
+
+        BuildClutterSection();
+        BuildRulesSection();
 
         Section(T("RÉINITIALISER", "RESET", "RESTABLECER"));
         Row(T("Favoris", "Favorites", "Favoritos"), null, ResetButton(T("Tout retirer", "Remove all", "Quitar todo"), () => Settings.Favorites.Clear()), null);

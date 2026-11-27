@@ -4,6 +4,19 @@
 
 - Moins de fenêtres à valider : restaurer une sauvegarde ou importer des réglages ne redemande plus de confirmation (c'est réversible), et les résultats (export, import, restauration, rangement, nettoyage) s'affichent directement dans la fenêtre.
 - Un échec d'annulation s'affiche dans le bandeau du panneau.
+- Trois pastilles dans le champ de recherche : « = » pour calculer, « ? » pour chercher sur le web, « > » pour les commandes système.
+- Infobulles sur les boutons du haut et les tuiles. Le nettoyage rapide est aussi dans Paramètres → Avancé.
+- Messages plus utiles quand le bureau est vide ou qu'une recherche ne trouve rien. Rappel des raccourcis Ctrl+1 à 9 des favoris.
+- Les confirmations et messages ont les couleurs de BureauCache. Pour éteindre ou redémarrer, « Non » est sélectionné par défaut.
+- Le lieu de la météo se cherche directement dans Paramètres → Apparence, avec « Détecter ma position ».
+- Le détail de la météo ne bloque plus le bureau : il se ferme quand on clique ailleurs.
+- F6 permet d'atteindre au clavier les boutons et les tuiles du haut du panneau (Entrée pour ouvrir, touche Menu pour les options).
+- Règles de rangement (Paramètres → Organisation) : par exemple, les captures d'écran vont dans Images\Captures après 7 jours, les fichiers .zip dans Téléchargements. Un aperçu montre les fichiers concernés, et « Annuler le dernier rangement » les remet en place.
+- La recherche trouve aussi les documents du bureau par un mot qu'ils contiennent (groupe « Dans le contenu », grâce à l'index de Windows). Option dans Paramètres → Recherche.
+- Paramètres → Organisation montre l'encombrement du bureau : nombre d'éléments, place occupée, éléments inutilisés depuis 30 et 90 jours, les plus volumineux.
+- Le rangement ne déplace plus un fichier encore ouvert par un programme, et l'annulation ne prend jamais un autre fichier mis à la place de celui qui a été rangé.
+- Historique du presse-papiers (à activer dans Paramètres → Recherche) : les 20 derniers textes copiés, dans le panneau ; un clic les recopie. Gardés en mémoire seulement, et les copies des gestionnaires de mots de passe sont ignorées.
+- Avec plusieurs bureaux virtuels, le panneau s'ouvre sur le bureau actif ; épinglé, il suit quand on change de bureau.
 
 ## 3.9 — Sauvegarde des réglages
 

@@ -250,6 +250,7 @@ static class SettingsBackup
         Settings.Usage = new Dictionary<string, long[]>(StringComparer.OrdinalIgnoreCase);
         Settings.CustomCats = new List<CustomCat>();
         Settings.ArchiveLog = new List<string>();
+        Settings.ArchiveRules = new List<ArchiveRule>();
         return Settings.Load(path);
     }
 

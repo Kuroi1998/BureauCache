@@ -23,7 +23,7 @@ static partial class Settings
 {
     public static bool HideIcons = true, RightSide = false, AutoClose = true, ShowSystem = true, ShowRecents = true,
         GroupCats = true, GridView = false, Glass = true, LiveBlur = true, Animations = true, NoFullscreen = true, HotkeyOn = true,
-        SearchApps = true, SearchRecent = true, SearchSettings = true, SearchCommands = true,
+        SearchApps = true, SearchRecent = true, SearchSettings = true, SearchCommands = true, SearchContent = true,
         NewBadge = true, ArchiveOn = false, HoverPreview = true, Widgets = true, AutoUpdate = true, Pinned = false, QuietStart = false, TrayHintShown = false;
     public static bool HidePanelInCapture;
     public static string LastVersion = "";
@@ -40,6 +40,7 @@ static partial class Settings
     public static string ScreenName = "";
     // Météo (D-005) : désactivée tant qu'aucun lieu n'est choisi
     public static bool WeatherOn = false;
+    public static bool ClipboardOn = false;   // historique du presse-papiers, en mémoire seulement (D-011)
     public static string WeatherPlace = "";
     public static double WeatherLat = double.NaN, WeatherLon = double.NaN;
     public static Color Accent = Color.FromArgb(59, 130, 246);
@@ -48,6 +49,7 @@ static partial class Settings
     public static Dictionary<string, string> CatOverride = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     public static Dictionary<string, long[]> Usage = new Dictionary<string, long[]>(StringComparer.OrdinalIgnoreCase);
     public static List<CustomCat> CustomCats = new List<CustomCat>();
+    public static List<ArchiveRule> ArchiveRules = new List<ArchiveRule>();   // règles de rangement (D-009)
     public static bool FirstRun;
     public static event Action Changed;
 

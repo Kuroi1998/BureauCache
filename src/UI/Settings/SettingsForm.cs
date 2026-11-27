@@ -27,7 +27,7 @@ partial class SettingsForm : Form
     readonly int NavW;
 
     Toggle tQuiet, tHide, tStartup, tAuto, tFull, tHot, tGlass, tLive, tCapture, tAnim, tWidgets, tWeather, tPreview, tSystem, tRecents, tGroups,
-        tSApps, tSRecent, tSSettings, tSCmd, tNew, tArchive, tAutoUpd;
+        tSApps, tSRecent, tSSettings, tSCmd, tSContent, tClip, tNew, tArchive, tAutoUpd;
     Segmented sSide, sZone, sScreen, sTheme, sView, sLang, sEngine, sNewDays, sArchDays;
     Slider slDelay, slWidth;
     Swatches swatch;
@@ -40,7 +40,7 @@ partial class SettingsForm : Form
 
     Panel page;
     Card cur;
-    bool loading, arranging, layoutReady, weatherPrompt;
+    bool loading, arranging, layoutReady;
 
     static int S(int v) { return Ui.S(v); }
     static string T(string fr, string en, string es = null) { return L.T(fr, en, es); }
@@ -106,6 +106,7 @@ partial class SettingsForm : Form
         if (disposing)
         {
             Settings.Changed -= OnSettingsChanged;
+            DisposePlaceMenu();
             ownedIcon = settingsIcon;
             settingsIcon = null;
         }

@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 // =====================================================================
 //  Rangement automatique du bureau
@@ -25,13 +26,24 @@ static class Archiver
         DateTime limit = Limit;
         string[] entries;
         try { entries = Directory.GetFileSystemEntries(Desk); } catch { return res; }
-        foreach (string p in entries) if (IsCandidate(p, limit)) res.Add(p);
+        List<ArchiveRule> rules = Settings.ArchiveRules.ToList();
+        foreach (string p in entries)
+        {
+            // Une règle dont le filtre correspond décide seule, avec son propre âge (D-009)
+            ArchiveRule rule = ArchiveRules.For(p, rules);
+            if (IsCandidate(p, rule != null ? rule.Limit : limit)) res.Add(p);
+        }
         return res;
     }
 
     // Décompte pour la page Organisation, sur un fil de fond (R-23) : favoris, historique, date limite et dossier
     // d'archive sont relevés ensemble sur le fil d'interface ; le parcours ne lit plus rien des réglages (Q26-08)
     public static int CountCandidates(HashSet<string> favorites, Dictionary<string, long[]> usage, DateTime limit, string folder)
+    {
+        return CountCandidates(favorites, usage, limit, folder, new List<ArchiveRule>());
+    }
+
+    public static int CountCandidates(HashSet<string> favorites, Dictionary<string, long[]> usage, DateTime limit, string folder, List<ArchiveRule> rules)
     {
         string[] entries;
         try { entries = Directory.GetFileSystemEntries(Desk); } catch { return 0; }
@@ -41,9 +53,11 @@ static class Archiver
             try
             {
                 if (favorites.Contains(p) || !PassesFilters(p, folder)) continue;
+                ArchiveRule rule = ArchiveRules.For(p, rules);
+                DateTime itemLimit = rule != null ? rule.Limit : limit;
                 long[] u;
-                if (usage.TryGetValue(p, out u) && new DateTime(u[1], DateTimeKind.Local).ToUniversalTime() >= limit) continue;
-                if (ActivityOf(p, limit, MaxScan) == Activity.Old) n++;
+                if (usage.TryGetValue(p, out u) && new DateTime(u[1], DateTimeKind.Local).ToUniversalTime() >= itemLimit) continue;
+                if (ActivityOf(p, itemLimit, MaxScan) == Activity.Old) n++;
             }
             catch { }
         }
@@ -51,7 +65,7 @@ static class Archiver
     }
 
     // Filtres qui ne dépendent pas des réglages : dossier d'archive, éléments cachés ou système, raccourcis
-    static bool PassesFilters(string p, string folder)
+    internal static bool PassesFilters(string p, string folder)
     {
         string name = Path.GetFileName(p);
         if (string.Equals(p, folder, StringComparison.OrdinalIgnoreCase)) return false;
@@ -134,33 +148,65 @@ static class Archiver
     {
         string folder = Folder;
         DateTime limit = Limit;
-        bool ready = false;
+        List<ArchiveRule> rules = Settings.ArchiveRules.ToList();
+        Dictionary<string, bool> ready = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         int n = 0;
         List<string> log = new List<string>();
+        bool journalChecked = false;
         foreach (string p in items)
         {
             // Seuls les éléments posés directement sur le bureau sont rangés, quelle que soit la liste reçue (QA34-02)
             if (!Paths.SameFolder(Path.GetDirectoryName(Path.GetFullPath(p)), Desk)) continue;
-            if (!IsCandidate(p, limit)) continue;
-            if (!ready)
+            // Une règle dont le filtre correspond décide seule : son âge et sa destination (D-009). Sinon,
+            // le rangement par ancienneté vers le dossier d'archive.
+            ArchiveRule rule = ArchiveRules.For(p, rules);
+            string target = rule != null ? rule.Destination() : folder;
+            if (target == null || !IsCandidate(p, rule != null ? rule.Limit : limit)) continue;
+            bool ok;
+            if (!ready.TryGetValue(target, out ok)) ready[target] = ok = PrepareFolder(target);
+            if (!ok) continue;
+            // Un fichier encore ouvert par un programme (enregistrement, téléchargement en cours) reste en place (QA39-01)
+            if (File.Exists(p) && Native.FileInUse(p)) continue;
+            // Avant le premier déplacement, on vérifie que les réglages s'enregistrent : sans journal durable,
+            // un rangement ne pourrait plus être annulé après un redémarrage (QA39-05)
+            if (!journalChecked)
             {
-                if (!PrepareFolder(folder)) break;
-                ready = true;
+                if (!Settings.Save()) break;
+                journalChecked = true;
             }
             try
             {
-                string dest = Unique(Path.Combine(folder, Path.GetFileName(p)));
+                string dest = Unique(Path.Combine(target, Path.GetFileName(p)));
                 if (Directory.Exists(p)) Directory.Move(p, dest); else File.Move(p, dest);
                 Settings.RenameKey(p, dest);
-                log.Add(p + ">" + dest);
+                log.Add(p + ">" + dest + ">" + Fingerprint(dest));
                 n++;
             }
             catch { }
         }
+        List<string> previous = Settings.ArchiveLog;
         if (log.Count > 0) Settings.ArchiveLog = log;
         Settings.LastArchive = DateTime.Now.Ticks;
-        // Enregistrement immédiat si des éléments ont bougé : un arrêt brutal ne doit pas perdre le journal d'annulation
-        if (n == 0 || !Settings.Save()) Settings.SaveQuiet();
+        if (n == 0) { Settings.SaveQuiet(); return 0; }
+        // Enregistrement immédiat : un arrêt brutal ne doit pas perdre le journal d'annulation. S'il échoue
+        // (disque plein, fichier devenu trop grand), les éléments reviennent sur le bureau : aucun déplacement
+        // annoncé sans annulation durable (QA42-08).
+        if (Settings.Save()) return n;
+        List<string> stuck = new List<string>();
+        for (int i = log.Count - 1; i >= 0; i--)
+        {
+            string[] parts = log[i].Split('>');
+            try
+            {
+                if (Directory.Exists(parts[1])) Directory.Move(parts[1], parts[0]); else File.Move(parts[1], parts[0]);
+                Settings.RenameKey(parts[1], parts[0]);
+                n--;
+            }
+            catch { stuck.Add(log[i]); }
+        }
+        // Ce qui n'a pas pu revenir garde son entrée, en mémoire au moins
+        Settings.ArchiveLog = stuck.Count > 0 ? stuck : previous;
+        Settings.SaveQuiet();
         return n;
     }
 
@@ -193,17 +239,25 @@ static class Archiver
         List<string> pending = new List<string>();
         foreach (string e in journal)
         {
-            int i = e.IndexOf('>');
-            if (i <= 0) continue;
-            string src = e.Substring(0, i), dest = e.Substring(i + 1);
+            // « source>destination>empreinte » ; les journaux d'avant QA39-02 n'ont pas d'empreinte
+            string[] parts = e.Split('>');
+            if (parts.Length < 2 || parts[0].Length == 0) continue;
+            string src = parts[0], dest = parts[1], print = parts.Length > 2 ? parts[2] : null;
             try
             {
                 src = Path.GetFullPath(src);
                 dest = Path.GetFullPath(dest);
                 string parent = Path.GetDirectoryName(dest);
+                // Retour seulement vers le bureau, et seulement depuis un dossier où le rangement dépose (D-009)
                 if (parent == null || !Paths.SameFolder(Path.GetDirectoryName(src), desktop) ||
-                    !Paths.SameFolder(Path.GetDirectoryName(parent), desktop)) continue;
-                if (!Directory.Exists(parent) || (File.GetAttributes(parent) & FileAttributes.ReparsePoint) != 0) continue;
+                    !ArchiveRules.IsAllowedDestination(parent, desktop)) continue;
+                // Dossier de destination absent (disque débranché, OneDrive pas encore synchronisé) : l'entrée est
+                // gardée pour un nouvel essai (QA42-07)
+                if (!Directory.Exists(parent)) { pending.Add(e); continue; }
+                if ((File.GetAttributes(parent) & FileAttributes.ReparsePoint) != 0) continue;
+                // Autre élément à la place de celui qui a été rangé (renommé puis remplacé) : on n'y touche pas.
+                // L'empreinte est l'identité NTFS du fichier ; une identité illisible compte comme un conflit (QA39-02, QA42-06).
+                if (print != null && (print.Length == 0 || print != Fingerprint(dest))) continue;
                 if (File.Exists(src) || Directory.Exists(src)) { pending.Add(e); continue; }
                 if (Directory.Exists(dest)) Directory.Move(dest, src);
                 else if (File.Exists(dest)) File.Move(dest, src);
@@ -216,6 +270,15 @@ static class Archiver
         journal.Clear();
         journal.AddRange(pending);
         return n;
+    }
+
+    // Identité du fichier ou du dossier sur son volume (numéro de série du volume et index NTFS), relevée après le
+    // déplacement : deux éléments différents ne la partagent jamais, même avec la même taille et la même date (QA42-06).
+    // Vide si l'élément n'existe pas ou ne peut pas être ouvert.
+    internal static string Fingerprint(string path)
+    {
+        string id = Native.FileId(path);
+        return id == null ? "" : "i" + id;
     }
 
     static string Unique(string path)

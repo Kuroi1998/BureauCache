@@ -41,6 +41,7 @@ partial class App : ApplicationContext
     readonly System.Windows.Forms.Timer poll;
     readonly List<FileSystemWatcher> watchers = new List<FileSystemWatcher>();
     readonly HotkeyWindow hotkey = new HotkeyWindow();
+    readonly ClipboardWatcher clipboard = new ClipboardWatcher();
     ContextMenuStrip trayMenu;
     IntPtr listView = IntPtr.Zero;
     int pollCount;
@@ -88,6 +89,8 @@ partial class App : ApplicationContext
         };
 
         Settings.Changed += OnSettingsChanged;
+        ClipboardHistory.Changed += panel.OnClipboardChanged;
+        ApplyClipboard();
         SystemEvents.UserPreferenceChanged += (s, e) =>
         {
             if (Settings.RefreshSystemTheme() && Settings.ThemeMode == 0)
@@ -136,6 +139,12 @@ partial class App : ApplicationContext
             (Settings.HotkeyOn ? L.T(" ou appuie sur ", " or press ", " o pulsa ") + HotkeyBox.Format(Settings.HotMods, Settings.HotKey) : "") + ".", null);
     }
 
+    // Écoute du presse-papiers seulement quand l'option est active ; la désactiver vide l'historique (D-011)
+    void ApplyClipboard()
+    {
+        try { clipboard.Enable(Settings.ClipboardOn); } catch { }
+    }
+
     void RegisterHotkey() { hotkeyOk = hotkey.Register(Settings.HotkeyOn, Settings.HotMods, Settings.HotKey); }
 
     void OnSettingsChanged()
@@ -143,6 +152,7 @@ partial class App : ApplicationContext
         L.Refresh();
         ApplyIconVisibility();
         RegisterHotkey();
+        ApplyClipboard();
         panel.OnSettingsChanged();
         RefreshTray();
         if (L.CurrentLanguage != lastLanguage)
@@ -349,6 +359,7 @@ partial class App : ApplicationContext
         Settings.Flush();
         try { panel.Unpin(); } catch { }
         try { hotkey.Register(false, 0, 0); hotkey.DestroyHandle(); } catch { }
+        try { clipboard.Close(); } catch { }
         Native.RestoreDesktopIcons();
         foreach (FileSystemWatcher w in watchers) w.Dispose();
         tray.Visible = false;

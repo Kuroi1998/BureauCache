@@ -8,7 +8,7 @@ using System.Linq;
 // =====================================================================
 //  Éléments affichés dans le panneau
 // =====================================================================
-enum ItemKind { Desktop, App, Recent, Setting, Command, Calc, Web }
+enum ItemKind { Desktop, App, Recent, Setting, Command, Calc, Web, Clip }
 
 class DesktopItem
 {

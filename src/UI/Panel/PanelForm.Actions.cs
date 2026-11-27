@@ -56,9 +56,13 @@ partial class PanelForm
     void ShowItemMenu(DesktopItem it, Point pt)
     {
         Menus.Clear(menu.Items);
-        ToolStripMenuItem open = Menus.Item(it.Kind == ItemKind.Calc ? L.T("Copier le résultat", "Copy result", "Copiar resultado") : L.T("Ouvrir", "Open", "Abrir"), Glyphs.Open, () => Launch(it, null));
+        ToolStripMenuItem open = Menus.Item(it.Kind == ItemKind.Calc ? L.T("Copier le résultat", "Copy result", "Copiar resultado")
+                                          : it.Kind == ItemKind.Clip ? L.T("Copier", "Copy", "Copiar") : L.T("Ouvrir", "Open", "Abrir"),
+                                            it.Kind == ItemKind.Clip ? Glyphs.Copy : Glyphs.Open, () => Launch(it, null));
         open.Font = Ui.Font(menu.Font.Name, menu.Font.Size, FontStyle.Bold);
         menu.Items.Add(open);
+        if (it.Kind == ItemKind.Clip)
+            menu.Items.Add(Menus.Item(L.T("Retirer de l'historique", "Remove from history", "Quitar del historial"), Glyphs.Delete, () => RemoveClip(it)));
         if (it.HasPath && Catalog.IsExecutable(it.Target))
             menu.Items.Add(Menus.Item(L.T("Exécuter en tant qu'administrateur", "Run as administrator", "Ejecutar como administrador"), Glyphs.Shield, () => Launch(it, "runas")));
         if (it.HasPath)

@@ -75,8 +75,15 @@ partial class PanelForm
         View.Help = q == "?" ? HelpLines() : null;
         if (q == "?") q = "";
         View.ForceList = q.Length > 0;
-        View.EmptyText = q.Length > 0 ? L.T("Aucun résultat pour « ", "No results for \"", "No hay resultados para «") + q + L.T(" »", "\"", "»")
-                                      : loading && !loadedOnce ? L.T("Chargement…", "Loading…", "Cargando…") : L.T("Ton bureau est vide", "Your desktop is empty", "Tu escritorio está vacío");
+        // États vides qui disent quoi faire (Gemini B4)
+        View.EmptyText = q.Length > 0
+            ? L.T("Aucun résultat pour « ", "No results for \"", "No hay resultados para «") + q + L.T(" »", "\"", "»") +
+              // Avec un moteur web, un résultat web s'affiche toujours : ce texte n'apparaît que sans moteur (QA36-08)
+              (!q.StartsWith("?") && !q.StartsWith("=") && !q.StartsWith(">")
+                  ? L.T("\n\nLes petites fautes de frappe sont tolérées : essaie un autre mot ou un mot plus court.", "\n\nSmall typos are tolerated: try another or shorter word.", "\n\nSe admiten pequeñas erratas: prueba otra palabra o una más corta.") : "")
+            : loading && !loadedOnce ? L.T("Chargement…", "Loading…", "Cargando…")
+            : L.T("Ton bureau est vide.\n\nDépose des fichiers ici pour les ajouter au bureau.", "Your desktop is empty.\n\nDrop files here to add them to the desktop.", "Tu escritorio está vacío.\n\nSuelta archivos aquí para añadirlos al escritorio.");
+        if (!ContentSearch.Applies(q)) CancelContentSearch();
         List<Group> groups = q.Length > 0 ? SearchGroups(q) : BuildGroups();
         if (q.StartsWith("=") && groups.Count == 0)
             View.EmptyText = q.Length == 1 ? L.T("Saisis un calcul après le signe =.", "Enter a calculation after the = sign.", "Introduce un cálculo después del signo =.")
@@ -107,6 +114,8 @@ partial class PanelForm
                            .OrderByDescending(i => Settings.Usage[i.Key][1]).Take(5).ToList();
             if (rec.Items.Count > 0) res.Add(rec);
         }
+        Group clip = ClipGroup(ListPx);
+        if (clip != null) res.Add(clip);
 
         Dictionary<string, int> order = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < Settings.Order.Count; i++) order[Settings.Order[i]] = i;
@@ -207,9 +216,12 @@ partial class PanelForm
             if (Settings.SearchApps) addGroup("s:apps", L.T("Applications", "Apps", "Aplicaciones"), Glyphs.Apps, Apps.Where(a => !deskNames.Contains(a.NormName)), 8);
             if (Settings.SearchRecent) addGroup("s:recent", L.T("Fichiers récents", "Recent files", "Archivos recientes"), Glyphs.Recent, Recent, 6);
             if (Settings.SearchSettings) addGroup("s:set", L.T("Paramètres Windows", "Windows settings", "Configuración de Windows"), Glyphs.Settings, winSettings, 5);
+            if (Settings.ClipboardOn) addGroup("s:clip", L.T("Presse-papiers", "Clipboard", "Portapapeles"), Glyphs.Copy, ClipItems(px), 5);
             if (Settings.SearchCommands) addGroup("s:cmd", L.T("Commandes", "Commands", "Comandos"), Glyphs.Terminal, commands, 4);
             res.AddRange(found.OrderByDescending(k => k.Value).Select(k => k.Key));
         }
+        Group inContent = ContentGroup(q, res);
+        if (inContent != null) res.Add(inContent);
         if (Settings.WebEngine != 3 && !res.Any(g => g.Key == "s:calc")) res.Add(WebGroup(q, px));
         return res;
     }
@@ -243,7 +255,7 @@ partial class PanelForm
     // ---------- Organisation par glisser-déposer ----------
     void HandleDrop(DesktopItem it, Group from, Group to, int index)
     {
-        if (to.Key == "recent" || to.IsSearch) return;
+        if (to.Key == "recent" || to.Key == "clip" || to.IsSearch) return;
         Settings.Snap snap = Settings.Snapshot();
         if (from != to)
         {

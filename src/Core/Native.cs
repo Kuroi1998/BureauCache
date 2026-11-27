@@ -8,7 +8,7 @@ using System.Windows.Forms;
 // =====================================================================
 //  Win32
 // =====================================================================
-static class Native
+static partial class Native
 {
     [DllImport("user32.dll")] public static extern IntPtr FindWindow(string cls, string name);
     [DllImport("user32.dll")] public static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string name);
@@ -62,6 +62,16 @@ static class Native
     [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)] public static extern int SetWindowTheme(IntPtr hWnd, string app, string idList);
     [DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
     [DllImport("shell32.dll")] public static extern int SHQueryUserNotificationState(out int state);
+    [DllImport("shell32.dll")] static extern int SHGetKnownFolderPath([MarshalAs(UnmanagedType.LPStruct)] Guid id, uint flags, IntPtr token, out IntPtr path);
+
+    // Dossier Téléchargements de l'utilisateur (pas d'équivalent dans Environment.SpecialFolder sous .NET 4)
+    public static string DownloadsFolder()
+    {
+        IntPtr p;
+        if (SHGetKnownFolderPath(new Guid("374DE290-123F-4565-9164-39C4925E467B"), 0, IntPtr.Zero, out p) != 0) return null;
+        try { return Marshal.PtrToStringUni(p); }
+        finally { Marshal.FreeCoTaskMem(p); }
+    }
     [DllImport("shell32.dll")] public static extern int SHGetImageList(int list, ref Guid riid, out IntPtr ppv);
     [DllImport("comctl32.dll")] public static extern IntPtr ImageList_GetIcon(IntPtr himl, int i, int flags);
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)] public static extern bool ShellExecuteEx(ref SHELLEXECUTEINFO info);
@@ -222,5 +232,45 @@ static class Native
             if (SHQueryRecycleBin(null, ref i) == 0) { count = i.i64NumItems; size = i.i64Size; }
         }
         catch { }
+    }
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern Microsoft.Win32.SafeHandles.SafeFileHandle CreateFile(string path, uint access, uint share, IntPtr security, uint disposition, uint flags, IntPtr template);
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct BY_HANDLE_FILE_INFORMATION
+    {
+        public uint Attributes;
+        public System.Runtime.InteropServices.ComTypes.FILETIME Created, Accessed, Written;
+        public uint VolumeSerial, SizeHigh, SizeLow, Links, IndexHigh, IndexLow;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool GetFileInformationByHandle(Microsoft.Win32.SafeHandles.SafeFileHandle h, out BY_HANDLE_FILE_INFORMATION info);
+
+    // « volume-index » du fichier ou dossier, ou null. Ouverture sans accès aux données (attributs seulement) et
+    // sans suivre les liens : aucun téléchargement d'un fichier OneDrive à la demande, aucun verrou posé.
+    public static string FileId(string path)
+    {
+        const uint FILE_READ_ATTRIBUTES = 0x80, SHARE_ALL = 7, OPEN_EXISTING = 3, FILE_FLAG_BACKUP_SEMANTICS = 0x02000000, FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000;
+        try
+        {
+            using (Microsoft.Win32.SafeHandles.SafeFileHandle h = CreateFile(path, FILE_READ_ATTRIBUTES, SHARE_ALL, IntPtr.Zero, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, IntPtr.Zero))
+            {
+                BY_HANDLE_FILE_INFORMATION i;
+                if (h.IsInvalid || !GetFileInformationByHandle(h, out i)) return null;
+                return i.VolumeSerial.ToString("X8") + "-" + i.IndexHigh.ToString("X8") + i.IndexLow.ToString("X8");
+            }
+        }
+        catch { return null; }
+    }
+
+    // Vrai si un autre programme a le fichier ouvert (lecture, écriture ou suppression) : une ouverture en accès
+    // DELETE sans aucun partage échoue alors. Aucune donnée n'est lue, donc un fichier OneDrive « à la demande »
+    // n'est pas téléchargé (QA39-01).
+    public static bool FileInUse(string path)
+    {
+        const uint DELETE = 0x00010000, OPEN_EXISTING = 3, FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000;
+        using (Microsoft.Win32.SafeHandles.SafeFileHandle h = CreateFile(path, DELETE, 0, IntPtr.Zero, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, IntPtr.Zero))
+            return h.IsInvalid;
     }
 }

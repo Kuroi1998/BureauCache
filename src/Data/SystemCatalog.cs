@@ -67,7 +67,7 @@ static class SystemCatalog
 
     static bool Confirm(string msg)
     {
-        return Dialogs.Ask(null, msg);
+        return Dialogs.Ask(null, msg, true);   // éteindre, redémarrer… : « Non » par défaut
     }
 
     static void Start(string exe, string args)

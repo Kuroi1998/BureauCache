@@ -22,13 +22,15 @@ partial class PanelForm
     {
         base.OnMouseLeave(e);
         if (hoverBtn != -1 || hoverGrip) { hoverBtn = -1; hoverGrip = false; Invalidate(); }
+        UpdateTip(-1);
     }
 
     protected override void OnMouseClick(MouseEventArgs e)
     {
         base.OnMouseClick(e);
         int h = HitButton(e.Location);
-        if (h == 5 && e.Button == MouseButtons.Left) TogglePin();
+        if (h >= ChipFirst && e.Button == MouseButtons.Left) ClickChip(h);
+        else if (h == 5 && e.Button == MouseButtons.Left) TogglePin();
         else if (h == 0 && e.Button == MouseButtons.Left) { Settings.GridView = !Settings.GridView; Settings.Notify(); }
         else if (h == 1 && e.Button == MouseButtons.Left) { HidePanel(); if (SettingsRequested != null) SettingsRequested(this, EventArgs.Empty); }
         else if (h == 3 && e.Button == MouseButtons.Left) { HidePanel(); try { ShellUtil.Open("explorer.exe", "shell:MyComputerFolder"); } catch { } }
@@ -80,13 +82,18 @@ partial class PanelForm
         bool ctrl = (keyData & Keys.Control) != 0, shift = (keyData & Keys.Shift) != 0, alt = (keyData & Keys.Alt) != 0;
         DesktopItem sel = View.Help == null ? View.Selected : null;
         if (alt) return base.ProcessCmdKey(ref msg, keyData);
+        // F6 : parcours des boutons et des tuiles du haut au clavier (Gemini B7)
+        if (k == Keys.F6 && !ctrl) { MoveChromeFocus(shift ? -1 : 1); return true; }
+        if (chromeFocus >= 0 && HandleChromeKey(k, shift)) return true;
         if (k == Keys.Tab && !ctrl) { View.JumpGroup(shift ? -1 : 1); return true; }
         if (k == Keys.F1) { search.Text = search.Text == "?" ? "" : "?"; search.SelectionStart = search.Text.Length; return true; }
         if (ctrl && !shift && ((k >= Keys.D1 && k <= Keys.D9) || (k >= Keys.NumPad1 && k <= Keys.NumPad9)))
         {
             if (View.Help != null) return true;
             int n = k >= Keys.NumPad1 ? k - Keys.NumPad1 : k - Keys.D1;
-            List<DesktopItem> favs = Settings.Favorites.Select(f => All.FirstOrDefault(i => string.Equals(i.Key, f, StringComparison.OrdinalIgnoreCase)))
+            // Même liste que l'affichage : clés sans doublon (casse ignorée), dans l'ordre (QA36-07)
+            List<DesktopItem> favs = Settings.Favorites.Distinct(StringComparer.OrdinalIgnoreCase)
+                                                       .Select(f => All.FirstOrDefault(i => string.Equals(i.Key, f, StringComparison.OrdinalIgnoreCase)))
                                                        .Where(i => i != null).ToList();
             if (n < favs.Count) Launch(favs[n], null);
             else Toast(L.T("Pas de favori n°" + (n + 1) + " : glisse un élément dans « Favoris ».", "No favorite #" + (n + 1) + ": drag an item into \"Favorites\".", "Falta el favorito n.º " + (n + 1) + ". Arrastra un elemento a «Favoritos»."), null, null);
@@ -124,6 +131,7 @@ partial class PanelForm
             h("Ctrl+" + maj + "+" + ent, "Exécuter en administrateur", "Run as administrator", "Ejecutar como administrador"),
             h(maj + "+F10", "Options de l'élément (clic droit)", "Item options (right-click)", "Opciones del elemento (clic derecho)"),
             h("Ctrl+P", "Épingler / détacher le panneau", "Pin / unpin the panel", "Fijar o desfijar el panel"),
+            h("F6", "Boutons et tuiles du haut (Entrée : ouvrir, Menu : options)", "Top buttons and tiles (Enter: open, Menu key: options)", "Botones y mosaicos superiores (Intro: abrir, tecla Menú: opciones)"),
             h("Ctrl+G", "Liste ou grille", "List or grid", "Cambiar entre lista y cuadrícula"),
             h("= ? >", "Calcul, recherche web, commandes", "Math, web search, commands", "Cálculo, búsqueda web y comandos"),
             h(esc, "Effacer la recherche, puis fermer", "Clear the search, then close", "Borrar la búsqueda y luego cerrar"),
