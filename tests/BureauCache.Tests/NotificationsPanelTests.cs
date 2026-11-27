@@ -145,4 +145,28 @@ public class NotificationsPanelTests
                 Assert.IsFalse(form.Controls.OfType<CalendarView>().Any(), "Pas de calendrier dans le panneau de la cloche.");
         });
     }
+
+    [TestMethod]
+    public void ClockShowsSecondsInEveryLanguage()
+    {
+        DateTime time = new DateTime(2026, 11, 27, 16, 54, 7);
+        using (LanguageScope.French()) Assert.AreEqual("16:54:07", CalendarForm.ClockText(time));
+        using (LanguageScope.English()) Assert.AreEqual("4:54:07 PM", CalendarForm.ClockText(time));
+        using (LanguageScope.Spanish()) Assert.AreEqual("16:54:07", CalendarForm.ClockText(time));
+    }
+
+    [TestMethod]
+    public void CalendarPanelShowsWeatherAboveTheMonth()
+    {
+        RunSta(() =>
+        {
+            using (CalendarForm form = new CalendarForm())
+            {
+                Assert.IsTrue(form.WeatherView.Bottom < form.Calendar.Top, "Météo au-dessus du calendrier.");
+                Assert.IsTrue(form.ClientRectangle.Contains(form.WeatherView.Bounds));
+                Assert.IsFalse(string.IsNullOrEmpty(form.WeatherView.AccessibleName), "Météo nommée pour les lecteurs d'écran.");
+                if (!Weather.Configured) Assert.IsNotNull(WeatherStrip.Message(), "Sans ville : invitation à en choisir une.");
+            }
+        });
+    }
 }
