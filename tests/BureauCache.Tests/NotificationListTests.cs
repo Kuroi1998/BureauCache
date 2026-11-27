@@ -99,7 +99,7 @@ public class NotificationListTests
         {
             foreach (Func<LanguageScope> scope in new Func<LanguageScope>[] { LanguageScope.French, LanguageScope.English, LanguageScope.Spanish })
                 using (scope())
-                using (NotificationsForm form = new NotificationsForm(false))
+                using (NotificationsForm form = new NotificationsForm())
                 {
                     form.Location = new Point(-4000, -4000);   // affiché hors écran : Visible a alors un sens
                     form.Show();

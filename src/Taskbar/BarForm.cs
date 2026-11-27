@@ -55,7 +55,7 @@ partial class BarForm : Form
 
     public void ApplyTheme()
     {
-        if ((quickSettings != null && quickSettings.BackColor != Theme.Bg) || (notifications != null && notifications.BackColor != Theme.Bg)) ClosePanels();
+        if ((quickSettings != null && quickSettings.BackColor != Theme.Bg) || (popup != null && popup.BackColor != Theme.Bg)) ClosePanels();
         BackColor = Theme.Bg;
         Invalidate();
     }
@@ -223,7 +223,7 @@ partial class BarForm : Form
         Layout2();
         using (Pen line = new Pen(Theme.Line)) g.DrawLine(line, 0, 0, ClientSize.Width, 0);
         for (int i = 0; i < zones.Length; i++)
-            if (i == hot || (i == 1 && quickSettings != null) || (i == notificationsZone && notifications != null)) Ui.Fill(g, Theme.HoverOverlay, zones[i], Ui.S(4));
+            if (i == hot || (i == 1 && quickSettings != null) || (i == popupZone && popup != null)) Ui.Fill(g, Theme.HoverOverlay, zones[i], Ui.S(4));
 
         int logo = Ui.S(34);
         Rectangle z = zones[0];
@@ -276,12 +276,12 @@ partial class BarForm : Form
             if (DragEnd() || changed || !sameZone) return;
         }
         if (z != 1 || e.Button != MouseButtons.Left) CloseQuickSettings();
-        if ((z != 2 && z != 3) || e.Button != MouseButtons.Left) CloseNotifications();
+        if ((z != 2 && z != 3) || e.Button != MouseButtons.Left) ClosePopup();
         if (WindowMouseUp(z, e.Button)) return;
         if (e.Button == MouseButtons.Right) { if (MenuRequested != null) MenuRequested(); return; }
         if (e.Button != MouseButtons.Left) return;
         if (z == 1) { ToggleQuickSettings(); return; }
         if (z == 0 && StartClicked != null) StartClicked();
-        else if (z == 2 || z == 3) ToggleNotifications(z);   // à la place de Windows + N (T-042)
+        else if (z == 2 || z == 3) TogglePopup(z);   // horloge : calendrier, cloche : notifications (T-042)
     }
 }

@@ -1,26 +1,29 @@
-﻿// BureauCache — ouverture du panneau Notifications et calendrier depuis l'horloge et la cloche (T-042, D-018)
+﻿// BureauCache — panneaux de l'horloge (calendrier) et de la cloche (notifications) (T-042, D-018)
 using System;
 using System.Drawing;
 using System.Windows.Forms;
 
 partial class BarForm
 {
-    NotificationsForm notifications;
-    int notificationsZone = -1;
+    BarPopup popup;          // calendrier ou notifications : un seul ouvert à la fois
+    int popupZone = -1;
 
-    // L'horloge ouvre le panneau sur le calendrier, la cloche sur les notifications ; un second clic le ferme
-    void ToggleNotifications(int zone)
+    // Horloge : calendrier ; cloche : notifications. Un second clic sur le même bouton ferme son panneau, un clic sur
+    // l'autre bouton passe à l'autre panneau.
+    void TogglePopup(int zone)
     {
         if (Sandbox.Active) return;
-        if (notifications != null) { CloseNotifications(); return; }
+        bool same = popup != null && popupZone == zone;
+        ClosePopup();
+        if (same) return;
         HidePreview();
         Rectangle anchor = RectangleToScreen(zones[zone]);
-        NotificationsForm form = new NotificationsForm(zone == 2);
-        notifications = form;
-        notificationsZone = zone;
+        BarPopup form = zone == 2 ? (BarPopup)new CalendarForm() : new NotificationsForm();
+        popup = form;
+        popupZone = zone;
         form.FormClosed += (s, e) =>
         {
-            if (notifications == form) { notifications = null; notificationsZone = -1; }
+            if (popup == form) { popup = null; popupZone = -1; }
             Invalidate();
         };
         form.PlaceAbove(anchor, Screen.FromRectangle(anchor).WorkingArea);
@@ -30,17 +33,17 @@ partial class BarForm
         Invalidate();
     }
 
-    void CloseNotifications()
+    void ClosePopup()
     {
-        if (notifications != null) notifications.Close();
+        if (popup != null) popup.Close();
     }
 
     // Panneaux ouverts depuis la barre : fermés quand elle bouge, change de thème ou disparaît
     void ClosePanels()
     {
         CloseQuickSettings();
-        CloseNotifications();
+        ClosePopup();
     }
 
-    bool PanelOpen { get { return quickSettings != null || notifications != null; } }
+    bool PanelOpen { get { return quickSettings != null || popup != null; } }
 }

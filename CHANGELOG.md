@@ -2,7 +2,8 @@
 
 ## Non publié
 
-- L'horloge et la cloche de la barre BureauCache ouvrent un panneau assorti au thème de l'application : les notifications de Windows regroupées par application (effacer une notification ou tout effacer, clic pour ouvrir l'application) et le calendrier du mois (navigation au clavier et à la souris, repliable).
+- La cloche de la barre BureauCache ouvre un panneau de notifications assorti au thème de l'application : les notifications de Windows regroupées par application, à effacer une par une ou toutes, un clic ouvrant l'application.
+- L'horloge ouvre son propre panneau : le calendrier du mois, avec navigation au clavier et à la souris.
 
 ## 3.11 — Paramètres rapides et menu Démarrer
 

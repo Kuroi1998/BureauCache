@@ -108,43 +108,41 @@ public class NotificationsPanelTests
     }
 
     [TestMethod]
-    public void PanelFitsItsTextsInEveryLanguageAndCollapses()
+    public void CalendarPanelFitsItsTextsInEveryLanguage()
     {
         RunSta(() =>
         {
             foreach (Func<LanguageScope> scope in new Func<LanguageScope>[] { LanguageScope.French, LanguageScope.English, LanguageScope.Spanish })
                 using (scope())
-                using (NotificationsForm form = new NotificationsForm(true))
+                using (CalendarForm form = new CalendarForm())
                 {
                     form.Location = new Point(-4000, -4000);   // affiché hors écran : Visible a alors un sens
                     form.Show();
-                    bool wasCollapsed = form.Collapsed;
-                    if (wasCollapsed) form.ToggleCollapse();
-                    try
+                    foreach (StartTile tile in form.Controls.OfType<StartTile>().Where(t => t.Visible))
                     {
-                        foreach (StartTile tile in form.Controls.OfType<StartTile>().Where(t => t.Visible))
-                        {
-                            Assert.IsTrue(form.ClientRectangle.Contains(tile.Bounds), L.CurrentLanguage + " : " + tile.Text);
-                            if (!tile.GlyphOnly) Assert.IsTrue(tile.TextFits, L.CurrentLanguage + " : " + tile.Text);
-                            else Assert.IsFalse(string.IsNullOrEmpty(tile.AccessibleName), "Bouton icône seule sans nom.");
-                        }
-                        foreach (Label label in form.Controls.OfType<Label>().Where(l => l.Visible))
-                        {
-                            Assert.IsTrue(form.ClientRectangle.Contains(label.Bounds), label.Text);
-                            Size need = TextRenderer.MeasureText(label.Text, label.Font, new Size(label.Width, int.MaxValue), TextFormatFlags.WordBreak);
-                            Assert.IsTrue(need.Height <= label.Height && (need.Width <= label.Width || label.Text.Contains(" ")),
-                                L.CurrentLanguage + " : texte rogné « " + label.Text + " »");
-                        }
-                        Assert.IsTrue(form.ClientRectangle.Contains(form.Calendar.Bounds));
-                        int open = form.ClientSize.Height;
-                        form.ToggleCollapse();
-                        Assert.IsFalse(form.Calendar.Visible);
-                        Assert.IsTrue(form.ClientSize.Height < open, "Replié, le panneau rapetisse.");
-                        form.ToggleCollapse();
-                        Assert.AreEqual(open, form.ClientSize.Height);
+                        Assert.IsTrue(form.ClientRectangle.Contains(tile.Bounds), L.CurrentLanguage + " : " + tile.Text);
+                        Assert.IsTrue(tile.GlyphOnly && !string.IsNullOrEmpty(tile.AccessibleName), "Flèches nommées pour les lecteurs d'écran.");
                     }
-                    finally { if (wasCollapsed != form.Collapsed) form.ToggleCollapse(); }
+                    foreach (Label label in form.Controls.OfType<Label>().Where(l => l.Visible))
+                    {
+                        Assert.IsTrue(form.ClientRectangle.Contains(label.Bounds), label.Text);
+                        Size need = TextRenderer.MeasureText(label.Text, label.Font);
+                        Assert.IsTrue(need.Width <= label.Width && need.Height <= label.Height, L.CurrentLanguage + " : texte rogné « " + label.Text + " »");
+                    }
+                    Assert.IsTrue(form.ClientRectangle.Contains(form.Calendar.Bounds));
+                    Assert.AreEqual(2, form.Controls.OfType<StartTile>().Count(), "Le calendrier n'a que ses deux flèches.");
+                    Assert.IsFalse(form.Controls.OfType<NotificationList>().Any(), "Pas de notifications dans le panneau de l'horloge.");
                 }
+        });
+    }
+
+    [TestMethod]
+    public void NotificationsPanelHasNoCalendar()
+    {
+        RunSta(() =>
+        {
+            using (NotificationsForm form = new NotificationsForm())
+                Assert.IsFalse(form.Controls.OfType<CalendarView>().Any(), "Pas de calendrier dans le panneau de la cloche.");
         });
     }
 }
