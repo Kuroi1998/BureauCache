@@ -205,6 +205,69 @@ namespace BureauCache.Tests
             Assert.IsFalse(Native.ValidQuickWifiPassword("1234567"));
         }
 
+        // CDX-49 : clé WPA2 brute de 64 chiffres hexadécimaux, refusée pour WPA3
+        [TestMethod]
+        public void Cdx49_Wpa2RawKeyUsesNetworkKeyAndIsRejectedForSae()
+        {
+            string rawKey = new string('a', 64);
+            var network = new Native.QuickWifiNetwork { Ssid = new byte[] { 0x41 }, Auth = 7, Cipher = 4 };
+            Assert.IsTrue(Native.ValidQuickWifiPassword(rawKey, 7));
+            Assert.IsFalse(Native.ValidQuickWifiPassword(rawKey, 9));
+            Assert.IsFalse(Native.ValidQuickWifiPassword(new string('z', 64), 7));
+            Assert.IsTrue(Native.ValidQuickWifiPassword("phrase de passe", 9));
+            var doc = new XmlDocument();
+            var ns = new XmlNamespaceManager(doc.NameTable);
+            ns.AddNamespace("w", "http://www.microsoft.com/networking/WLAN/profile/v1");
+            doc.LoadXml(Native.QuickWifiProfile(network, rawKey));
+            Assert.AreEqual("networkKey", doc.SelectSingleNode("//w:keyType", ns).InnerText);
+            Assert.AreEqual(rawKey, doc.SelectSingleNode("//w:keyMaterial", ns).InnerText);
+            doc.LoadXml(Native.QuickWifiProfile(network, "phrase de passe"));
+            Assert.AreEqual("passPhrase", doc.SelectSingleNode("//w:keyType", ns).InnerText);
+        }
+
+        // CDX-46 : la dernière position et le « Couper » partent une seule fois
+        [TestMethod]
+        public void Cdx46_FlushSendsThePendingValueOnlyOnce()
+        {
+            InWinForms(() =>
+            {
+                using (var form = new QuickSettingsForm(IntPtr.Zero))
+                {
+                    const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                    object volume = typeof(QuickSettingsForm).GetField("volume", flags).GetValue(form);
+                    Type level = volume.GetType();
+                    level.GetField("Requested").SetValue(volume, (int?)40);
+                    level.GetField("ToggleMute").SetValue(volume, true);
+                    typeof(QuickSettingsForm).GetMethod("FlushLevel", flags).Invoke(form, new[] { volume });
+                    Assert.IsNull(level.GetField("Requested").GetValue(volume));
+                    Assert.IsFalse((bool)level.GetField("ToggleMute").GetValue(volume), "Un « Couper » envoyé deux fois s'annulerait.");
+                }
+            });
+        }
+
+        // CDX-47 : le panneau laissé de côté garde la liste, pas le mot de passe
+        [TestMethod]
+        public void Cdx47_DeactivationClearsTheSecretAndKeepsTheWifiPage()
+        {
+            InWinForms(() =>
+            {
+                using (var form = new QuickSettingsForm(IntPtr.Zero))
+                {
+                    const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                    var type = typeof(QuickSettingsForm);
+                    type.GetMethod("ShowConnections", flags).Invoke(form, new object[] { true });
+                    var page = type.GetField("connectionPage", flags);
+                    var original = page.GetValue(form);
+                    Assert.IsNotNull(original);
+                    var password = (TextBox)type.GetField("connectionPassword", flags).GetValue(form);
+                    password.Text = "saisie-fictive";
+                    type.GetMethod("OnDeactivate", flags).Invoke(form, new object[] { EventArgs.Empty });
+                    Assert.AreEqual(string.Empty, password.Text);
+                    Assert.AreSame(original, page.GetValue(form));
+                }
+            });
+        }
+
         static void InWinForms(Action action)
         {
             Exception error = null;

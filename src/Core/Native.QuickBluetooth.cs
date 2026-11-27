@@ -66,7 +66,9 @@ static partial class Native
     {
         if (Sandbox.Active || cancellation.IsCancellationRequested || !device.CanPair) return false;
         IPairingWindow window = device.Pairing as IPairingWindow;
-        if (window != null) window.Initialize(owner);
+        // Sans fenêtre propriétaire, Windows ne peut pas afficher sa confirmation : on renvoie aux paramètres (CDX-43)
+        if (window == null || owner == IntPtr.Zero) return false;
+        window.Initialize(owner);
         MethodInfo pair = device.PairingType.GetMethod("PairAsync", Type.EmptyTypes);
         object result = WinRtResult(pair, device.Pairing, null, 60000, cancellation);
         if (result == null) return false;

@@ -157,6 +157,7 @@ partial class QuickSettingsForm : Form
         base.OnDeactivate(e);
         // Une invite Windows ou un changement de focus ne doit pas faire perdre la liste de connexions.
         if (Visible && connectionPage == null) Close();
+        else if (connectionPassword != null) connectionPassword.Clear();   // la page reste, pas le secret (CDX-47)
     }
 
     protected override bool ProcessCmdKey(ref Message message, Keys key)

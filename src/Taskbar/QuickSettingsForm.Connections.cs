@@ -13,6 +13,7 @@ partial class QuickSettingsForm
     {
         public string Key, Name, Detail, Action;
         public bool Password, Pairing, OpenBluetoothSettings;
+        public int Auth;   // authentification du réseau Wi-Fi, pour valider le mot de passe (CDX-49)
         public Func<string, IntPtr, CancellationToken, bool> Change;
         public override string ToString() { return Name + " · " + Detail; }
     }
@@ -39,6 +40,8 @@ partial class QuickSettingsForm
     {
         if (connectionPage != null) return;
         refresh.Stop();
+        FlushLevel(volume);      // le minuteur s'arrête : la dernière position du curseur part maintenant (CDX-46)
+        FlushLevel(brightness);
         wifiPage = wifi;
         homeScroll = AutoScroll;
         homeScrollSize = AutoScrollMinSize;
@@ -93,7 +96,7 @@ partial class QuickSettingsForm
         passwordLabel.Dock = DockStyle.Left;
         connectionPassword = new TextBox
         {
-            Dock = DockStyle.Fill, UseSystemPasswordChar = true, MaxLength = 63, AccessibleName = passwordLabel.Text,
+            Dock = DockStyle.Fill, UseSystemPasswordChar = true, MaxLength = 64, AccessibleName = passwordLabel.Text,
             BackColor = Theme.Card, ForeColor = Theme.Fg, Font = Ui.Font("Segoe UI", 10f)
         };
         connectionPassword.KeyDown += (s, e) =>
@@ -185,10 +188,11 @@ partial class QuickSettingsForm
         if (row.OpenBluetoothSettings) { Launch("ms-settings:bluetooth", null); return; }
         if (row.Change == null) return;
         string password = row.Password ? connectionPassword.Text : null;
-        if (row.Password && !Native.ValidQuickWifiPassword(password))
+        if (row.Password && !Native.ValidQuickWifiPassword(password, row.Auth))
         {
-            connectionStatus.Text = L.T("Le mot de passe doit contenir de 8 à 63 caractères ASCII.", "Enter 8 to 63 ASCII characters.",
-                "Introduce entre 8 y 63 caracteres ASCII.");
+            connectionStatus.Text = L.T("Le mot de passe doit contenir de 8 à 63 caractères ASCII, ou 64 chiffres hexadécimaux.",
+                "Enter 8 to 63 ASCII characters, or 64 hexadecimal digits.",
+                "Introduce entre 8 y 63 caracteres ASCII, o 64 dígitos hexadecimales.");
             connectionPassword.Focus();
             return;
         }
@@ -292,7 +296,7 @@ partial class QuickSettingsForm
             {
                 Key = BitConverter.ToString(network.Ssid) + "/" + network.Auth + "/" + network.Cipher + "/" + network.BssType,
                 Name = network.Name, Detail = state + " · " + network.Signal.ToString(L.Culture) + " %",
-                Password = !network.Connected && network.CanJoin && network.NeedsPassword,
+                Password = !network.Connected && network.CanJoin && network.NeedsPassword, Auth = network.Auth,
                 Action = network.Connected ? L.T("Déconnecter", "Disconnect", "Desconectar") : L.T("Connecter", "Connect", "Conectar"),
                 Change = network.Connected || network.CanJoin ?
                     (Func<string, IntPtr, CancellationToken, bool>)((password, owner, stop) => Native.ChangeQuickWifi(network, password, stop)) : null

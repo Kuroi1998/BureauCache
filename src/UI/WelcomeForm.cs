@@ -145,6 +145,7 @@ class WelcomeForm : Form
         cy = IllusH + controlsOff[4];
         taskbar = new Toggle { Location = new Point(S(40), cy), Checked = Settings.TaskbarOn };
         taskbar.Changed += (s, e) => OnTaskbarToggled();
+        Settings.Changed += SyncTaskbarToggle;
         Label taskbarL = new Label { Text = TaskbarConsent.Label, AutoSize = true, Font = fSmall, Location = new Point(S(94), cy + S(2)) };
         taskbar.AccessibleName = taskbarL.Text;
         AddTo(4, taskbar, taskbarL);
@@ -173,6 +174,22 @@ class WelcomeForm : Form
         }
         bNext.TabIndex = 0; bPrev.TabIndex = 1; bSkip.TabIndex = 2;
         SetPage(0);
+    }
+
+    // Barre remplacée ou rétablie depuis son menu pendant que la visite est ouverte : l'interrupteur suit, sans
+    // reposer la question ni réécrire le réglage (CDX-48)
+    void SyncTaskbarToggle()
+    {
+        if (IsDisposed || taskbar.Checked == Settings.TaskbarOn) return;
+        settingTaskbar = true;
+        try { taskbar.Checked = Settings.TaskbarOn; }
+        finally { settingTaskbar = false; }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) Settings.Changed -= SyncTaskbarToggle;
+        base.Dispose(disposing);
     }
 
     void OnTaskbarToggled()

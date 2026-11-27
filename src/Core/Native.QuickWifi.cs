@@ -163,7 +163,7 @@ static partial class Native
                 WifiConnection connection = new WifiConnection { BssType = network.BssType, Profile = network.Profile };
                 if (network.NeedsPassword)
                 {
-                    if (!ValidQuickWifiPassword(password)) return false;
+                    if (!ValidQuickWifiPassword(password, network.Auth)) return false;
                     connection.Mode = 1; // wlan_connection_mode_temporary_profile
                     connection.Profile = QuickWifiProfile(network, password);
                 }
@@ -209,6 +209,18 @@ static partial class Native
         return password != null && password.Length >= 8 && password.Length <= 63 && password.All(c => c >= 32 && c <= 126);
     }
 
+    // WPA2 accepte aussi la clé brute : 64 chiffres hexadécimaux, écrits en « networkKey ». WPA3 (SAE) ne connaît
+    // que la phrase de passe (CDX-49).
+    internal static bool ValidQuickWifiPassword(string password, int auth)
+    {
+        return ValidQuickWifiPassword(password) || (auth != WifiWpa3Personal && IsRawWifiKey(password));
+    }
+
+    internal static bool IsRawWifiKey(string password)
+    {
+        return password != null && password.Length == 64 && password.All(Uri.IsHexDigit);
+    }
+
     internal static string QuickWifiProfile(QuickWifiNetwork network, string password)
     {
         const string ns = "http://www.microsoft.com/networking/WLAN/profile/v1";
@@ -233,7 +245,7 @@ static partial class Native
             w.WriteElementString("useOneX", ns, "false");
             w.WriteEndElement();
             w.WriteStartElement("sharedKey", ns);
-            w.WriteElementString("keyType", ns, "passPhrase");
+            w.WriteElementString("keyType", ns, network.Auth != WifiWpa3Personal && IsRawWifiKey(password) ? "networkKey" : "passPhrase");
             w.WriteElementString("protected", ns, "false");
             w.WriteElementString("keyMaterial", ns, password);
             w.WriteEndElement();

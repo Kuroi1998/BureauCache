@@ -37,7 +37,9 @@ static class TaskbandRoute
     public static bool Install(IntPtr ours)
     {
         Sandbox.Guard("routage des badges de la barre des tâches");
-        Restore();   // un reste d'arrêt brutal, ou une installation précédente : on repart de l'état d'Explorer
+        // Un reste d'arrêt brutal, ou une installation précédente : on repart de l'état d'Explorer. Si la valeur
+        // d'origine n'a pas pu être remise, on ne réécrit pas le journal, qui est le seul à la connaître (CDX-41).
+        if (!Restore()) return false;
         IntPtr tray = Native.WindowsTaskbar();
         if (tray == IntPtr.Zero || ours == IntPtr.Zero) return false;
         IntPtr original = Native.GetProp(tray, PropName);

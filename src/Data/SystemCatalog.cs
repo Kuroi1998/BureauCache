@@ -72,7 +72,7 @@ static class SystemCatalog
 
     static void Start(string exe, string args)
     {
-        ProcessStartInfo psi = new ProcessStartInfo(exe, args ?? "");
+        ProcessStartInfo psi = new ProcessStartInfo(ShellUtil.SystemPath(exe), args ?? "");
         psi.UseShellExecute = true;
         Process.Start(psi);
     }

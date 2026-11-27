@@ -149,7 +149,7 @@ class StartMenuForm : Form
         Controls.Add(t);
     }
 
-    void Launch(string target) { Finish(() => ShellUtil.Open(target, null)); }
+    void Launch(string target) { Finish(() => ShellUtil.Open(ShellUtil.SystemPath(target), null)); }
 
     // L'action part après la fermeture du menu (verrouiller ou se mettre en veille avec le menu ouvert le laisserait au retour)
     void Run(Action action) { Finish(action); }

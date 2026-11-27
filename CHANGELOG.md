@@ -10,6 +10,9 @@
 - Visite guidée refaite : 6 écrans, avec la nouvelle barre des tâches (activable depuis la visite), le menu Démarrer, la recherche dans le contenu des fichiers, le rangement automatique, la météo, le nettoyage et le presse-papiers.
 - Menu Démarrer plus clair : sections « BureauCache » (panneau, Paramètres de BureauCache, visite guidée), « Windows » (Paramètres Windows, Explorateur, Gestionnaire des tâches, Documents, Téléchargements, Panneau de configuration), « Session Windows » et « Alimentation », chacune avec une courte légende.
 - Une fenêtre réduite rouverte depuis la barre BureauCache revient en plein écran si elle l'était, au lieu de revenir en petit. Même chose pour la fenêtre des Paramètres.
+- Paramètres rapides : le curseur de luminosité règle l'écran où se trouve la barre, la clé Wi-Fi brute de 64 chiffres hexadécimaux est acceptée et le mot de passe saisi est effacé quand on passe à une autre fenêtre.
+- La visite guidée suit l'état de la barre des tâches quand on la rétablit ou l'active depuis son menu.
+- Les outils Windows (Gestionnaire des tâches, Panneau de configuration, consoles) sont toujours lancés depuis le dossier système.
 
 ## 3.10.2 — Barre des tâches BureauCache
 

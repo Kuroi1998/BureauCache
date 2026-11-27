@@ -138,6 +138,7 @@ static partial class Native
                 if (watch.ElapsedMilliseconds >= timeout || cancellation.IsCancellationRequested)
                 {
                     asyncInfo.GetMethod("Cancel").Invoke(operation, null);
+                    CloseWhenStopped(operation, status, asyncInfo.GetMethod("Close"));
                     return null;
                 }
                 Thread.Sleep(20);
@@ -146,6 +147,20 @@ static partial class Native
             return start.ReturnType.GetMethod("GetResults").Invoke(operation, null);
         }
         finally { if (finished) asyncInfo.GetMethod("Close").Invoke(operation, null); }
+    }
+
+    // Close n'est permis qu'une fois l'opération terminée ou annulée : on attend son arrêt hors du fil appelant (CDX-45)
+    static void CloseWhenStopped(object operation, PropertyInfo status, MethodInfo close)
+    {
+        System.Threading.Tasks.Task.Factory.StartNew(() =>
+        {
+            try
+            {
+                for (int i = 0; i < 250 && Convert.ToInt32(status.GetValue(operation, null)) == 0; i++) Thread.Sleep(20);
+                if (Convert.ToInt32(status.GetValue(operation, null)) != 0) close.Invoke(operation, null);
+            }
+            catch (Exception) { }
+        });
     }
 
     internal static bool QuickMediaCommand(QuickMedia media, string command, byte fallbackKey)

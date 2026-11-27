@@ -184,6 +184,8 @@ partial class QuickSettingsForm
         int? requested = level.Requested;
         bool? internalDisplay = level.InternalDisplay;
         IntPtr display = monitor;
+        level.Requested = null;      // envoyée une seule fois : un « Couper » envoyé deux fois s'annulerait (CDX-46)
+        level.ToggleMute = false;
         QueueLevel(audio, display, requested, toggle, internalDisplay);
     }
 

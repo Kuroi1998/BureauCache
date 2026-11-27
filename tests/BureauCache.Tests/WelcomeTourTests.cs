@@ -110,4 +110,33 @@ public class WelcomeTourTests
             }
         });
     }
+
+    // CDX-48 : la barre remplacée ou rétablie ailleurs est reflétée par l'interrupteur, sans question ni réécriture
+    [TestMethod]
+    public void Cdx48_OpenTourReflectsTaskbarChangesFromAnotherEntryPoint()
+    {
+        RunSta(() =>
+        {
+            Assert.IsTrue(Sandbox.Active);
+            bool previous = Settings.TaskbarOn;
+            try
+            {
+                Settings.TaskbarOn = true;
+                using (WelcomeForm w = new WelcomeForm(null))
+                {
+                    var toggle = (Toggle)typeof(WelcomeForm).GetField("taskbar", Private).GetValue(w);
+                    Assert.IsTrue(toggle.Checked);
+                    Settings.TaskbarOn = false;
+                    Settings.Fire();
+                    Assert.IsFalse(toggle.Checked);
+                    Assert.IsFalse(Settings.TaskbarOn, "Le réglage n'est pas réécrit.");
+                    Settings.TaskbarOn = true;
+                    Settings.Fire();   // aucune demande de confirmation : la barre est déjà remplacée
+                    Assert.IsTrue(toggle.Checked);
+                }
+                Settings.Fire();       // formulaire fermé : plus abonné
+            }
+            finally { Settings.TaskbarOn = previous; }
+        });
+    }
 }

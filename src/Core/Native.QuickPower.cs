@@ -46,12 +46,15 @@ static partial class Native
         if (Sandbox.Active) return null;
         try
         {
-            if (useInternal != false)
+            // L'écran de la barre répond en DDC/CI : c'est lui qu'on règle. WMI ne connaît que la dalle interne d'un
+            // portable et la réglait même quand la barre est sur un moniteur externe (CDX-42). Une dalle interne ne
+            // répond pas en DDC/CI ; le choix est gardé d'une lecture à l'autre.
+            if (useInternal != true)
             {
-                int? level = InternalBrightness(requested, out internalDisplay);
-                if (internalDisplay || requested.HasValue) return level;
+                int? level = ExternalBrightness(owner, requested);
+                if (level.HasValue || useInternal == false) return level;
             }
-            return ExternalBrightness(owner, requested);
+            return InternalBrightness(requested, out internalDisplay);
         }
         catch (EntryPointNotFoundException) { return null; }
         catch (DllNotFoundException) { return null; }

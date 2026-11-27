@@ -87,7 +87,7 @@ partial class App
         trayMenu.Items.Add(Menus.Item(L.T("Paramètres…", "Settings…", "Configuración…"), Glyphs.Settings, ShowSettings));
         // Comme le menu de la barre de Windows : utile surtout quand la barre BureauCache la remplace (T-037)
         ToolStripMenuItem taskManager = Menus.Item(L.T("Gestionnaire des tâches", "Task Manager", "Administrador de tareas"), Glyphs.TaskManager,
-            () => { try { ShellUtil.Open("taskmgr.exe", null); } catch { } });
+            () => { try { ShellUtil.Open(ShellUtil.SystemPath("taskmgr.exe"), null); } catch { } });
         taskManager.ShortcutKeyDisplayString = L.T("Ctrl + Maj + Échap", "Ctrl + Shift + Esc", "Ctrl + Mayús + Esc");
         trayMenu.Items.Add(taskManager);
         trayMenu.Items.Add(new ToolStripSeparator());
