@@ -90,6 +90,17 @@ static class WindowsBar
     // jamais la barre cachée, même si un autre outil l'avait cachée avant nous (BAR-04 écarté).
     public static bool Restore()
     {
+        bool ok = RestoreCore();
+        RestoreOk = ok;
+        return ok;
+    }
+
+    // Résultat de la dernière restauration (T-052) : l'avertissement de retour arrière le cite, pour dire si la barre
+    // Windows est revenue ou reste masquée. Vrai tant qu'aucune restauration n'a échoué.
+    public static bool RestoreOk { get; private set; }
+
+    static bool RestoreCore()
+    {
         if (Sandbox.Active) return true;
         try
         {
