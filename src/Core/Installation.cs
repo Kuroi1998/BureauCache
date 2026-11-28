@@ -41,7 +41,11 @@ static class Startup
 static class Installer
 {
     public const string Version = AppInfo.Version;
-    const string UninstKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\BureauCache";
+    // Clé « Applications installées » : même nom que celui que donne Inno Setup (AppId « BureauCache » + « _is1 »),
+    // pour qu'une seule entrée existe, qu'elle vienne de l'installateur ou de l'application (T-056).
+    const string UninstKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\BureauCache_is1";
+    // Ancienne clé (versions 3.x) : supprimée à chaque démarrage, pour ne pas garder deux entrées
+    const string LegacyUninstKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\BureauCache";
 
     public static string Dir { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "BureauCache"); } }
     public static string Exe { get { return Path.Combine(Dir, "BureauCache.exe"); } }
@@ -94,6 +98,8 @@ static class Installer
             k.SetValue("NoRepair", 1, RegistryValueKind.DWord);
             try { k.SetValue("EstimatedSize", (int)(new FileInfo(Exe).Length / 1024) + 1, RegistryValueKind.DWord); } catch { }
         }
+        // Clé absente : rien à supprimer, c'est le cas normal après la première migration
+        try { Registry.CurrentUser.DeleteSubKeyTree(LegacyUninstKey, false); } catch (Exception) { }
     }
 
     public static string UninstallQuestion
@@ -117,8 +123,11 @@ static class Installer
         try { Startup.Set(false); } catch { }
         if (Startup.Enabled) left.Add(L.T("le lancement au démarrage de Windows", "starting with Windows", "el inicio con Windows"));
         try { File.Delete(StartMenuLnk); } catch { }
+        // Raccourci du Bureau créé par l'installateur (case cochée) : retiré aussi, pour que rien ne reste pointé vers l'exe
+        try { File.Delete(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "BureauCache.lnk")); } catch (Exception) { }
         if (File.Exists(StartMenuLnk)) left.Add(L.T("le raccourci du menu Démarrer", "the Start menu shortcut", "el acceso directo del menú Inicio"));
-        try { Registry.CurrentUser.DeleteSubKeyTree(UninstKey, false); } catch { }
+        try { Registry.CurrentUser.DeleteSubKeyTree(UninstKey, false); } catch (Exception) { }
+        try { Registry.CurrentUser.DeleteSubKeyTree(LegacyUninstKey, false); } catch (Exception) { }
         // Une lecture refusée n'est pas une preuve de suppression (Q26-03)
         bool entryLeft;
         try { using (RegistryKey k = Registry.CurrentUser.OpenSubKey(UninstKey)) entryLeft = k != null; } catch { entryLeft = true; }

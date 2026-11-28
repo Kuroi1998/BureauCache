@@ -1,5 +1,9 @@
 ﻿# Nouveautés
 
+## Non publié
+
+- Un installateur Windows (`BureauCache-Setup-X.Y.Z.exe`) est proposé à côté de l'exécutable. Il installe par utilisateur, sans administrateur, crée le raccourci du menu Démarrer (et du Bureau si tu le choisis), et s'enregistre dans « Applications installées ». La désinstallation rend la barre Windows et conserve tes réglages, sauf si tu choisis de les supprimer.
+
 ## 3.11.1 — Barre personnalisable et panneaux
 
 - La barre ne reconstruit ses boutons qu’en cas de changement utile. Les icônes sont chargées après le premier dessin, avec les boutons visibles avant le menu « +N ». Les durées du démarrage de la barre sont conservées dans `demarrage-barre.csv`.

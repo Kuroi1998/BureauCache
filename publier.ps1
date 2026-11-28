@@ -5,6 +5,10 @@
 #    GitHub Actions compile ensuite le programme et crée la version en brouillon.
 # 3. Une fois la compilation terminée, lance .\outils\signer-version.ps1 -Version 3.3 : il recompile le tag sur ce PC,
 #    signe cette compilation avec ta clé et publie la version (les installations la proposeront alors automatiquement).
+#    Avant la signature de mise à jour, signer-version.ps1 signe aussi l'exe avec le certificat de code (Authenticode,
+#    outils\signer-code.ps1, configuration par variables d'environnement), construit l'installateur
+#    BureauCache-Setup-3.3.exe (installer\BureauCache.iss, Inno Setup 6) et publie les deux fichiers.
+#    Sans certificat configuré, le script le signale et demande une confirmation explicite (voir installer\README.md).
 param([Parameter(Mandatory = $true)][string]$Version)
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
