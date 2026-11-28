@@ -141,15 +141,10 @@ namespace BureauCache.Tests
             File.WriteAllText(exe + ".old", "stable");
             Directory.CreateDirectory(exe + ".trial");
 
-            try
-            {
-                Assert.AreNotEqual(Updater.StartState.Trial, Updater.BeginStart(exe));
-            }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
-
-            Assert.IsTrue(File.ReadAllText(exe) == "stable" ||
-                          (File.Exists(exe + ".old") && File.ReadAllText(exe + ".old") == "stable"));
+            // Le marqueur ne peut pas être créé : pas d'essai, la version actuelle reste en place et « .old » est gardé
+            Assert.AreEqual(Updater.StartState.Normal, Updater.BeginStart(exe));
+            Assert.AreEqual("candidate", File.ReadAllText(exe));
+            Assert.AreEqual("stable", File.ReadAllText(exe + ".old"));
         }
 
         [TestMethod]
@@ -157,6 +152,8 @@ namespace BureauCache.Tests
         {
             File.WriteAllText(exe, "candidate");
             File.WriteAllText(exe + ".old", "stable");
+            Assert.AreEqual(Updater.StartState.Trial, Updater.BeginStart(exe));
+            File.Delete(exe + ".trial");
 
             Updater.ConfirmStart(exe);
 
@@ -173,10 +170,10 @@ namespace BureauCache.Tests
             Assert.AreEqual(Updater.StartState.Trial, Updater.BeginStart(exe));
             File.WriteAllText(staged, "candidate 2");
 
-            try { Updater.ReplaceExecutable(staged, exe); }
-            catch (IOException) { }
-            catch (InvalidOperationException) { }
+            Updater.ReplaceExecutable(staged, exe);
 
+            Assert.AreEqual("candidate 2", File.ReadAllText(exe));
+            Assert.IsFalse(File.Exists(exe + ".trial"));
             Assert.AreEqual("stable", File.ReadAllText(exe + ".old"));
         }
 
