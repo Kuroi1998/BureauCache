@@ -150,7 +150,10 @@ public class GlobalReviewTests
 
     [TestMethod]
     [TestCategory("Review")]
+#if !WINDOWS_INTERACTIVE_TESTS
     [Ignore("C06 : nécessite le bureau interactif pour capturer l'arrière-plan.")]
+#endif
+    [TestCategory("WindowsInteractive")]
     public void C06_EnablingStaticGlassUpdatesAnAlreadyOpenPanel()
     {
         RunSta(() =>
@@ -279,7 +282,10 @@ public class GlobalReviewTests
 
     [TestMethod]
     [TestCategory("Review")]
+#if !WINDOWS_INTERACTIVE_TESTS
     [Ignore("Q24-04 : exige Explorer et une session de bureau isolée pour inscrire une AppBar temporaire.")]
+#endif
+    [TestCategory("WindowsInteractive")]
     public void Q24_04_RefusedRegistrationDoesNotLeaveThePanelEffectivelyPinned()
     {
         RunSta(() =>

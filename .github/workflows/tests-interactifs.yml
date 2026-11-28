@@ -1,0 +1,33 @@
+# Tests qui exigent un bureau Windows interactif (catégorie WindowsInteractive, T-049).
+# Manuel uniquement (jamais sur une pull request) : il ne tourne que sur un poste dédié, avec une session
+# Windows ouverte et déverrouillée. Le poste doit être enregistré comme runner auto-hébergé avec les étiquettes
+# « self-hosted », « windows » et « interactif ». Sans ce runner, le lancement reste en attente.
+name: Tests interactifs (manuel)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  interactifs:
+    runs-on: [self-hosted, windows, interactif]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Tester les fenêtres sur bureau interactif
+        shell: pwsh
+        run: dotnet test tests/BureauCache.Tests -c Interactive --filter "TestCategory=WindowsInteractive" --logger "trx;LogFileName=interactifs.trx" --blame-hang-timeout 120s
+
+      - name: Publier les résultats
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultats-tests-interactifs
+          path: tests/BureauCache.Tests/TestResults/
+          if-no-files-found: ignore

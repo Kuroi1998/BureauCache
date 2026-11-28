@@ -410,7 +410,10 @@ public class InterfaceReviewTests
 
     [TestMethod]
     [TestCategory("Review")]
+#if !WINDOWS_INTERACTIVE_TESTS
     [Ignore("Q30-08 : ouvre et referme une fenêtre modale WinForms dans une session interactive.")]
+#endif
+    [TestCategory("WindowsInteractive")]
     public void Q30_08_DisablingWeatherBeforeTheQueuedCallbackCancelsLocationPrompt()
     {
         RunSta(() =>
