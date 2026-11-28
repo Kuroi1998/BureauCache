@@ -33,10 +33,10 @@ partial class PanelForm
         else if (h == 5 && e.Button == MouseButtons.Left) TogglePin();
         else if (h == 0 && e.Button == MouseButtons.Left) { Settings.GridView = !Settings.GridView; Settings.Notify(); }
         else if (h == 1 && e.Button == MouseButtons.Left) { HidePanel(); if (SettingsRequested != null) SettingsRequested(this, EventArgs.Empty); }
-        else if (h == 3 && e.Button == MouseButtons.Left) { HidePanel(); try { ShellUtil.Open("explorer.exe", "shell:MyComputerFolder"); } catch { } }
+        else if (h == 3 && e.Button == MouseButtons.Left) { HidePanel(); try { ShellUtil.Open("explorer.exe", "shell:MyComputerFolder"); } catch (Exception ex) { Log.Warn("shell.ouverture", ex); } }
         else if (h == 3 && e.Button == MouseButtons.Right) DiskMenu(e.Location);
         else if (h == 6) WeatherClick(e.Button, e.Location);
-        else if (h == 4 && e.Button == MouseButtons.Left) { HidePanel(); try { ShellUtil.Open("explorer.exe", "shell:RecycleBinFolder"); } catch { } }
+        else if (h == 4 && e.Button == MouseButtons.Left) { HidePanel(); try { ShellUtil.Open("explorer.exe", "shell:RecycleBinFolder"); } catch (Exception ex) { Log.Warn("shell.ouverture", ex); } }
         else if (h == 4 && e.Button == MouseButtons.Right)
         {
             Menus.Clear(menu.Items);

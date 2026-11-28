@@ -96,7 +96,7 @@ class CleanupDialog : ThemedDialog
             foreach (CleanCategory c in categories)
             {
                 CleanCategory cat = c;
-                try { Cleaner.Measure(cat); } catch { }
+                try { Cleaner.Measure(cat); } catch (Exception ex) { Log.Warn("nettoyage.mesure", ex); }
                 Done(() => ShowSize(cat));
             }
             Done(() => { SetBusy(false); UpdateTotal(); });
@@ -148,7 +148,7 @@ class CleanupDialog : ThemedDialog
         Background.Run(() =>
         {
             CleanResult r = null;
-            try { r = Cleaner.Clean(chosen); } catch { }
+            try { r = Cleaner.Clean(chosen); } catch (Exception ex) { Log.Warn("nettoyage.execution", ex); }
             Done(() =>
             {
                 cleaning = false;

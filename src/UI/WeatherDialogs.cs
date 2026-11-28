@@ -186,7 +186,7 @@ class WeatherDetailDialog : ThemedDialog
             Text = L.T("Données : ", "Data: ", "Datos: ") + Weather.Attribution, AutoSize = true, Font = fSmall,
             LinkColor = Theme.Accent, ActiveLinkColor = Theme.Accent, BackColor = Theme.Bg, Location = new Point(Ui.S(20), ClientSize.Height - Ui.S(44))
         };
-        credit.LinkClicked += (s, e) => { try { ShellUtil.Open(Weather.AttributionUrl, null); } catch { } };
+        credit.LinkClicked += (s, e) => { try { ShellUtil.Open(Weather.AttributionUrl, null); } catch (Exception ex) { Log.Warn("shell.ouverture", ex); } };
         Controls.Add(credit);
         FlatButton close = new FlatButton(L.T("Fermer", "Close", "Cerrar"), true, Ui.S(100)) { BackColor = Theme.Bg };
         close.Location = new Point(ClientSize.Width - Ui.S(20) - close.Width, ClientSize.Height - Ui.S(18) - close.Height);

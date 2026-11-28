@@ -60,6 +60,10 @@ static class Log
             case "maj.relance":
             case "surveillance.lancement":
             case "installation.enregistrement":
+            case "nettoyage.execution":
+            case "nettoyage.mesure":
+            case "shell.verbe":
+            case "demarrage.reglage":
             case "barre.creation":
             case "barre.badges":
             case "bureau.icones":
