@@ -10,6 +10,13 @@ using System.Windows.Forms;
 // =====================================================================
 static partial class Native
 {
+    // Nom de l'écran d'indice donné, ou vide si l'indice est hors des écrans actuels (T-055)
+    internal static string ScreenDeviceNameAt(int index)
+    {
+        Screen[] all = Screen.AllScreens;
+        return index >= 0 && index < all.Length ? all[index].DeviceName : "";
+    }
+
     [DllImport("user32.dll")] public static extern IntPtr FindWindow(string cls, string name);
     [DllImport("user32.dll")] public static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string name);
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int cmd);

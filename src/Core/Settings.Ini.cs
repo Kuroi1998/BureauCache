@@ -210,7 +210,9 @@ static partial class Settings
         ArchiveDays = RoundUp(ArchiveDaysChoices, ArchiveDays);
         // Ancien réglage par indice : converti en nom d'écran avec la disposition actuelle (Q26-05)
         if (ScreenIdx >= 0 && ScreenName.Length == 0)
-            try { Screen[] all = Screen.AllScreens; if (ScreenIdx < all.Length) ScreenName = all[ScreenIdx].DeviceName; } catch { }
+            // Lecture des écrans par Native (T-055) : Core n'appelle pas directement WinForms pour ce cas
+            try { ScreenName = Native.ScreenDeviceNameAt(ScreenIdx); }
+            catch (Exception ex) { Log.Warn("reglages.chargement", ex); }
         return true;
     }
 
@@ -280,7 +282,7 @@ static partial class Settings
             Log.Warn("reglages.enregistrement", ex);
             return false;
         }
-        finally { if (tmp != null) try { File.Delete(tmp); } catch { } }
+        finally { if (tmp != null) try { File.Delete(tmp); } catch (Exception ex) { Log.Warn("reglages.enregistrement", ex); } }
     }
 
     // Le fichier écrit doit rester relisible : au-delà de MaxFileSize, la moitié la plus ancienne de

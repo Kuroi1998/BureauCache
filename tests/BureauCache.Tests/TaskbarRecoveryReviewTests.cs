@@ -12,6 +12,7 @@ public class TaskbarRecoveryReviewTests
     const string Doubles = @"
 using System;
 static class Sandbox { public const bool Active = false; public static void Guard(string operation) {} }
+static class Log { internal static void Warn(string contexte, Exception ex) {} }
 public static class Settings { public static string Dir; }
 public static class Native {
     public const int ABS_AUTOHIDE=1, ABS_ALWAYSONTOP=2, SW_HIDE=0, SW_SHOWNA=8;

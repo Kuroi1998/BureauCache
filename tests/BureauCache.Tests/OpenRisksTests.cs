@@ -43,14 +43,32 @@ public class OpenRisksTests
         Assert.AreEqual(Archiver.Candidates().Count, Archiver.CountCandidates(favorites, usage, Archiver.Limit, Archiver.Folder));
     }
 
-    // R-23 : un favori n'est jamais compté
+    // R-23 : un favori n'est jamais compté. Fixture propre (T-055) : un fichier ancien dans le bureau de test,
+    // sous bac à sable, au lieu de dépendre du contenu du vrai bureau (auparavant : Assert.Inconclusive).
     [TestMethod]
     public void R23_FavoritesAreNeverCounted()
     {
-        List<string> candidates = Archiver.Candidates();
-        if (candidates.Count == 0) Assert.Inconclusive("Aucun élément ancien sur ce bureau.");
-        var favorites = new HashSet<string>(candidates, StringComparer.OrdinalIgnoreCase);
-        var usage = new Dictionary<string, long[]>(StringComparer.OrdinalIgnoreCase);
-        Assert.AreEqual(0, Archiver.CountCandidates(favorites, usage, Archiver.Limit, Archiver.Folder));
+        string file = System.IO.Path.Combine(Paths.Desktop, "ancien-" + Guid.NewGuid().ToString("N") + ".txt");
+        System.IO.File.WriteAllText(file, "fictif");
+        // Toutes les dates anciennes : l'ancienneté retient la plus récente des trois
+        System.IO.File.SetCreationTimeUtc(file, DateTime.UtcNow.AddDays(-400));
+        System.IO.File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddDays(-400));
+        System.IO.File.SetLastAccessTimeUtc(file, DateTime.UtcNow.AddDays(-400));
+        List<string> savedFavorites = Settings.Favorites;
+        try
+        {
+            Settings.Favorites = new List<string>();
+            List<string> candidates = Archiver.Candidates();
+            Assert.IsTrue(candidates.Exists(c => string.Equals(c, file, StringComparison.OrdinalIgnoreCase)),
+                "Le fichier ancien doit être candidat avant d'être mis en favori.");
+            var favorites = new HashSet<string>(new[] { file }, StringComparer.OrdinalIgnoreCase);
+            var usage = new Dictionary<string, long[]>(StringComparer.OrdinalIgnoreCase);
+            Assert.AreEqual(0, Archiver.CountCandidates(favorites, usage, Archiver.Limit, Archiver.Folder));
+        }
+        finally
+        {
+            Settings.Favorites = savedFavorites;
+            try { System.IO.File.Delete(file); } catch (System.IO.IOException) { }
+        }
     }
 }

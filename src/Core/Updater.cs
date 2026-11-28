@@ -422,6 +422,7 @@ static class Updater
 
     static void TryDelete(string path)
     {
-        try { if (File.Exists(path)) File.Delete(path); } catch { }
+        // Un marqueur resté en place fait croire à un essai raté au démarrage suivant : on le consigne (T-055)
+        try { if (File.Exists(path)) File.Delete(path); } catch (Exception ex) { Log.Warn("maj.nettoyage", ex); }
     }
 }

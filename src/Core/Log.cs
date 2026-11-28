@@ -38,7 +38,11 @@ static class Log
             case "reglages.enregistrement":
             case "reglages.usage_reduit":
             case "maj.nettoyage":
+            case "maj.retour":
             case "barre.restauration":
+            case "barre.etat":
+            case "sauvegarde.reglages":
+            case "rangement":
                 return true;
             default:
                 return false;

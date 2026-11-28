@@ -146,7 +146,7 @@ static class WindowsBar
         }
         catch
         {
-            try { if (tmp != null && File.Exists(tmp)) File.Delete(tmp); } catch { }
+            try { if (tmp != null && File.Exists(tmp)) File.Delete(tmp); } catch (Exception ex) { Log.Warn("barre.etat", ex); }
             return false;
         }
     }

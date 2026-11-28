@@ -313,7 +313,8 @@ static class SettingsBackup
                     // Point de retour impossible à écrire : on ne garde pas une restauration sans retour possible.
                     // Si le retour arrière ne s'enregistre pas non plus, l'état d'avant est gardé à part (QA34-05).
                     if (!LoadReplacing(undo) || !Settings.Save())
-                        try { File.Copy(undo, Path.Combine(Folder, "settings-avant-restauration-secours.ini"), true); } catch { }
+                        try { File.Copy(undo, Path.Combine(Folder, "settings-avant-restauration-secours.ini"), true); }
+                        catch (Exception ex) { Log.Warn("sauvegarde.reglages", ex); }
                     return false;
                 }
                 // Une autre prévision est nécessaire si la restauration a changé le lieu ou désactivé la météo.
@@ -322,7 +323,7 @@ static class SettingsBackup
                 restored = true;
                 return true;
             }
-            catch { return false; }
+            catch (Exception ex) { Log.Warn("sauvegarde.reglages", ex); return false; }
             finally
             {
                 if (!restored) Settings.ProfileUnreadable = profileWasUnreadable;

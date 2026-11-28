@@ -1,39 +1,10 @@
-﻿// BureauCache — Startup, Installer
+﻿// BureauCache — Installer (le lancement avec Windows est dans Startup.cs)
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
 using Microsoft.Win32;
-
-static class Startup
-{
-    const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    const string Name = "BureauCache";
-
-    public static bool Enabled
-    {
-        get
-        {
-            try
-            {
-                using (RegistryKey k = Registry.CurrentUser.OpenSubKey(RunKey))
-                    return k != null && k.GetValue(Name) != null;
-            }
-            catch { return false; }
-        }
-    }
-
-    public static void Set(bool on, string exe = null)
-    {
-        Sandbox.Guard("démarrage avec Windows (HKCU\\" + RunKey + ")");
-        using (RegistryKey k = Registry.CurrentUser.CreateSubKey(RunKey))
-        {
-            if (on) k.SetValue(Name, "\"" + (exe ?? Application.ExecutablePath) + "\"");
-            else k.DeleteValue(Name, false);
-        }
-    }
-}
 
 // =====================================================================
 //  Installation (par utilisateur, sans droits administrateur)

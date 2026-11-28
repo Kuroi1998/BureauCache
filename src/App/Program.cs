@@ -161,7 +161,7 @@ static class Program
         try { start(exe); return; }
         catch { }
         bool restored = false;
-        try { rollBack(exe); restored = true; } catch { }
+        try { rollBack(exe); restored = true; } catch (Exception ex) { Log.Warn("maj.retour", ex); }
         warn(restored
             ? L.T("Windows n'a pas pu lancer la nouvelle version de BureauCache. La version précédente a été remise en place.",
                   "Windows couldn't start the new version of BureauCache. The previous version has been put back.",
@@ -175,7 +175,7 @@ static class Program
     internal static void PrepareRollback(Func<bool> restore, Action retry, Action warn)
     {
         bool restored = false;
-        try { restored = restore(); } catch { }
+        try { restored = restore(); } catch (Exception ex) { Log.Warn("barre.restauration", ex); }
         if (!restored) try { retry(); } catch { }
         warn();
     }
