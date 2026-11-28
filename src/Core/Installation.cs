@@ -1,39 +1,10 @@
-﻿// BureauCache — Startup, Installer
+﻿// BureauCache — Installer (le lancement avec Windows est dans Startup.cs)
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
 using Microsoft.Win32;
-
-static class Startup
-{
-    const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    const string Name = "BureauCache";
-
-    public static bool Enabled
-    {
-        get
-        {
-            try
-            {
-                using (RegistryKey k = Registry.CurrentUser.OpenSubKey(RunKey))
-                    return k != null && k.GetValue(Name) != null;
-            }
-            catch { return false; }
-        }
-    }
-
-    public static void Set(bool on, string exe = null)
-    {
-        Sandbox.Guard("démarrage avec Windows (HKCU\\" + RunKey + ")");
-        using (RegistryKey k = Registry.CurrentUser.CreateSubKey(RunKey))
-        {
-            if (on) k.SetValue(Name, "\"" + (exe ?? Application.ExecutablePath) + "\"");
-            else k.DeleteValue(Name, false);
-        }
-    }
-}
 
 // =====================================================================
 //  Installation (par utilisateur, sans droits administrateur)
@@ -114,6 +85,8 @@ static class Installer
         Settings.SaveBlocked = true;     // plus aucune sauvegarde jusqu'à la sortie : elle recréerait le dossier (Q26-03)
         Settings.CancelPendingSave(); // sinon un enregistrement différé recréerait le dossier des réglages
         Native.RestoreDesktopIcons();
+        // Désinstallation : chaque étape est relue ensuite et remontée dans la liste « left » à l'utilisateur.
+        // Le journal est bloqué à ce stade (SaveBlocked), donc on n'y écrit pas ici (T-061).
         try { Startup.Set(false); } catch { }
         if (Startup.Enabled) left.Add(L.T("le lancement au démarrage de Windows", "starting with Windows", "el inicio con Windows"));
         try { File.Delete(StartMenuLnk); } catch { }
@@ -128,6 +101,8 @@ static class Installer
         try { File.Delete(Settings.FilePath); } catch { }
         if (File.Exists(Settings.FilePath)) left.Add(L.T("le fichier des réglages", "the settings file", "el archivo de configuración") + " (" + Settings.FilePath + ")");
         try { Directory.Delete(PanelForm.StashRoot); } catch { }
+        // Journal des avertissements (T-048) : retiré avant le dossier. Si la suppression échoue, le dossier restant est signalé.
+        try { File.Delete(Path.Combine(Settings.Dir, Log.FileName)); } catch (Exception) { }
         try { Directory.Delete(Settings.Dir); } catch { }
         if (Directory.Exists(PanelForm.StashRoot)) left.Add(L.T("des éléments mis de côté", "set-aside items", "elementos apartados") + " (" + PanelForm.StashRoot + ")");
         if (Directory.Exists(SettingsBackup.Folder)) left.Add(L.T("les sauvegardes des réglages", "the settings backups", "las copias de seguridad de la configuración") + " (" + SettingsBackup.Folder + ")");

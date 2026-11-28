@@ -141,6 +141,7 @@ static class ContentSearch
                 rs.MoveNext();
             }
         }
+        // Index Windows absent ou désactivé : cas normal, la recherche dans le contenu est simplement vide (justifié, T-061)
         catch { }
         finally
         {

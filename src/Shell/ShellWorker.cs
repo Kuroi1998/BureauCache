@@ -55,7 +55,7 @@ static class ShellWorker
                 ready.Set();
                 Application.Run();
             }
-            catch { }
+            catch (Exception ex) { Log.Warn("shell.fil", ex); }   // fil des verbes du shell absent : « Plus d'options » sans effet (T-060)
             finally
             {
                 ready.Set();

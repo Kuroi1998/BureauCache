@@ -116,7 +116,7 @@ static class Weather
         {
             WeatherReport r = null;
             try { r = ParseForecast(Http.FetchText(ForecastUrl(lat, lon, f), Hosts, MaxResponse)); }
-            catch { }
+            catch (Exception ex) { Log.Warn("meteo.recuperation", ex); }   // pas de données : l'ancienne prévision reste (T-060)
             finally
             {
                 lock (sync)
@@ -188,7 +188,7 @@ static class Weather
                 "&longitude=" + lon.ToString("0.##", Inv) + "&localityLanguage=" + Lang;
             p = ParseReverse(Http.FetchText(url, Hosts, MaxResponse), lat, lon);
         }
-        catch { }
+        catch (Exception ex) { Log.Warn("meteo.lieu", ex); }   // position inconnue : « Ma position » est affiché (T-060)
         return p ?? new WeatherPlace { Name = L.T("Ma position", "My location", "Mi ubicación"), Lat = lat, Lon = lon };
     }
 

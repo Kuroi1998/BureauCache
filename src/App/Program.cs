@@ -17,6 +17,7 @@ static class Program
     {
         Stopwatch startupClock = Stopwatch.StartNew();
         // Sécurité : les DLL système ne sont cherchées que dans System32, jamais à côté de l'exe (Téléchargements…)
+        // Absent sur les versions de Windows sans cette API : le chargement reste celui par défaut (justifié, T-061)
         try { Native.SetDefaultDllDirectories(Native.LOAD_LIBRARY_SEARCH_SYSTEM32); } catch { }
         string cmd = args.Length > 0 ? args[0].ToLowerInvariant() : "";
         if (cmd == "--watchdog" && args.Length > 1) { Watchdog(args[1]); return; }
@@ -51,13 +52,20 @@ static class Program
                     // L'ancienne version est revenue à la place de l'exe : on la relance, une fois le mutex libéré.
                     // La barre Windows est rendue AVANT l'avertissement : la surveillance de la version plantée a vu notre
                     // mutex et s'est arrêtée, et l'ancienne version peut ne pas connaître la barre BureauCache (CDX-01).
-                    PrepareRollback(WindowsBar.Restore, RetryRestore, () => Dialogs.Warn(null, L.T("La nouvelle version de BureauCache n'a pas réussi à démarrer.\nLa version précédente a été restaurée.",
-                                           "The new version of BureauCache failed to start.\nThe previous version has been restored.", "La nueva versión de BureauCache no pudo iniciarse.\nSe restauró la versión anterior.")));
+                    PrepareRollback(WindowsBar.Restore, RetryRestore, () =>
+                    {
+                        string message = L.T("La nouvelle version de BureauCache n'a pas réussi à démarrer.\nLa version précédente a été restaurée.",
+                                           "The new version of BureauCache failed to start.\nThe previous version has been restored.", "La nueva versión de BureauCache no pudo iniciarse.\nSe restauró la versión anterior.");
+                        // Barre restée masquée après tous les essais : le dire, avec la sortie (T-052)
+                        if (!WindowsBar.RestoreOk) message += "\n\n" + L.T("La barre Windows n'a pas pu être rétablie : elle reste masquée. Quitte BureauCache depuis son icône de la zone de notification, ou redémarre l'ordinateur.",
+                                           "The Windows taskbar could not be restored and stays hidden. Quit BureauCache from its notification-area icon, or restart the computer.", "No se pudo restaurar la barra de Windows: sigue oculta. Sal de BureauCache desde su icono del área de notificación, o reinicia el equipo.");
+                        Dialogs.Warn(null, message);
+                    });
                     App.RelaunchPath = Application.ExecutablePath;
                 }
                 else
                 {
-                    if (Installer.RunningFromInstall) try { Installer.RegisterVersion(); } catch { }
+                    if (Installer.RunningFromInstall) try { Installer.RegisterVersion(); } catch (Exception ex) { Log.Warn("installation.enregistrement", ex); }
                     StartWatchdog();
                     StartupTimeline.Mark("surveillance_lancee");
                     try { Application.Run(new App(show, quit)); }
@@ -75,7 +83,7 @@ static class Program
         {
             if (App.RelaunchAfterUpdate)
                 RelaunchUpdate(App.RelaunchPath, p => { using (Process.Start(p)) { } }, Updater.RollBack, msg => Dialogs.Warn(null, msg));
-            else try { Process.Start(App.RelaunchPath); } catch { }
+            else try { using (Process.Start(App.RelaunchPath)) { } } catch (Exception ex) { Log.Warn("maj.relance", ex); }
         }
         Installer.StartFolderRemoval();
     }
@@ -122,7 +130,8 @@ static class Program
                 watchdogProcess = Process.Start(psi);
             }
         }
-        catch { }
+        // Sans surveillance, un plantage ne rend plus la barre Windows ni les icônes : l'échec est consigné (T-061)
+        catch (Exception ex) { Log.Warn("surveillance.lancement", ex); }
     }
 
     static void Watchdog(string pidText)
@@ -152,9 +161,9 @@ static class Program
     internal static void RelaunchUpdate(string exe, Action<string> start, Action<string> rollBack, Action<string> warn)
     {
         try { start(exe); return; }
-        catch { }
+        catch (Exception ex) { Log.Warn("maj.relance", ex); }
         bool restored = false;
-        try { rollBack(exe); restored = true; } catch { }
+        try { rollBack(exe); restored = true; } catch (Exception ex) { Log.Warn("maj.retour", ex); }
         warn(restored
             ? L.T("Windows n'a pas pu lancer la nouvelle version de BureauCache. La version précédente a été remise en place.",
                   "Windows couldn't start the new version of BureauCache. The previous version has been put back.",
@@ -162,14 +171,14 @@ static class Program
             : L.T("Windows n'a pas pu lancer la nouvelle version de BureauCache, et la version précédente n'a pas pu être remise en place. Réinstalle BureauCache depuis GitHub.",
                   "Windows couldn't start the new version of BureauCache, and the previous version couldn't be put back. Reinstall BureauCache from GitHub.",
                   "Windows no pudo iniciar la nueva versión de BureauCache y no se pudo restaurar la anterior. Reinstala BureauCache desde GitHub."));
-        if (restored) try { start(exe); } catch { }
+        if (restored) try { start(exe); } catch (Exception ex) { Log.Warn("maj.relance", ex); }
     }
 
     internal static void PrepareRollback(Func<bool> restore, Action retry, Action warn)
     {
         bool restored = false;
-        try { restored = restore(); } catch { }
-        if (!restored) try { retry(); } catch { }
+        try { restored = restore(); } catch (Exception ex) { Log.Warn("barre.restauration", ex); }
+        if (!restored) try { retry(); } catch (Exception ex) { Log.Warn("maj.retour", ex); }
         warn();
     }
 

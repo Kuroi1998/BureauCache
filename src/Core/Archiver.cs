@@ -62,6 +62,7 @@ static class Archiver
                 if (usage.TryGetValue(p, out u) && new DateTime(u[1], DateTimeKind.Local).ToUniversalTime() >= itemLimit) continue;
                 if (ActivityOf(p, itemLimit, MaxScan) == Activity.Old) n++;
             }
+            // Élément illisible pendant le décompte : il est exclu du nombre annoncé, sans conséquence sur les fichiers
             catch { }
         }
         return n;
@@ -191,7 +192,7 @@ static class Archiver
                 log.Add(p + ">" + dest + ">" + Fingerprint(dest));
                 n++;
             }
-            catch { }
+            catch (Exception ex) { Log.Warn("rangement", ex); }   // élément non déplacé : il reste sur le bureau (T-055)
         }
         List<string> previous = Settings.ArchiveLog;
         if (log.Count > 0) Settings.ArchiveLog = log;

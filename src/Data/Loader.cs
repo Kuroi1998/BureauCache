@@ -77,7 +77,7 @@ static class Loader
                     catch (UnauthorizedAccessException) { }
                 }
             }
-            catch { }
+            catch (Exception ex) { Log.Warn("chargement.elements", ex); }   // dossier de raccourcis incomplet (T-061)
         }
         return items;
     }
@@ -85,6 +85,7 @@ static class Loader
     static void Walk(string dir, List<string> acc, int depth)
     {
         if (depth > 6) return;
+        // Dossier inaccessible (droits, réseau) : cas courant, ignoré sans bruit (justifié, T-061)
         try { acc.AddRange(Directory.GetFiles(dir, "*.lnk")); } catch { }
         try { foreach (string d in Directory.GetDirectories(dir)) Walk(d, acc, depth + 1); } catch { }
     }
@@ -127,10 +128,10 @@ static class Loader
                         Icon = IconCache.Get("uwp|" + p + "|" + px, () => Icons.ShellImage(parsing, px, false))
                     });
                 }
-                catch { }
+                catch (Exception ex) { Log.Warn("chargement.elements", ex); }
             }
         }
-        catch { }
+        catch (Exception ex) { Log.Warn("chargement.elements", ex); }
         return res;
     }
 
@@ -157,7 +158,7 @@ static class Loader
                 if (res.Count >= 40) break;
             }
         }
-        catch { }
+        catch (Exception ex) { Log.Warn("chargement.elements", ex); }
         return res;
     }
 }

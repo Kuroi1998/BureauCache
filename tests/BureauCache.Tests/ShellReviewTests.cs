@@ -112,7 +112,10 @@ public class ShellReviewTests
 
     [TestMethod]
     [TestCategory("Review")]
+#if !WINDOWS_INTERACTIVE_TESTS
     [Ignore("Q28-04 : ouvre et ferme un vrai menu WinForms sur le bureau interactif.")]
+#endif
+    [TestCategory("WindowsInteractive")]
     public void Q28_04_ClosingTheSubmenuDiscardsItsPendingResult()
     {
         RunSta(() =>

@@ -77,7 +77,7 @@ static class ShellUtil
 
     public static void InvokeVerb(object verb)
     {
-        try { ((dynamic)verb).DoIt(); } catch { }
+        try { ((dynamic)verb).DoIt(); } catch (Exception ex) { Log.Warn("shell.verbe", ex); }
     }
 
     // Ouvre l'Explorateur avec l'élément sélectionné
@@ -85,7 +85,7 @@ static class ShellUtil
     {
         Sandbox.Guard("ouverture de l'emplacement dans Explorer");
         if (string.IsNullOrEmpty(path) || path.IndexOfAny(Path.GetInvalidPathChars()) >= 0) return;
-        try { using (Process.Start(SystemPath("explorer.exe"), "/select,\"" + path + "\"")) { } } catch { }
+        try { using (Process.Start(SystemPath("explorer.exe"), "/select,\"" + path + "\"")) { } } catch (Exception ex) { Log.Warn("shell.ouverture", ex); }
     }
 
     public static void Properties(string path)
@@ -143,6 +143,7 @@ static class ShellUtil
         ProcessStartInfo psi = new ProcessStartInfo(target);
         if (args != null) psi.Arguments = args;
         psi.UseShellExecute = true;
-        Process.Start(psi);
+        // Le processus lancé est libéré aussitôt : sans cela, chaque ouverture garderait un handle ouvert
+        using (Process.Start(psi)) { }
     }
 }

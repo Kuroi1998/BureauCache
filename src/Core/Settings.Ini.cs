@@ -191,7 +191,7 @@ static partial class Settings
         catch (DirectoryNotFoundException) { FirstRun = true; return false; }
         catch (IOException) { LastLoadUnreadable = true; return false; }
         catch (UnauthorizedAccessException) { LastLoadUnreadable = true; return false; }
-        catch { return false; }
+        catch (Exception ex) { Log.Warn("reglages.chargement", ex); return false; }
         if (hasWeatherPlace && !hasWeatherShort) WeatherShort = "";
         if (!hasThemeMode && oldDark != null) ThemeMode = oldDark == "1" ? 1 : 2;
         Delay = Math.Max(0, Math.Min(1000, Delay));
@@ -210,7 +210,9 @@ static partial class Settings
         ArchiveDays = RoundUp(ArchiveDaysChoices, ArchiveDays);
         // Ancien réglage par indice : converti en nom d'écran avec la disposition actuelle (Q26-05)
         if (ScreenIdx >= 0 && ScreenName.Length == 0)
-            try { Screen[] all = Screen.AllScreens; if (ScreenIdx < all.Length) ScreenName = all[ScreenIdx].DeviceName; } catch { }
+            // Lecture des écrans par Native (T-055) : Core n'appelle pas directement WinForms pour ce cas
+            try { ScreenName = Native.ScreenDeviceNameAt(ScreenIdx); }
+            catch (Exception ex) { Log.Warn("reglages.chargement", ex); }
         return true;
     }
 
@@ -277,10 +279,10 @@ static partial class Settings
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.TraceError("BureauCache settings: " + ex.Message);
+            Log.Warn("reglages.enregistrement", ex);
             return false;
         }
-        finally { if (tmp != null) try { File.Delete(tmp); } catch { } }
+        finally { if (tmp != null) try { File.Delete(tmp); } catch (Exception ex) { Log.Warn("reglages.enregistrement", ex); } }
     }
 
     // Le fichier écrit doit rester relisible : au-delà de MaxFileSize, la moitié la plus ancienne de
@@ -289,12 +291,17 @@ static partial class Settings
     {
         PruneUsage();
         string[] lines = SerializeLines();
+        bool reduced = false;
         while (Usage.Count > 0 && Utf8Size(lines) > MaxFileSize)
         {
+            reduced = true;
             foreach (string k in Usage.OrderBy(kv => kv.Value[1]).Take((Usage.Count + 1) / 2).Select(kv => kv.Key).ToList())
                 Usage.Remove(k);
             lines = SerializeLines();
         }
+        // Trace de la réduction (T-051). L'historique est réduit en mémoire avant l'écriture : si celle-ci échoue,
+        // l'INI reste intact mais l'historique en mémoire est déjà réduit.
+        if (reduced) Log.Warn("reglages.usage_reduit", null);
         // Chaque entrée de SerializeLines doit rester sur une seule ligne du fichier INI.
         foreach (string line in lines)
             if (line.IndexOf('\r') >= 0 || line.IndexOf('\n') >= 0 || line.IndexOf('\0') >= 0)

@@ -22,7 +22,7 @@ BureauCache cache les icônes du bureau Windows et les réaffiche dans un pannea
 | Dossier | Responsabilité | Types principaux | Dépend de |
 |---|---|---|---|
 | `src/App` | Point d'entrée, instance unique, surveillance, cycle de vie, icône de notification, raccourci global | `Program`, `App` (partial : `App.cs`, `App.Tray.cs`), `HotkeyWindow` | Core, UI |
-| `src/Core` | Réglages, installation et démarrage, mises à jour, rangement automatique, langue, Win32, utilitaires | `Settings`, `SettingsBackup`, `ArchiveRules`, `Clutter`, `ClipboardHistory`, `ClipboardWatcher`, `Installer`, `Startup`, `Updater`, `Archiver`, `L`, `Native`, `Paths`, `FileOps`, `Dialogs`, `Background` | — |
+| `src/Core` | Réglages, installation et démarrage, mises à jour, rangement automatique, langue, Win32, journal, utilitaires | `Settings`, `SettingsBackup`, `ArchiveRules`, `Clutter`, `ClipboardHistory`, `ClipboardWatcher`, `Installer`, `Startup` (`Startup.cs`), `Updater`, `Archiver`, `Log`, `L`, `Native`, `Paths`, `FileOps`, `Dialogs`, `Background` | WinForms et `System.Drawing` : écrans (`Native.ScreenDeviceNameAt`), boîtes de message (`Dialogs`, `MessageDialog`), palettes (`Palettes`), `PanelForm` et `ShellUtil` à l'installation (T-055) |
 | `src/Data` | Modèle des éléments, chargement du bureau, des applications et des récents, catalogue système | `DesktopItem`, `ItemKind`, `Catalog`, `Group`, `VRow`, `Loader`, `SystemCatalog` | Core, Shell |
 | `src/Search` | Recherche tolérante aux fautes, calculatrice, recherche dans le contenu par l'index Windows | `Search`, `Calc` (+ `Calc.Parser`), `ContentSearch` | Data, Core (`L.Culture`, `Paths`) |
 | `src/Taskbar` | Barre des tâches BureauCache (D-013) : masquage et restauration de la barre Windows, fenêtre AppBar en bas de l'écran principal, menu Démarrer, paramètres rapides (D-017), panneaux notifications et calendrier (D-018) | `WindowsBar`, `BarForm`, `WindowList`, `TaskIcons`, `TaskbarModel`, `BarButton`, `WindowPreview`, `Palettes` (thèmes prêts, src/UI/ThemePresets.cs), `StartMenuForm` (construction : `StartMenuForm.Layout.cs`, raccourcis : `StartShortcuts`), `StartTile`, `SessionActions`, `QuickSettingsForm`, `BarPopup`, `NotificationsForm`, `NotificationList`, `CalendarForm`, `CalendarView`, `CalendarMonth`, `WeatherStrip` ; réglages de la barre : page `SettingsForm.Taskbar.cs` (D-019) | Core, UI, Shell |
@@ -67,6 +67,10 @@ La classe `L` résout le choix Système, français, anglais ou espagnol. Elle ga
 ## Tests
 
 `tests/BureauCache.Tests` (MSTest, `net48`) référence le vrai `BureauCache.exe` grâce à `InternalsVisibleTo` (voir D-002). La commande `dotnet test tests/BureauCache.Tests` recompile l'exe puis lance les tests. La CI les exécute sur chaque pull request (`.github/workflows/tests.yml`). Un test qui modifie la langue passe par `LanguageScope`.
+
+**Portée du bac à sable (`Sandbox`, T-055).** `Sandbox` est une garde coopérative du processus de test : `Guard` et `GuardPath` bloquent seulement les appels qui les utilisent (registre, installation, barre, réglages, mise à jour, corbeille). Un effet de bord qui ne passe pas par une garde n'est pas bloqué. Ces gardes restent dans le binaire de diffusion, car les tests utilisent `InternalsVisibleTo` (D-002) ; `Sandbox.Active` reste faux en usage normal. `RealSideEffectsAreBlocked` (`TestSetup.cs`) vérifie les points sensibles.
+
+**Tests de bureau interactif (T-049).** Cinq tests exigent une session de bureau réelle. Ils portent la catégorie `WindowsInteractive` et ne tournent que dans la configuration `Interactive` (`dotnet test tests/BureauCache.Tests -c Interactive`, sur poste dédié).
 
 ## Points sensibles connus
 

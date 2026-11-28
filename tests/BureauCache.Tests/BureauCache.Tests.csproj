@@ -17,6 +17,15 @@
     <Nullable>disable</Nullable>
   </PropertyGroup>
 
+  <!--
+    Configuration « Interactive » (T-049) : lève le [Ignore] des tests qui exigent un bureau Windows interactif
+    (catégorie WindowsInteractive). À lancer seulement sur une session de bureau dédiée, jamais sur le PC de travail :
+    Lancer : dotnet test tests/BureauCache.Tests -c Interactive, filtre TestCategory=WindowsInteractive
+  -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Interactive'">
+    <DefineConstants>$(DefineConstants);WINDOWS_INTERACTIVE_TESTS</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="MSTest.TestAdapter" Version="3.6.4" />

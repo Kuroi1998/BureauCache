@@ -85,7 +85,7 @@ static class SettingsBackup
                 }
                 Prune(today);
             }
-            catch { }
+            catch (Exception ex) { Log.Warn("sauvegarde.reglages", ex); }   // pas de copie du jour : la restauration reste possible avec les autres (T-061)
         }
     }
 
@@ -126,7 +126,7 @@ static class SettingsBackup
             if (keep.Contains(e) || unavailable.Contains(e)) continue;
             bool readable = valid.Contains(e);
             if (readable || e.Date < oldestKept)
-                try { File.Delete(e.Path); } catch { }
+                try { File.Delete(e.Path); } catch (Exception ex) { Log.Warn("sauvegarde.reglages", ex); }
         }
     }
 
@@ -155,7 +155,7 @@ static class SettingsBackup
                     list.Add(new Entry { Path = UndoPath(i), Date = File.GetLastWriteTime(UndoPath(i)), BeforeRestore = true });
             list.AddRange(Daily());
         }
-        catch { }
+        catch (Exception ex) { Log.Warn("sauvegarde.reglages", ex); }   // liste incomplète : seules les sauvegardes lisibles sont proposées
         List<Entry> valid = new List<Entry>();
         foreach (Entry e in list)
         {
@@ -179,6 +179,7 @@ static class SettingsBackup
                 else if (line.StartsWith("CustomCats=", StringComparison.Ordinal)) e.Categories = Count(line.Substring(11));
             }
         }
+        // Une sauvegarde illisible n'a pas de détail à afficher : elle reste dans la liste sans ces compteurs (justifié, T-061)
         catch { }
     }
 
@@ -313,7 +314,8 @@ static class SettingsBackup
                     // Point de retour impossible à écrire : on ne garde pas une restauration sans retour possible.
                     // Si le retour arrière ne s'enregistre pas non plus, l'état d'avant est gardé à part (QA34-05).
                     if (!LoadReplacing(undo) || !Settings.Save())
-                        try { File.Copy(undo, Path.Combine(Folder, "settings-avant-restauration-secours.ini"), true); } catch { }
+                        try { File.Copy(undo, Path.Combine(Folder, "settings-avant-restauration-secours.ini"), true); }
+                        catch (Exception ex) { Log.Warn("sauvegarde.reglages", ex); }
                     return false;
                 }
                 // Une autre prévision est nécessaire si la restauration a changé le lieu ou désactivé la météo.
@@ -322,7 +324,7 @@ static class SettingsBackup
                 restored = true;
                 return true;
             }
-            catch { return false; }
+            catch (Exception ex) { Log.Warn("sauvegarde.reglages", ex); return false; }
             finally
             {
                 if (!restored) Settings.ProfileUnreadable = profileWasUnreadable;

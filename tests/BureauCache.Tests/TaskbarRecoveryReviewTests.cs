@@ -12,12 +12,13 @@ public class TaskbarRecoveryReviewTests
     const string Doubles = @"
 using System;
 static class Sandbox { public const bool Active = false; public static void Guard(string operation) {} }
+static class Log { internal static void Warn(string contexte, Exception ex) {} }
 public static class Settings { public static string Dir; }
 public static class Native {
     public const int ABS_AUTOHIDE=1, ABS_ALWAYSONTOP=2, SW_HIDE=0, SW_SHOWNA=8;
     public static int State;
-    public static bool Visible, IgnoreSet, IgnoreShow;
-    public static IntPtr WindowsTaskbar() { return new IntPtr(1); }
+    public static bool Visible, IgnoreSet, IgnoreShow, Absent;
+    public static IntPtr WindowsTaskbar() { return Absent ? IntPtr.Zero : new IntPtr(1); }
     public static int GetTaskbarState() { return State; }
     public static void SetTaskbarState(int value) { if (!IgnoreSet) State=value; }
     public static bool IsWindowVisible(IntPtr h) { return Visible; }
@@ -68,6 +69,19 @@ public static class Native {
         File.Delete(Journal);
         Restore();
         Assert.AreEqual(0, State & 1);
+    }
+
+    // T-052 : RestoreOk dit à l'avertissement de retour arrière si la barre est revenue (Explorer absent = échec)
+    [TestMethod]
+    public void Bar_RestoreOkReportsAMissingTaskbar()
+    {
+        Assert.IsTrue(Hide());
+        Set("Absent", true);
+        Restore();
+        Assert.IsFalse((bool)bar.GetProperty("RestoreOk").GetValue(null));
+        Set("Absent", false);
+        Restore();
+        Assert.IsTrue((bool)bar.GetProperty("RestoreOk").GetValue(null));
     }
 
     [TestMethod]
