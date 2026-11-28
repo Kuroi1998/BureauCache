@@ -38,7 +38,10 @@ public class OpenRisksReviewTests
 
     [TestMethod]
     [TestCategory("Review")]
+#if !WINDOWS_INTERACTIVE_TESTS
     [Ignore("Q26-06 : la construction et la fermeture de la fenêtre d'aperçu exigent une session WinForms interactive.")]
+#endif
+    [TestCategory("WindowsInteractive")]
     public void Q26_06_DisposingPreviewReleasesItsOwnedBitmap()
     {
         RunSta(() =>
