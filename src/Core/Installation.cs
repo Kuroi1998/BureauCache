@@ -128,6 +128,8 @@ static class Installer
         try { File.Delete(Settings.FilePath); } catch { }
         if (File.Exists(Settings.FilePath)) left.Add(L.T("le fichier des réglages", "the settings file", "el archivo de configuración") + " (" + Settings.FilePath + ")");
         try { Directory.Delete(PanelForm.StashRoot); } catch { }
+        // Journal des avertissements (T-048) : retiré avant le dossier. Si la suppression échoue, le dossier restant est signalé.
+        try { File.Delete(Path.Combine(Settings.Dir, Log.FileName)); } catch (Exception) { }
         try { Directory.Delete(Settings.Dir); } catch { }
         if (Directory.Exists(PanelForm.StashRoot)) left.Add(L.T("des éléments mis de côté", "set-aside items", "elementos apartados") + " (" + PanelForm.StashRoot + ")");
         if (Directory.Exists(SettingsBackup.Folder)) left.Add(L.T("les sauvegardes des réglages", "the settings backups", "las copias de seguridad de la configuración") + " (" + SettingsBackup.Folder + ")");

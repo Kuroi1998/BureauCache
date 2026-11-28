@@ -319,7 +319,8 @@ static class Updater
         }
         finally
         {
-            try { if (File.Exists(tmp)) File.Delete(tmp); } catch { }
+            try { if (File.Exists(tmp)) File.Delete(tmp); }
+            catch (Exception ex) { Log.Warn("maj.nettoyage", ex); }
         }
     }
 
