@@ -158,3 +158,8 @@ machine virtuelle ou un autre compte Windows.
 
 **Vérifié :** l'installateur compile avec les trois langues, et le composant COM du sélecteur se crée sur ce PC.
 **Non vérifié :** l'aspect réel de l'assistant et l'ouverture de la boîte de choix de dossier, qui demandent un essai à l'écran.
+
+**Correction (T-058, essai à l'écran).** Le bruit coloré sur l'image de l'assistant venait de l'icône source :
+`System.Drawing.Icon` décode mal les entrées PNG d'un `.ico`. `generer-images.ps1` lit maintenant le PNG de la plus grande
+entrée directement. La liste des langues est affichée à chaque lancement (`ShowLanguageDialog=yes`).
+Les scripts PowerShell sont enregistrés avec un BOM UTF-8 : sans lui, PowerShell 5.1 lit les accents comme de l'ANSI.

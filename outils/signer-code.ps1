@@ -1,4 +1,4 @@
-# Signature Authenticode de BureauCache.exe et de l'installateur (T-056).
+﻿# Signature Authenticode de BureauCache.exe et de l'installateur (T-056).
 # Aucun secret dans le dépôt : les réglages viennent de variables d'environnement, jamais de fichiers versionnés.
 # Voir installer\README.md pour le choix du certificat et les étapes.
 #

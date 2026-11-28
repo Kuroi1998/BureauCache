@@ -1,13 +1,28 @@
-# Génère les images de l'assistant d'installation (BMP 24 bits) à partir de BureauCache.ico (T-058).
+﻿# Génère les images de l'assistant d'installation (BMP 24 bits) à partir de BureauCache.ico (T-058).
 # Usage : .\installer\generer-images.ps1   -> installer\images\bandeau.bmp (164x314) et petit.bmp (55x58)
 # Relancer ce script si l'icône change. Aucun secret, aucune dépendance hors Windows (System.Drawing).
 Add-Type -AssemblyName System.Drawing
 $dossier = Join-Path $PSScriptRoot 'images'
 New-Item -ItemType Directory -Force -Path $dossier | Out-Null
 $icone = Join-Path (Split-Path $PSScriptRoot -Parent) 'BureauCache.ico'
-# La plus grande variante du .ico (le fichier ne contient pas forcément 256 px)
-$logo = New-Object System.Drawing.Icon($icone)
-$logoBmp = $logo.ToBitmap()
+# System.Drawing.Icon décode mal les entrées PNG d'un .ico (les tailles 256 et 128 apparaissent en bruit coloré).
+# On lit donc directement l'entrée PNG la plus grande, puis on la décode comme une image.
+function Get-LogoPng([string]$chemin) {
+    $octets = [IO.File]::ReadAllBytes($chemin)
+    $n = [BitConverter]::ToUInt16($octets, 4)
+    $meilleure = $null; $taille = -1
+    for ($i = 0; $i -lt $n; $i++) {
+        $o = 6 + 16 * $i
+        $w = if ($octets[$o] -eq 0) { 256 } else { [int]$octets[$o] }
+        if ($w -gt $taille) {
+            $taille = $w
+            $meilleure = @{ Off = [BitConverter]::ToInt32($octets, $o + 12); Len = [BitConverter]::ToInt32($octets, $o + 8) }
+        }
+    }
+    $flux = New-Object IO.MemoryStream (, $octets[$meilleure.Off..($meilleure.Off + $meilleure.Len - 1)])
+    return [System.Drawing.Bitmap]::FromStream($flux)
+}
+$logoBmp = Get-LogoPng $icone
 
 function Get-Degrade([System.Drawing.Graphics]$g, [int]$w, [int]$h) {
     $haut = [System.Drawing.Color]::FromArgb(255, 22, 34, 52)
@@ -48,5 +63,5 @@ function New-Petit([string]$chemin) {
 
 New-Bandeau (Join-Path $dossier 'bandeau.bmp')
 New-Petit (Join-Path $dossier 'petit.bmp')
-$logoBmp.Dispose(); $logo.Dispose()
+$logoBmp.Dispose()
 Write-Output "Images générées dans $dossier"

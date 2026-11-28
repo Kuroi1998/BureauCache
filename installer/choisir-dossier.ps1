@@ -1,4 +1,4 @@
-# Boîte « Choisir un dossier » moderne de Windows (IFileOpenDialog), avec le bouton « Nouveau dossier » (T-058).
+﻿# Boîte « Choisir un dossier » moderne de Windows (IFileOpenDialog), avec le bouton « Nouveau dossier » (T-058).
 # Appelée par l'installateur : elle écrit le dossier choisi dans -Sortie (encodage ANSI, lu par Inno Setup), ou rien si
 # l'utilisateur annule. Lancement : powershell -STA -File choisir-dossier.ps1 -Sortie <fichier> -Depart <dossier> -Titre <texte>
 param(

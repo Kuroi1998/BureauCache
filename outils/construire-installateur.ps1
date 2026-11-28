@@ -1,4 +1,4 @@
-# Construit l'installateur BureauCache-Setup-X.Y.Z.exe avec Inno Setup 6 (T-056).
+﻿# Construit l'installateur BureauCache-Setup-X.Y.Z.exe avec Inno Setup 6 (T-056).
 # Usage : .\outils\construire-installateur.ps1 -Version 3.11.1 -Exe <chemin de BureauCache.exe> [-Sortie <fichier>]
 # L'exe doit déjà être signé (Authenticode) s'il doit l'être : l'installateur le contient tel quel.
 # L'installateur lui-même est signé ici si une signature est configurée (voir signer-code.ps1).

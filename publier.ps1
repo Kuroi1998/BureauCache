@@ -1,4 +1,4 @@
-# Publie une nouvelle version de BureauCache.
+﻿# Publie une nouvelle version de BureauCache.
 # Usage : .\publier.ps1 -Version 3.3
 # 1. Ajoute d'abord une section « ## 3.3 — Titre » en haut de CHANGELOG.md
 # 2. Le script met la version dans src\Properties\AssemblyInfo.cs, compile, crée le commit et le tag, puis pousse.
