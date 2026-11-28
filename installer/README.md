@@ -144,3 +144,17 @@ machine virtuelle ou un autre compte Windows.
 - Mettre à jour depuis l'application (`.trial`, `.old`) puis désinstaller : vérifier que la barre Windows revient.
 - Vérifier la signature : `signtool verify /pa /all installer\...`, ou clic droit > Propriétés > Signatures numériques.
 - Lancer l'installateur avec une vraie signature sur une machine où SmartScreen est actif, et noter son comportement.
+
+## 8. Langues et apparence (T-058)
+
+- **Langues** : français, anglais et espagnol. L'installateur choisit la langue de Windows, et propose le choix au
+  démarrage. Les messages standards viennent des fichiers `.isl` d'Inno Setup ; les textes propres à BureauCache sont dans
+  `[CustomMessages]` (`french.*`, `english.*`, `spanish.*`).
+- **Choix du dossier** : le bouton « Parcourir » ouvre la boîte moderne de Windows (`IFileOpenDialog`), avec le bouton
+  « Nouveau dossier ». Le script `installer\choisir-dossier.ps1` la pilote et renvoie le chemin à l'installateur. Il est
+  extrait seulement pendant l'installation. La boîte d'Inno, plus ancienne, n'a pas ce bouton.
+- **Images** : `installer\images\bandeau.bmp` et `petit.bmp` sont générés par `installer\generer-images.ps1` à partir de
+  `BureauCache.ico`. Relance ce script si l'icône change.
+
+**Vérifié :** l'installateur compile avec les trois langues, et le composant COM du sélecteur se crée sur ce PC.
+**Non vérifié :** l'aspect réel de l'assistant et l'ouverture de la boîte de choix de dossier, qui demandent un essai à l'écran.
