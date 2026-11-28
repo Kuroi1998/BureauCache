@@ -14,6 +14,7 @@ param(
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\cles-commun.ps1"
 . "$PSScriptRoot\compilation-commun.ps1"
+. "$PSScriptRoot\signer-code.ps1"
 $depot = Split-Path $PSScriptRoot -Parent
 if (-not $Cle) { $Cle = Join-Path (Get-DossierClesParDefaut) 'principale.cle' }
 if ($Version -notmatch '^[0-9]+\.[0-9]+(?:\.[0-9]+)?$') { throw "Format attendu : X.Y ou X.Y.Z (ex. 3.7.1)" }
@@ -75,7 +76,18 @@ try {
     Write-Host "SHA-256  : $hex"
     if ((Read-Host "Signer et publier cette compilation ? (o/n)") -ne 'o') { throw "Annulé : rien n'a été signé." }
 
-    # 5. Signature
+    # 5a. Signature Authenticode de l'exe (certificat de code, T-056). Elle modifie les octets : elle précède donc
+    #     l'empreinte et la signature RSA de mise à jour, qui doivent porter sur le fichier réellement publié.
+    $authenticode = Invoke-SignCode -Fichier $final
+    if (-not $authenticode) {
+        if ((Read-Host "Aucun certificat n'est configuré : publier une version NON signée ? SmartScreen et Smart App Control la bloqueront. (o/n)") -ne 'o') { throw "Annulé : configure un certificat (installer\README.md)." }
+    }
+    $flux = [IO.File]::OpenRead($final)
+    try { $empreinte = $sha.ComputeHash($flux) } finally { $flux.Dispose() }
+    $hex = -join ($empreinte | ForEach-Object { $_.ToString('x2') })
+    Write-Host "SHA-256 après signature Authenticode : $hex"
+
+    # 5. Signature de mise à jour (RSA, clé principale)
     $mdp = ConvertTo-OctetsMotDePasse (Read-Host -AsSecureString "Mot de passe de la clé")
     try { $xml = Unprotect-Cle ([IO.File]::ReadAllBytes($Cle)) $mdp }
     finally { [Array]::Clear($mdp, 0, $mdp.Length) }
@@ -87,19 +99,33 @@ try {
     } finally { $rsa.Dispose(); $xml = $null }
     if (-not (Test-Signature $empreinte $signature $publiques)) { throw "La signature ne correspond à aucune clé de src\Core\UpdateKeys.cs : mauvaise clé ?" }
 
+    # 5b. Installateur : il contient l'exe signé ci-dessus, et il est signé à son tour (T-056)
+    $setup = Join-Path $tmp "BureauCache-Setup-$Version.exe"
+    & "$PSScriptRoot\construire-installateur.ps1" -Version $Version -Exe $final -Sortie $setup | Out-Null
+    if (-not (Test-Path $setup)) { throw "L'installateur n'a pas été construit." }
+    $flux = [IO.File]::OpenRead($setup)
+    try { $setupEmpreinte = $sha.ComputeHash($flux) } finally { $flux.Dispose() }
+    $setupHex = -join ($setupEmpreinte | ForEach-Object { $_.ToString('x2') })
+    $fichierSetupSha = Join-Path $tmp "BureauCache-Setup-$Version.exe.sha256"
+    [IO.File]::WriteAllText($fichierSetupSha, "$setupHex  BureauCache-Setup-$Version.exe", (New-Object Text.ASCIIEncoding))
+
     # 6. Remplacement des fichiers du brouillon par la compilation locale
     $fichierSha = Join-Path $tmp 'BureauCache.exe.sha256'
     $fichierSig = Join-Path $tmp 'BureauCache.exe.sig'
     [IO.File]::WriteAllText($fichierSha, "$hex  BureauCache.exe", (New-Object Text.ASCIIEncoding))
     [IO.File]::WriteAllText($fichierSig, $signature, (New-Object Text.ASCIIEncoding))
-    gh release upload $tag --repo $repo $final $fichierSha $fichierSig --clobber
+    gh release upload $tag --repo $repo $final $fichierSha $fichierSig $setup $fichierSetupSha --clobber
     if ($LASTEXITCODE -ne 0) { throw "Envoi des fichiers impossible : le brouillon n'est pas publié." }
 
     # 7. Relecture de ce que GitHub sert réellement, avant de publier
     $verif = Join-Path $tmp 'verification'
     New-Item -ItemType Directory $verif | Out-Null
-    gh release download $tag --repo $repo -p BureauCache.exe -p BureauCache.exe.sig -p BureauCache.exe.sha256 -D $verif
+    gh release download $tag --repo $repo -p BureauCache.exe -p BureauCache.exe.sig -p BureauCache.exe.sha256 -p "BureauCache-Setup-$Version.exe" -p "BureauCache-Setup-$Version.exe.sha256" -D $verif
     if ($LASTEXITCODE -ne 0) { throw "Relecture du brouillon impossible : il n'est pas publié." }
+    # L'installateur servi doit être celui construit ici (son empreinte est relue aussi)
+    $setupServi = [IO.File]::ReadAllBytes((Join-Path $verif "BureauCache-Setup-$Version.exe"))
+    $setupRelu = -join ($sha.ComputeHash($setupServi) | ForEach-Object { $_.ToString('x2') })
+    if ($setupRelu -ne $setupHex) { throw "Le brouillon sert un installateur différent de celui construit ici : il n'est pas publié." }
     $flux = [IO.File]::OpenRead((Join-Path $verif 'BureauCache.exe'))
     try { $relu = $sha.ComputeHash($flux) } finally { $flux.Dispose() }
     if ((-join ($relu | ForEach-Object { $_.ToString('x2') })) -ne $hex -or

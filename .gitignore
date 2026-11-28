@@ -13,3 +13,6 @@ TestResults/
 
 # Clés privées de signature : jamais dans le dépôt (D-004)
 *.cle
+
+# Installateur construit par outils\construire-installateur.ps1 (T-056)
+dist/
