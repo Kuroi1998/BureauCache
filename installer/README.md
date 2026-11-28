@@ -9,9 +9,14 @@ Ce dossier contient l'installateur Windows (`BureauCache.iss`, Inno Setup 6). La
 et son désinstalleur par un simple appel à `signtool`. WiX produit un MSI plus lourd et orienté administrateur, sans gain
 pour une application par utilisateur.
 
-**Mode : par utilisateur, sans administrateur.** L'installateur copie `BureauCache.exe` dans
-`%LOCALAPPDATA%\Programs\BureauCache`. C'est exactement le dossier attendu par `Installer.Dir` et par le moteur de mise à
-jour : `Updater.ReplaceExecutable` remplace l'exe sur place, sans élévation. Une installation pour tous les utilisateurs
+**Mode : par utilisateur, sans administrateur, dossier au choix.** L'installateur propose `%LOCALAPPDATA%\Programs\BureauCache`
+par défaut, mais l'utilisateur peut choisir un autre dossier, par exemple sur un autre disque. Il refuse la racine d'un
+disque, `Program Files` et `Windows`, que l'installation sans administrateur ne peut pas écrire.
+Le dossier choisi est enregistré par l'installateur dans `InstallLocation` (clé « Applications installées ») : `Installer.Dir`
+le relit, donc l'application, la mise à jour (`Updater.ReplaceExecutable`, qui remplace l'exe sur place) et le lancement
+automatique suivent cet emplacement, sans élévation.
+À la désinstallation, le dossier n'est supprimé que s'il ne contient que des fichiers de BureauCache (`Installer.ContainsOnlyOwnFiles`) :
+un dossier choisi par l'utilisateur ne perd jamais ses autres fichiers. Une installation pour tous les utilisateurs
 (`Program Files`) empêcherait ce remplacement sans administrateur : elle est donc écartée.
 
 **Entrée « Applications installées ».** Inno écrit `HKCU\...\Uninstall\BureauCache_is1` (AppId = `BureauCache`). `Installer`
@@ -126,6 +131,13 @@ doit rester locale (D-004). Pour une signature en CI (par exemple SignPath), il 
 choix séparé, à décider avant toute modification de `release.yml`.
 
 ## 7. Vérifications à faire
+
+**Outils déjà installés sur le PC de développement :** Inno Setup 6.7.3 (`winget install JRSoftware.InnoSetup`). Le script
+`installer\BureauCache.iss` compile sans erreur avec `outils\construire-installateur.ps1`.
+
+**Ne pas tester l'installateur sur le PC où BureauCache est déjà installé.** Il écrit l'entrée « Applications installées »,
+le raccourci du menu Démarrer et le dossier choisi : une installation de test écraserait l'installation courante. Utilise une
+machine virtuelle ou un autre compte Windows.
 
 - Compiler l'installateur sur une machine propre (Windows 10 et Windows 11, .NET 4.8 présent).
 - Installer, lancer, vérifier le Menu Démarrer, le Bureau (si coché), et l'entrée « Applications installées ».

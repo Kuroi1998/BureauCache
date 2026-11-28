@@ -47,7 +47,42 @@ static class Installer
     // Ancienne clé (versions 3.x) : supprimée à chaque démarrage, pour ne pas garder deux entrées
     const string LegacyUninstKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\BureauCache";
 
-    public static string Dir { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "BureauCache"); } }
+    // Dossier d'installation : celui que l'utilisateur a choisi (enregistré par l'installateur dans InstallLocation),
+    // sinon le dossier par défaut (T-057)
+    public static string Dir { get { return SavedLocation() ?? DefaultDir; } }
+    static string DefaultDir { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "BureauCache"); } }
+
+    static string SavedLocation()
+    {
+        try
+        {
+            using (RegistryKey k = Registry.CurrentUser.OpenSubKey(UninstKey))
+            {
+                string value = k == null ? null : k.GetValue("InstallLocation") as string;
+                if (!string.IsNullOrEmpty(value) && Path.IsPathRooted(value)) return value.TrimEnd('\\');
+            }
+        }
+        // Clé illisible : on retombe sur le dossier par défaut, sans écrire quoi que ce soit
+        catch (Exception) { }
+        return null;
+    }
+
+    // Fichiers que peut contenir le dossier d'installation. Un autre fichier (ou un sous-dossier) n'est jamais supprimé.
+    static readonly string[] OwnFileNames = {
+        "BureauCache.exe", "BureauCache.exe.old", "BureauCache.exe.trial", "BureauCache.exe.bad", "BureauCache.exe.replaced",
+        "unins000.exe", "unins000.dat", "unins000.msg" };
+
+    // Vrai si le dossier ne contient que des fichiers de BureauCache : seul un tel dossier peut être supprimé
+    internal static bool ContainsOnlyOwnFiles(string folder)
+    {
+        foreach (string entry in Directory.GetFileSystemEntries(folder))
+        {
+            if (Directory.Exists(entry)) return false;
+            string name = Path.GetFileName(entry);
+            if (!Array.Exists(OwnFileNames, n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase))) return false;
+        }
+        return true;
+    }
     public static string Exe { get { return Path.Combine(Dir, "BureauCache.exe"); } }
     static string StartMenuLnk { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "BureauCache.lnk"); } }
 
@@ -141,10 +176,10 @@ static class Installer
         if (Directory.Exists(PanelForm.StashRoot)) left.Add(L.T("des éléments mis de côté", "set-aside items", "elementos apartados") + " (" + PanelForm.StashRoot + ")");
         if (Directory.Exists(SettingsBackup.Folder)) left.Add(L.T("les sauvegardes des réglages", "the settings backups", "las copias de seguridad de la configuración") + " (" + SettingsBackup.Folder + ")");
         else if (!Directory.Exists(PanelForm.StashRoot) && Directory.Exists(Settings.Dir)) left.Add(L.T("le dossier des réglages", "the settings folder", "la carpeta de configuración") + " (" + Settings.Dir + ")");
-        // Garde-fou : on ne supprime que le dossier d'installation attendu. La suppression part à la toute fin du
-        // processus (StartFolderRemoval), après le dernier dialogue : l'exe encore ouvert la bloquerait (Q26-03)
-        string expected = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "BureauCache");
-        removeFolderOnExit = Directory.Exists(Dir) && string.Equals(Path.GetFullPath(Dir).TrimEnd('\\'), expected.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
+        // Garde-fou : on ne supprime le dossier d'installation que s'il ne contient que des fichiers de BureauCache
+        // (le dossier peut avoir été choisi par l'utilisateur, il peut contenir autre chose). La suppression part à la toute
+        // fin du processus (StartFolderRemoval), après le dernier dialogue : l'exe encore ouvert la bloquerait (Q26-03)
+        removeFolderOnExit = Directory.Exists(Dir) && ContainsOnlyOwnFiles(Dir);
         return left;
     }
 

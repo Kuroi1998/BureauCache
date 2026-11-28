@@ -36,7 +36,7 @@ AppUpdatesURL={#AppUrl}/releases
 AppCopyright=Copyright (c) 2026 Kuroi1998, licence MIT
 DefaultDirName={localappdata}\Programs\BureauCache
 DisableProgramGroupPage=yes
-DisableDirPage=auto
+DisableDirPage=no
 PrivilegesRequired=lowest
 UsePreviousAppDir=yes
 MinVersion=10.0.17763
@@ -92,8 +92,8 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 [Run]
 Filename: "{app}\BureauCache.exe"; Description: "Lancer BureauCache"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent
 
-[UninstallDelete]
-Type: filesandordirs; Name: "{app}"
+; Pas de [UninstallDelete] sur {app} : le dossier choisi peut contenir des fichiers de l'utilisateur. Inno ne retire
+; que les fichiers qu'il a installés, et les dossiers qu'il a créés s'ils sont vides.
 
 [Code]
 const
@@ -153,6 +153,32 @@ begin
     MsgBox(T('BureauCache a besoin de .NET Framework 4.8 ou plus récent. Installe-le depuis le site de Microsoft, puis relance cet installateur.',
              'BureauCache requires .NET Framework 4.8 or later. Install it from Microsoft''s website, then run this installer again.'),
            mbCriticalError, MB_OK);
+    Result := False;
+  end;
+end;
+
+// Dossier choisi par l'utilisateur : refuse la racine d'un disque et les dossiers système, que l'installation
+// par utilisateur (sans administrateur) ne peut de toute façon pas écrire
+function DossierAccepte(dir: String): Boolean;
+var
+  bas: String;
+begin
+  bas := Lowercase(RemoveBackslashUnlessRoot(dir));
+  Result := True;
+  if Length(bas) <= 3 then Result := False;
+  if Pos(Lowercase(ExpandConstant('{pf}')), bas) = 1 then Result := False;
+  if Pos(Lowercase(ExpandConstant('{pf32}')), bas) = 1 then Result := False;
+  if Pos(Lowercase(ExpandConstant('{win}')), bas) = 1 then Result := False;
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if (CurPageID = wpSelectDir) and (not DossierAccepte(WizardDirValue)) then
+  begin
+    MsgBox(T('Choisis un dossier dans ton profil (par exemple %LOCALAPPDATA%\Programs\BureauCache). La racine d''un disque, Program Files et Windows ne sont pas acceptés.',
+             'Choose a folder in your profile (for example %LOCALAPPDATA%\Programs\BureauCache). The root of a drive, Program Files and Windows are not accepted.'),
+           mbError, MB_OK);
     Result := False;
   end;
 end;
