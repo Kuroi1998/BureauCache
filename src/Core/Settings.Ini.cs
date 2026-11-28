@@ -289,12 +289,17 @@ static partial class Settings
     {
         PruneUsage();
         string[] lines = SerializeLines();
+        bool reduced = false;
         while (Usage.Count > 0 && Utf8Size(lines) > MaxFileSize)
         {
+            reduced = true;
             foreach (string k in Usage.OrderBy(kv => kv.Value[1]).Take((Usage.Count + 1) / 2).Select(kv => kv.Key).ToList())
                 Usage.Remove(k);
             lines = SerializeLines();
         }
+        // Trace de la réduction (T-051). L'historique est réduit en mémoire avant l'écriture : si celle-ci échoue,
+        // l'INI reste intact mais l'historique en mémoire est déjà réduit.
+        if (reduced) Log.Warn("reglages.usage_reduit", null);
         // Chaque entrée de SerializeLines doit rester sur une seule ligne du fichier INI.
         foreach (string line in lines)
             if (line.IndexOf('\r') >= 0 || line.IndexOf('\n') >= 0 || line.IndexOf('\0') >= 0)

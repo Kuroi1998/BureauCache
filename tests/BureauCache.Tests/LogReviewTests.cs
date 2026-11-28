@@ -79,4 +79,24 @@ public class LogReviewTests
         Log.Warn("reglages.enregistrement", new IOException("fictif"));
         Assert.IsFalse(File.Exists(LogPath));
     }
+
+    [TestMethod]
+    public void LaReductionDeLHistoriqueEstJournalisee()
+    {
+        // Plus de 2 Mo d'historique fictif : Serialize doit en retirer et le journaliser (T-051)
+        var previous = Settings.Usage;
+        Settings.Usage = new System.Collections.Generic.Dictionary<string, long[]>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            long now = DateTime.Now.Ticks;
+            string prefixe = @"C:\Fictif\" + new string('x', 180) + @"\element-";
+            for (int i = 0; i < 12000; i++) Settings.Usage[prefixe + i + ".txt"] = new long[] { 1, now };
+            Settings.Serialize();
+        }
+        finally { Settings.Usage = previous; }
+
+        string text = File.ReadAllText(LogPath);
+        StringAssert.Contains(text, ",reglages.usage_reduit,evenement\r\n");
+        Assert.IsFalse(text.Contains(@"C:\Fictif\"));
+    }
 }
