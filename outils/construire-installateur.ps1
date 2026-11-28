@@ -37,7 +37,8 @@ try {
     if ($commande) {
         # La commande ne doit pas contenir d'espace : elle est passée à ISCC sans guillemets
         if ($commande -match '\s') { throw "Le dossier temporaire contient un espace ($commande) : définis TEMP sans espace." }
-        $arguments += '/DSIGN', "/Sbc=$commande"
+        # Inno Setup remplace `$f par le chemin du fichier à signer : sans ce marqueur, la commande ne reçoit rien (T-059)
+        $arguments += '/DSIGN', "/Sbc=$commande `$f"
     }
     & $iscc @arguments $script
     if ($LASTEXITCODE -ne 0) { throw "La compilation de l'installateur a échoué (ISCC, code $LASTEXITCODE)." }
