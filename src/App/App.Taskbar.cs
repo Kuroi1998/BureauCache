@@ -71,7 +71,7 @@ partial class App
                 created.Show();
                 ready = created.Registered && !sessionEnding;
             }
-            catch { }
+            catch (Exception ex) { Log.Warn("barre.creation", ex); }   // le refus est annoncé juste après (T-061)
             if (!ready)
             {
                 try { if (created != null) { created.Close(); created.Dispose(); } } catch { }
@@ -186,7 +186,7 @@ partial class App
     // qui pouvait recacher la barre pendant une fin de session encore en négociation (CDX-05).
     void OnSessionEnded(bool ending)
     {
-        if (ending) { sessionEnding = true; try { WindowsBar.Restore(); } catch { } return; }
+        if (ending) { sessionEnding = true; try { WindowsBar.Restore(); } catch (Exception ex) { Log.Warn("barre.restauration", ex); } return; }
         if (!sessionEnding) return;
         sessionEnding = false;
         CloseBar();
@@ -198,8 +198,8 @@ partial class App
     {
         sessionEnding = true;
         try { Settings.Flush(); } catch { }
-        try { Native.RestoreDesktopIcons(); } catch { }
-        try { TaskbandRoute.Restore(); } catch { }
-        try { WindowsBar.Restore(); } catch { }
+        try { Native.RestoreDesktopIcons(); } catch (Exception ex) { Log.Warn("bureau.icones", ex); }
+        try { TaskbandRoute.Restore(); } catch (Exception ex) { Log.Warn("barre.badges", ex); }
+        try { WindowsBar.Restore(); } catch (Exception ex) { Log.Warn("barre.restauration", ex); }
     }
 }

@@ -85,7 +85,7 @@ static class SettingsBackup
                 }
                 Prune(today);
             }
-            catch { }
+            catch (Exception ex) { Log.Warn("sauvegarde.reglages", ex); }   // pas de copie du jour : la restauration reste possible avec les autres (T-061)
         }
     }
 
@@ -126,7 +126,7 @@ static class SettingsBackup
             if (keep.Contains(e) || unavailable.Contains(e)) continue;
             bool readable = valid.Contains(e);
             if (readable || e.Date < oldestKept)
-                try { File.Delete(e.Path); } catch { }
+                try { File.Delete(e.Path); } catch (Exception ex) { Log.Warn("sauvegarde.reglages", ex); }
         }
     }
 
@@ -155,7 +155,7 @@ static class SettingsBackup
                     list.Add(new Entry { Path = UndoPath(i), Date = File.GetLastWriteTime(UndoPath(i)), BeforeRestore = true });
             list.AddRange(Daily());
         }
-        catch { }
+        catch (Exception ex) { Log.Warn("sauvegarde.reglages", ex); }   // liste incomplète : seules les sauvegardes lisibles sont proposées
         List<Entry> valid = new List<Entry>();
         foreach (Entry e in list)
         {
@@ -179,6 +179,7 @@ static class SettingsBackup
                 else if (line.StartsWith("CustomCats=", StringComparison.Ordinal)) e.Categories = Count(line.Substring(11));
             }
         }
+        // Une sauvegarde illisible n'a pas de détail à afficher : elle reste dans la liste sans ces compteurs (justifié, T-061)
         catch { }
     }
 

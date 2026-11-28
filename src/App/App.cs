@@ -81,7 +81,7 @@ partial class App : ApplicationContext
                 w.EnableRaisingEvents = true;
                 watchers.Add(w);
             }
-            catch { }
+            catch (Exception ex) { Log.Warn("surveillance.dossier", ex); }   // ce dossier ne se rafraîchira pas tout seul (T-061)
         }
 
         hotkey.Pressed += () =>
@@ -149,7 +149,7 @@ partial class App : ApplicationContext
             Settings.SaveQuiet();
             Balloon(L.T("BureauCache a été mis à jour en " + Installer.Version + ". Clique pour voir les nouveautés.",
                         "BureauCache was updated to " + Installer.Version + ". Click to see what's new.", "BureauCache se actualizó a la versión " + Installer.Version + ". Haz clic para ver las novedades."),
-                    () => { try { ShellUtil.Open("https://github.com/" + Updater.RepoName + "/releases/tag/v" + Installer.Version, null); } catch { } });
+                    () => { try { ShellUtil.Open("https://github.com/" + Updater.RepoName + "/releases/tag/v" + Installer.Version, null); } catch (Exception ex) { Log.Warn("shell.ouverture", ex); } });
         }
         else if (!Settings.Pinned && !Settings.QuietStart) Balloon(L.T("Amène la souris sur le bord " + (Settings.RightSide ? "droit" : "gauche") + " de l'écran", "Move the mouse to the " + (Settings.RightSide ? "right" : "left") + " edge of the screen", "Lleva el ratón al borde " + (Settings.RightSide ? "derecho" : "izquierdo") + " de la pantalla") +
             (Settings.HotkeyOn ? L.T(" ou appuie sur ", " or press ", " o pulsa ") + HotkeyBox.Format(Settings.HotMods, Settings.HotKey) : "") + ".", null);
@@ -159,7 +159,7 @@ partial class App : ApplicationContext
     // Écoute du presse-papiers seulement quand l'option est active ; la désactiver vide l'historique (D-011)
     void ApplyClipboard()
     {
-        try { clipboard.Enable(Settings.ClipboardOn); } catch { }
+        try { clipboard.Enable(Settings.ClipboardOn); } catch (Exception ex) { Log.Warn("presse-papiers", ex); }
     }
 
     void RegisterHotkey() { hotkeyOk = hotkey.Register(Settings.HotkeyOn, Settings.HotMods, Settings.HotKey); }
@@ -344,7 +344,7 @@ partial class App : ApplicationContext
         {
             panel.ReloadNow();
             Balloon(n + L.T(" élément(s) inutilisé(s) rangé(s) dans « " + Settings.ArchiveName + " ».", " unused item(s) moved into \"" + Settings.ArchiveName + "\".", " elemento(s) sin usar movido(s) a «" + Settings.ArchiveName + "»."),
-                () => { try { ShellUtil.Open(Archiver.Folder, null); } catch { } });
+                () => { try { ShellUtil.Open(Archiver.Folder, null); } catch (Exception ex) { Log.Warn("shell.ouverture", ex); } });
         }
     }
 
@@ -362,7 +362,8 @@ partial class App : ApplicationContext
     {
         if (!Updater.TrialStarted || installingUpdate) return;
         Updater.TrialStarted = false;
-        try { Updater.ConfirmStart(Application.ExecutablePath); } catch { }
+        // Sans confirmation, la prochaine ouverture annule la mise à jour : l'échec est consigné (T-061)
+        try { Updater.ConfirmStart(Application.ExecutablePath); } catch (Exception ex) { Log.Warn("maj.essai", ex); }
     }
 
     // Sortie demandée par l'utilisateur (menu, Paramètres) : la version a démarré et répond, l'essai est
@@ -388,6 +389,7 @@ partial class App : ApplicationContext
         poll.Stop();
         taskbarRefresh.Dispose();
         StartupTimeline.Finish("demarrage_interrompu");
+        // Arrêt : chaque fermeture de composant est indépendante ; un composant déjà détruit n'est pas une erreur (T-061)
         try { panel.FlushToast(); } catch { }
         Settings.Flush();
         try { panel.Unpin(); } catch { }

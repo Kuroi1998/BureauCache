@@ -17,6 +17,7 @@ static class Program
     {
         Stopwatch startupClock = Stopwatch.StartNew();
         // Sécurité : les DLL système ne sont cherchées que dans System32, jamais à côté de l'exe (Téléchargements…)
+        // Absent sur les versions de Windows sans cette API : le chargement reste celui par défaut (justifié, T-061)
         try { Native.SetDefaultDllDirectories(Native.LOAD_LIBRARY_SEARCH_SYSTEM32); } catch { }
         string cmd = args.Length > 0 ? args[0].ToLowerInvariant() : "";
         if (cmd == "--watchdog" && args.Length > 1) { Watchdog(args[1]); return; }
@@ -64,7 +65,7 @@ static class Program
                 }
                 else
                 {
-                    if (Installer.RunningFromInstall) try { Installer.RegisterVersion(); } catch { }
+                    if (Installer.RunningFromInstall) try { Installer.RegisterVersion(); } catch (Exception ex) { Log.Warn("installation.enregistrement", ex); }
                     StartWatchdog();
                     StartupTimeline.Mark("surveillance_lancee");
                     try { Application.Run(new App(show, quit)); }
@@ -82,7 +83,7 @@ static class Program
         {
             if (App.RelaunchAfterUpdate)
                 RelaunchUpdate(App.RelaunchPath, p => { using (Process.Start(p)) { } }, Updater.RollBack, msg => Dialogs.Warn(null, msg));
-            else try { using (Process.Start(App.RelaunchPath)) { } } catch { }
+            else try { using (Process.Start(App.RelaunchPath)) { } } catch (Exception ex) { Log.Warn("maj.relance", ex); }
         }
         Installer.StartFolderRemoval();
     }
@@ -129,7 +130,8 @@ static class Program
                 watchdogProcess = Process.Start(psi);
             }
         }
-        catch { }
+        // Sans surveillance, un plantage ne rend plus la barre Windows ni les icônes : l'échec est consigné (T-061)
+        catch (Exception ex) { Log.Warn("surveillance.lancement", ex); }
     }
 
     static void Watchdog(string pidText)
@@ -159,7 +161,7 @@ static class Program
     internal static void RelaunchUpdate(string exe, Action<string> start, Action<string> rollBack, Action<string> warn)
     {
         try { start(exe); return; }
-        catch { }
+        catch (Exception ex) { Log.Warn("maj.relance", ex); }
         bool restored = false;
         try { rollBack(exe); restored = true; } catch (Exception ex) { Log.Warn("maj.retour", ex); }
         warn(restored
@@ -169,14 +171,14 @@ static class Program
             : L.T("Windows n'a pas pu lancer la nouvelle version de BureauCache, et la version précédente n'a pas pu être remise en place. Réinstalle BureauCache depuis GitHub.",
                   "Windows couldn't start the new version of BureauCache, and the previous version couldn't be put back. Reinstall BureauCache from GitHub.",
                   "Windows no pudo iniciar la nueva versión de BureauCache y no se pudo restaurar la anterior. Reinstala BureauCache desde GitHub."));
-        if (restored) try { start(exe); } catch { }
+        if (restored) try { start(exe); } catch (Exception ex) { Log.Warn("maj.relance", ex); }
     }
 
     internal static void PrepareRollback(Func<bool> restore, Action retry, Action warn)
     {
         bool restored = false;
         try { restored = restore(); } catch (Exception ex) { Log.Warn("barre.restauration", ex); }
-        if (!restored) try { retry(); } catch { }
+        if (!restored) try { retry(); } catch (Exception ex) { Log.Warn("maj.retour", ex); }
         warn();
     }
 

@@ -85,6 +85,8 @@ static class Installer
         Settings.SaveBlocked = true;     // plus aucune sauvegarde jusqu'à la sortie : elle recréerait le dossier (Q26-03)
         Settings.CancelPendingSave(); // sinon un enregistrement différé recréerait le dossier des réglages
         Native.RestoreDesktopIcons();
+        // Désinstallation : chaque étape est relue ensuite et remontée dans la liste « left » à l'utilisateur.
+        // Le journal est bloqué à ce stade (SaveBlocked), donc on n'y écrit pas ici (T-061).
         try { Startup.Set(false); } catch { }
         if (Startup.Enabled) left.Add(L.T("le lancement au démarrage de Windows", "starting with Windows", "el inicio con Windows"));
         try { File.Delete(StartMenuLnk); } catch { }

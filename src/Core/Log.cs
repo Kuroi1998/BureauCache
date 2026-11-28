@@ -53,6 +53,16 @@ static class Log
             case "chargement.elements":
             case "shell.fil":
             case "nettoyage.dossier":
+            case "surveillance.dossier":
+            case "shell.ouverture":
+            case "presse-papiers":
+            case "maj.essai":
+            case "maj.relance":
+            case "surveillance.lancement":
+            case "installation.enregistrement":
+            case "barre.creation":
+            case "barre.badges":
+            case "bureau.icones":
                 return true;
             default:
                 return false;
