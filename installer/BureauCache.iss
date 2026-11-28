@@ -200,6 +200,8 @@ var
   texte: AnsiString;
   rc: Integer;
 begin
+  // Fichier « dontcopy » : il n'existe dans {tmp} qu'après extraction explicite
+  ExtractTemporaryFile('choisir-dossier.ps1');
   picker := ExpandConstant('{tmp}\choisir-dossier.ps1');
   sortie := ExpandConstant('{tmp}\dossier-choisi.txt');
   DeleteFile(sortie);
