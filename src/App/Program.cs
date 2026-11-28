@@ -51,8 +51,15 @@ static class Program
                     // L'ancienne version est revenue à la place de l'exe : on la relance, une fois le mutex libéré.
                     // La barre Windows est rendue AVANT l'avertissement : la surveillance de la version plantée a vu notre
                     // mutex et s'est arrêtée, et l'ancienne version peut ne pas connaître la barre BureauCache (CDX-01).
-                    PrepareRollback(WindowsBar.Restore, RetryRestore, () => Dialogs.Warn(null, L.T("La nouvelle version de BureauCache n'a pas réussi à démarrer.\nLa version précédente a été restaurée.",
-                                           "The new version of BureauCache failed to start.\nThe previous version has been restored.", "La nueva versión de BureauCache no pudo iniciarse.\nSe restauró la versión anterior.")));
+                    PrepareRollback(WindowsBar.Restore, RetryRestore, () =>
+                    {
+                        string message = L.T("La nouvelle version de BureauCache n'a pas réussi à démarrer.\nLa version précédente a été restaurée.",
+                                           "The new version of BureauCache failed to start.\nThe previous version has been restored.", "La nueva versión de BureauCache no pudo iniciarse.\nSe restauró la versión anterior.");
+                        // Barre restée masquée après tous les essais : le dire, avec la sortie (T-052)
+                        if (!WindowsBar.RestoreOk) message += "\n\n" + L.T("La barre Windows n'a pas pu être rétablie : elle reste masquée. Quitte BureauCache depuis son icône de la zone de notification, ou redémarre l'ordinateur.",
+                                           "The Windows taskbar could not be restored and stays hidden. Quit BureauCache from its notification-area icon, or restart the computer.", "No se pudo restaurar la barra de Windows: sigue oculta. Sal de BureauCache desde su icono del área de notificación, o reinicia el equipo.");
+                        Dialogs.Warn(null, message);
+                    });
                     App.RelaunchPath = Application.ExecutablePath;
                 }
                 else
