@@ -143,6 +143,7 @@ static class ShellUtil
         ProcessStartInfo psi = new ProcessStartInfo(target);
         if (args != null) psi.Arguments = args;
         psi.UseShellExecute = true;
-        Process.Start(psi);
+        // Le processus lancé est libéré aussitôt : sans cela, chaque ouverture garderait un handle ouvert
+        using (Process.Start(psi)) { }
     }
 }

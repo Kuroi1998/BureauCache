@@ -82,7 +82,7 @@ static class Program
         {
             if (App.RelaunchAfterUpdate)
                 RelaunchUpdate(App.RelaunchPath, p => { using (Process.Start(p)) { } }, Updater.RollBack, msg => Dialogs.Warn(null, msg));
-            else try { Process.Start(App.RelaunchPath); } catch { }
+            else try { using (Process.Start(App.RelaunchPath)) { } } catch { }
         }
         Installer.StartFolderRemoval();
     }

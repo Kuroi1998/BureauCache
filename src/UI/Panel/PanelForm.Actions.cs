@@ -38,7 +38,7 @@ partial class PanelForm
                 string wd = Path.GetDirectoryName(it.Target);
                 if (!string.IsNullOrEmpty(wd)) psi.WorkingDirectory = wd;
             }
-            Process.Start(psi);
+            using (Process.Start(psi)) { }   // handle libéré aussitôt (T-059)
         }
         catch (System.ComponentModel.Win32Exception ex)
         {
