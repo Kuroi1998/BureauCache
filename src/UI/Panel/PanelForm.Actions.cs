@@ -219,7 +219,8 @@ partial class PanelForm
                 !File.Exists(origin) && !Directory.Exists(origin) && Directory.Exists(Path.GetDirectoryName(origin)))
             {
                 bool movedBack = false;
-                try { move(p, origin, folder); movedBack = true; } catch { }
+                try { move(p, origin, folder); movedBack = true; }
+                catch (Exception ex) { Log.Warn("panneau.suppression", ex); }   // élément resté sur le bureau de suppression (T-060)
                 // Revenu sur le bureau : s'il ne part pas à la corbeille, il y reste, visible (rien n'est perdu)
                 if (movedBack) { recycle(origin); continue; }
             }

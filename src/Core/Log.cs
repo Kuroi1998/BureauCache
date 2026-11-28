@@ -17,6 +17,10 @@ static class Log
     internal const string FileName = "avertissements.log";
     const string Header = "utc,contexte,cause" + "\r\n";
 
+    // Plusieurs fils écrivent ici (interface, tâches de fond) : une écriture à la fois, pour que la rotation
+    // et les lignes ne se mêlent pas (T-060)
+    static readonly object gate = new object();
+
     internal static void Warn(string contexte, Exception ex)
     {
         if (!Allowed(contexte)) return;
@@ -25,7 +29,7 @@ static class Log
         {
             string cause = Cause(ex);
             string line = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture) + "," + contexte + "," + cause + "\r\n";
-            FileOps.AppendBoundedLog(Path.Combine(Settings.Dir, FileName), Header, line);
+            lock (gate) FileOps.AppendBoundedLog(Path.Combine(Settings.Dir, FileName), Header, line);
         }
         catch (Exception) { }   // le journal ne doit jamais masquer l'erreur d'origine
     }
@@ -43,6 +47,12 @@ static class Log
             case "barre.etat":
             case "sauvegarde.reglages":
             case "rangement":
+            case "panneau.suppression":
+            case "meteo.recuperation":
+            case "meteo.lieu":
+            case "chargement.elements":
+            case "shell.fil":
+            case "nettoyage.dossier":
                 return true;
             default:
                 return false;

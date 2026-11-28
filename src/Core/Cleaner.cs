@@ -421,7 +421,7 @@ static class Cleaner
         {
             DirectoryInfo dir = all[i];
             Sandbox.GuardPath(dir.FullName, "suppression de dossier vide");
-            try { if (!CrossesLink(dir.FullName, roots) && !dir.EnumerateFileSystemInfos().Any()) dir.Delete(false); } catch { }
+            try { if (!CrossesLink(dir.FullName, roots) && !dir.EnumerateFileSystemInfos().Any()) dir.Delete(false); } catch (Exception ex) { Log.Warn("nettoyage.dossier", ex); }
         }
     }
 }
