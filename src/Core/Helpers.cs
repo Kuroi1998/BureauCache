@@ -96,7 +96,9 @@ static class FileOps
         Sandbox.GuardPath(path, "journal de démarrage");
         Directory.CreateDirectory(Path.GetDirectoryName(path));
         var file = new FileInfo(path);
-        if (!file.Exists || file.Length == 0 || file.Length >= 64 * 1024) File.WriteAllText(path, header + lines);
+        // La taille de la ligne ajoutée compte : sans cela, un fichier juste sous 64 Ko dépassait la limite (T-048)
+        long added = System.Text.Encoding.UTF8.GetByteCount(lines);
+        if (!file.Exists || file.Length == 0 || file.Length + added >= 64 * 1024) File.WriteAllText(path, header + lines);
         else File.AppendAllText(path, lines);
     }
 

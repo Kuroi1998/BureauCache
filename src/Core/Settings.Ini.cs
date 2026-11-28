@@ -191,7 +191,7 @@ static partial class Settings
         catch (DirectoryNotFoundException) { FirstRun = true; return false; }
         catch (IOException) { LastLoadUnreadable = true; return false; }
         catch (UnauthorizedAccessException) { LastLoadUnreadable = true; return false; }
-        catch { return false; }
+        catch (Exception ex) { Log.Warn("reglages.chargement", ex); return false; }
         if (hasWeatherPlace && !hasWeatherShort) WeatherShort = "";
         if (!hasThemeMode && oldDark != null) ThemeMode = oldDark == "1" ? 1 : 2;
         Delay = Math.Max(0, Math.Min(1000, Delay));
@@ -277,7 +277,7 @@ static partial class Settings
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.TraceError("BureauCache settings: " + ex.Message);
+            Log.Warn("reglages.enregistrement", ex);
             return false;
         }
         finally { if (tmp != null) try { File.Delete(tmp); } catch { } }

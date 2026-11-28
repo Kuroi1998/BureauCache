@@ -1,5 +1,9 @@
 ﻿# Nouveautés
 
+## Non publié
+
+- Les erreurs de réglages, de mise à jour et de nettoyage sont désormais consignées dans `avertissements.log`, à côté des réglages. Ce fichier ne contient ni titres de fenêtres, ni contenus, ni chemins, et il est supprimé à la désinstallation.
+
 ## 3.11.1 — Barre personnalisable et panneaux
 
 - La barre ne reconstruit ses boutons qu’en cas de changement utile. Les icônes sont chargées après le premier dessin, avec les boutons visibles avant le menu « +N ». Les durées du démarrage de la barre sont conservées dans `demarrage-barre.csv`.
